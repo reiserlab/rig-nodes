@@ -73,10 +73,11 @@ class Walker:
     emit byte-identical records regardless of pacing.
     """
 
-    def __init__(self, rate_hz: float, seed: int | None) -> None:
+    def __init__(self, rate_hz: float, seed: int | None, noise: float = 1.0) -> None:
         self.rng = random.Random(seed)
         self.dt = 1.0 / rate_hz
         self.dt_ms = 1000.0 * self.dt
+        self.noise = noise
         self.frame = 0
         self.heading = 0.0  # integrated heading (rad), field 17
         self.x = 0.0  # integrated x (rad), field 15
@@ -85,7 +86,7 @@ class Walker:
         self.side = 0.0  # integrated side motion, field 21
 
     def _gauss(self, sigma: float) -> float:
-        return self.rng.gauss(0.0, sigma)
+        return self.rng.gauss(0.0, sigma * self.noise)
 
     def next_record(self) -> list[float]:
         self.frame += 1
@@ -240,6 +241,12 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--port", type=int, default=DEFAULT_PORT, help=f"port (default: {DEFAULT_PORT})")
     p.add_argument("--rate", type=float, default=50.0, help="generated mode: frames per second (default: 50)")
     p.add_argument("--seed", type=int, default=None, help="generated mode: RNG seed for reproducible output")
+    p.add_argument(
+        "--noise",
+        type=float,
+        default=1.0,
+        help="generated mode: scales all random-walk noise sigmas (default: 1.0)",
+    )
     p.add_argument("--count", type=int, default=0, help="generated mode: frames to emit then exit (0 = forever)")
     p.add_argument("--speed", type=float, default=1.0, help="playback mode: speed multiplier (default: 1.0)")
     args = p.parse_args(argv)
@@ -264,7 +271,11 @@ def main(argv: list[str] | None = None) -> int:
         # ── generated mode: synthetic random walk ──
         if args.rate <= 0:
             p.error("--rate must be > 0")
-        emit = emit_generated(Walker(rate_hz=args.rate, seed=args.seed), args.rate, args.count)
+        if args.noise < 0:
+            p.error("--noise must be >= 0")
+        emit = emit_generated(
+            Walker(rate_hz=args.rate, seed=args.seed, noise=args.noise), args.rate, args.count
+        )
 
     try:
         if args.proto == "udp":
