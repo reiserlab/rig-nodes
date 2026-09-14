@@ -146,7 +146,10 @@ class Walker:
         fields[18] = speed  # 19 movement speed
         fields[19] = self.fwd  # 20-21 integrated fwd/side
         fields[20] = self.side
-        fields[21] = ts_ms  # 22 timestamp
+        # FicTrac writes field 22 in NANOSECONDS; the bridge divides it by FT_TS_NS_PER_MS to get ms
+        # (every simulator log before 2026-09-13 had ft 1000× too small — found by the telemetry
+        # logging review). Field 25 stays in ms as FicTrac's "ms since midnight".
+        fields[21] = ts_ms * 1_000_000.0  # 22 timestamp (ns)
         fields[22] = seq  # 23 sequence counter
         fields[23] = delta_ms  # 24 delta ms
         fields[24] = abs_ms  # 25 abs ms since midnight
