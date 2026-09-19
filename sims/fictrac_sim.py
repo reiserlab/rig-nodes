@@ -73,11 +73,27 @@ class Walker:
     emit byte-identical records regardless of pacing.
     """
 
-    def __init__(self, rate_hz: float, seed: int | None, noise: float = 1.0) -> None:
+    def __init__(
+        self,
+        rate_hz: float,
+        seed: int | None,
+        turn_sigma: float = 0.05,
+        jump_every: int = 0,
+        jump_deg: float = 90.0,
+        noise: float = 1.0,
+    ) -> None:
         self.rng = random.Random(seed)
         self.dt = 1.0 / rate_hz
         self.dt_ms = 1000.0 * self.dt
-        self.noise = noise
+        self.noise = noise  # scales every random-walk sigma (0 = a perfectly still ball)
+        # Soak-harness knobs (fw #50): `turn_sigma` is the per-frame heading step
+        # (rad) — 0.05 rad ≈ 2.9° ≈ ±1.6 frames/sample at the 1.8°/frame default
+        # gain, i.e. a FicTrac-like random walk that keeps the SD reads on the
+        # sequential fast path most of the time. `jump_every` > 0 adds a ±jump_deg
+        # heading jump every N frames — a wide seek that defeats that fast path.
+        self.turn_sigma = turn_sigma
+        self.jump_every = max(0, int(jump_every))
+        self.jump_rad = math.radians(jump_deg)
         self.frame = 0
         self.heading = 0.0  # integrated heading (rad), field 17
         self.x = 0.0  # integrated x (rad), field 15
@@ -92,7 +108,9 @@ class Walker:
         self.frame += 1
 
         # Per-frame deltas: a small turn and a small forward step.
-        d_head = self._gauss(0.05)
+        d_head = self._gauss(self.turn_sigma)
+        if self.jump_every and self.frame % self.jump_every == 0:
+            d_head += self.jump_rad if self.rng.random() < 0.5 else -self.jump_rad
         speed = abs(self._gauss(0.03))  # rad/frame, field 19
         move_dir = self.heading + self._gauss(0.1)  # field 18
 
@@ -130,7 +148,10 @@ class Walker:
         fields[18] = speed  # 19 movement speed
         fields[19] = self.fwd  # 20-21 integrated fwd/side
         fields[20] = self.side
-        fields[21] = ts_ms  # 22 timestamp
+        # FicTrac writes field 22 in NANOSECONDS; the bridge divides it by FT_TS_NS_PER_MS to get ms
+        # (every simulator log before 2026-09-13 had ft 1000× too small — found by the telemetry
+        # logging review). Field 25 stays in ms as FicTrac's "ms since midnight".
+        fields[21] = ts_ms * 1_000_000.0  # 22 timestamp (ns)
         fields[22] = seq  # 23 sequence counter
         fields[23] = delta_ms  # 24 delta ms
         fields[24] = abs_ms  # 25 abs ms since midnight
@@ -249,6 +270,21 @@ def main(argv: list[str] | None = None) -> int:
     )
     p.add_argument("--count", type=int, default=0, help="generated mode: frames to emit then exit (0 = forever)")
     p.add_argument("--speed", type=float, default=1.0, help="playback mode: speed multiplier (default: 1.0)")
+    p.add_argument(
+        "--turn-sigma",
+        type=float,
+        default=0.05,
+        help="generated mode: per-frame heading step sigma in rad (default 0.05 ≈ ±1.6 frames/sample "
+        "at gain 1.8; soak harness, fw #50)",
+    )
+    p.add_argument(
+        "--jump-every",
+        type=int,
+        default=0,
+        help="generated mode: add a ±JUMP_DEG heading jump every N frames (0 = never); a wide "
+        "frame seek that defeats the SD sequential-read fast path",
+    )
+    p.add_argument("--jump-deg", type=float, default=90.0, help="generated mode: jump size in degrees (default 90)")
     args = p.parse_args(argv)
 
     if args.file is not None:
@@ -273,9 +309,17 @@ def main(argv: list[str] | None = None) -> int:
             p.error("--rate must be > 0")
         if args.noise < 0:
             p.error("--noise must be >= 0")
-        emit = emit_generated(
-            Walker(rate_hz=args.rate, seed=args.seed, noise=args.noise), args.rate, args.count
+        if args.turn_sigma < 0 or args.jump_every < 0:
+            p.error("--turn-sigma and --jump-every must be >= 0")
+        walker = Walker(
+            rate_hz=args.rate,
+            seed=args.seed,
+            turn_sigma=args.turn_sigma,
+            jump_every=args.jump_every,
+            jump_deg=args.jump_deg,
+            noise=args.noise,
         )
+        emit = emit_generated(walker, args.rate, args.count)
 
     try:
         if args.proto == "udp":
