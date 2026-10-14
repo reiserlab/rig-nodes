@@ -125,9 +125,13 @@ def plan(command: str, params: dict) -> list[tuple[str, str | None]]:
 
 
 class BiasNode(Node):
-    def __init__(self, http: BiasHttp, status_every_s: float) -> None:
+    def __init__(self, http: BiasHttp, status_every_s: float, video_dir: str | None = None) -> None:
         super().__init__("bias_camera")
         self.http = http
+        # Where a RELATIVE startRecording filename lands (MATLAB's BiasPlugin resolves it
+        # against the experiment folder; on a rig this comes from the rig YAML). None = pass
+        # the name through and warn (BIAS then resolves it against ITS cwd).
+        self.video_dir = video_dir
         self.reply_pub = self.create_publisher(String, REPLY_TOPIC, QOS)
         self.status_pub = self.create_publisher(String, STATUS_TOPIC, QOS)
         self.create_subscription(String, CMD_TOPIC, self._on_cmd, QOS)
@@ -202,11 +206,16 @@ class BiasNode(Node):
                 self.http.host = str(params.get("ip") or self.http.host)
                 self.http.port = int(params.get("port") or self.http.port)
             if command == "startRecording" and params.get("filename") and not os.path.isabs(str(params["filename"])):
-                # Seen on the real Mac port (2026-10-14): a relative name resolves against BIAS's
-                # own cwd (`/` when launched with `open`), start-capture still answers success,
-                # and nothing captures. Say so in the reply instead of letting the run go dark.
-                out["warning"] = f"relative filename {params['filename']!r} resolves against BIAS's working directory, not the rig's; use an absolute path"
-                self.get_logger().warning(out["warning"])
+                if self.video_dir:
+                    params = dict(params)
+                    params["filename"] = os.path.join(self.video_dir, str(params["filename"]))
+                    out["params"] = params
+                else:
+                    # Seen on the real Mac port (2026-10-14): a relative name resolves against BIAS's
+                    # own cwd (`/` when launched with `open`), start-capture still answers success,
+                    # and nothing captures. Say so in the reply instead of letting the run go dark.
+                    out["warning"] = f"relative filename {params['filename']!r} resolves against BIAS's working directory, not the rig's; use an absolute path or --video-dir"
+                    self.get_logger().warning(out["warning"])
             steps = plan(command, params)
         except ValueError as exc:
             out.update({"ok": False, "outcome": "error", "error": str(exc)})
@@ -251,9 +260,10 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--port", type=int, default=5010, help="BIAS command port (default: 5010)")
     p.add_argument("--timeout-s", type=float, default=2.0, help="per-HTTP-call timeout; a timeout is an UNKNOWN outcome (default: 2)")
     p.add_argument("--status-every", type=float, default=1.0, help="get-status poll period in s; 0 = off (default: 1)")
+    p.add_argument("--video-dir", default=None, help="directory a RELATIVE startRecording filename is resolved against (default: pass through + warn)")
     args, ros_args = p.parse_known_args(argv)
     rclpy.init(args=ros_args)
-    node = BiasNode(BiasHttp(args.host, args.port, args.timeout_s), args.status_every)
+    node = BiasNode(BiasHttp(args.host, args.port, args.timeout_s), args.status_every, video_dir=args.video_dir)
     spin(node)
     print(f"[bias-node] {node.commands} commands handled", file=sys.stderr)
     return 0
