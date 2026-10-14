@@ -32,20 +32,15 @@ import threading
 import time
 
 import rclpy
-from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
-from rclpy.qos import QoSDurabilityPolicy, QoSHistoryPolicy, QoSProfile, QoSReliabilityPolicy
 from std_msgs.msg import String
+
+from _common import RELIABLE_QOS, spin, wrap_line
 
 TOPIC = "/kinefly/raw"
 DEFAULT_PORT = 60001
 MAX_DATAGRAM = 16384  # KF/1 encoder bound (kinefly/core/udp.py)
-RAW_QOS = QoSProfile(
-    reliability=QoSReliabilityPolicy.RELIABLE,
-    history=QoSHistoryPolicy.KEEP_LAST,
-    depth=200,
-    durability=QoSDurabilityPolicy.VOLATILE,
-)
+RAW_QOS = RELIABLE_QOS
 
 
 def kf1_reject_reason(data: bytes) -> str | None:
@@ -65,12 +60,6 @@ def kf1_reject_reason(data: bytes) -> str | None:
         return "missing sequence/parts"
     return None
 
-
-def wrap_line(src: str, seq: int, raw: str, rx_epoch_ms: int, rx_mono_ns: int) -> str:
-    return json.dumps(
-        {"src": src, "seq": seq, "rx_epoch_ms": rx_epoch_ms, "rx_mono_ns": rx_mono_ns, "raw": raw},
-        separators=(",", ":"),
-    )
 
 
 class KineflyUdpAdapter(Node):
@@ -139,17 +128,8 @@ def main(argv: list[str] | None = None) -> int:
     args, ros_args = p.parse_known_args(argv)
     rclpy.init(args=ros_args)
     node = KineflyUdpAdapter(args.host, args.port, args.status_every)
-    try:
-        rclpy.spin(node)
-    except (KeyboardInterrupt, ExternalShutdownException):
-        pass  # Ctrl-C: rclpy ≥ Jazzy raises ExternalShutdownException from spin
-    finally:
-        node.destroy_node()
-        try:
-            rclpy.try_shutdown()
-        except Exception:  # rclpy's own SIGINT handler may already have shut the context down (races in Jazzy)
-            pass
-        print(f"[kinefly-adapter] {node.published} published, {node.rejected} rejected", file=sys.stderr)
+    spin(node)
+    print(f"[kinefly-adapter] {node.published} published, {node.rejected} rejected", file=sys.stderr)
     return 0
 
 

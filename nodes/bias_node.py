@@ -41,20 +41,15 @@ import urllib.parse
 import urllib.request
 
 import rclpy
-from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
-from rclpy.qos import QoSDurabilityPolicy, QoSHistoryPolicy, QoSProfile, QoSReliabilityPolicy
 from std_msgs.msg import String
+
+from _common import RELIABLE_QOS, spin
 
 CMD_TOPIC = "/bias/cmd"
 REPLY_TOPIC = "/bias/reply"
 STATUS_TOPIC = "/bias/status"
-QOS = QoSProfile(
-    reliability=QoSReliabilityPolicy.RELIABLE,
-    history=QoSHistoryPolicy.KEEP_LAST,
-    depth=50,
-    durability=QoSDurabilityPolicy.VOLATILE,
-)
+QOS = RELIABLE_QOS
 PLUGIN_COMMANDS = ("connect", "startRecording", "stopRecording", "startPreview", "stopCapture", "getTimestamp", "disconnect")
 
 
@@ -90,6 +85,8 @@ class BiasHttp:
         except (UnicodeDecodeError, json.JSONDecodeError):
             raise OSError(f"non-JSON reply from BIAS: {body[:80]!r}")
         rep = arr[0] if isinstance(arr, list) and arr else (arr if isinstance(arr, dict) else {})
+        if not isinstance(rep, dict):
+            raise OSError(f"unexpected reply element from BIAS: {rep!r}")
         return {
             "command": command,
             "ok": bool(rep.get("success", False)),
@@ -134,11 +131,12 @@ class BiasNode(Node):
         self.status_pub = self.create_publisher(String, STATUS_TOPIC, QOS)
         self.create_subscription(String, CMD_TOPIC, self._on_cmd, QOS)
         self._q: queue.Queue = queue.Queue()
+        self._status_pending = False  # at most ONE get-status poll waits in the queue
         self._worker = threading.Thread(target=self._work, name="bias-http", daemon=True)
         self._worker.start()
         self._status_every = status_every_s
         if status_every_s > 0:
-            self.create_timer(status_every_s, lambda: self._q.put(("status", None)))
+            self.create_timer(status_every_s, self._enqueue_status)
         self.commands = 0
         self.get_logger().info(f"BIAS at {http.base} ← {CMD_TOPIC} → {REPLY_TOPIC}, {STATUS_TOPIC} every {status_every_s:g}s")
 
@@ -158,13 +156,27 @@ class BiasNode(Node):
             return
         self._q.put(("cmd", req))
 
+    def _enqueue_status(self) -> None:
+        # Coalesce: when BIAS is slow or black-holed each poll blocks up to timeout_s, and a
+        # poll per period would build an unbounded line that commands then wait behind.
+        if not self._status_pending:
+            self._status_pending = True
+            self._q.put(("status", None))
+
     def _work(self) -> None:
         while True:
             kind, payload = self._q.get()
-            if kind == "status":
-                self._do_status()
-            else:
-                self._do_cmd(payload)
+            try:
+                if kind == "status":
+                    self._status_pending = False
+                    self._do_status()
+                else:
+                    self._do_cmd(payload)
+            except Exception as exc:  # a malformed BIAS body, HTTPException, … must not kill the worker
+                self.get_logger().error(f"{kind} failed: {exc!r}")
+                if kind == "cmd":
+                    self._publish(self.reply_pub, {"id": (payload or {}).get("id"), "command": (payload or {}).get("command"),
+                                                   "ok": False, "outcome": "error", "error": f"node error: {exc!r}"})
 
     def _do_status(self) -> None:
         t_ms = int(time.time() * 1000)
@@ -235,17 +247,8 @@ def main(argv: list[str] | None = None) -> int:
     args, ros_args = p.parse_known_args(argv)
     rclpy.init(args=ros_args)
     node = BiasNode(BiasHttp(args.host, args.port, args.timeout_s), args.status_every)
-    try:
-        rclpy.spin(node)
-    except (KeyboardInterrupt, ExternalShutdownException):
-        pass  # Ctrl-C: rclpy ≥ Jazzy raises ExternalShutdownException from spin
-    finally:
-        node.destroy_node()
-        try:
-            rclpy.try_shutdown()
-        except Exception:  # rclpy's own SIGINT handler may already have shut the context down (races in Jazzy)
-            pass
-        print(f"[bias-node] {node.commands} commands handled", file=sys.stderr)
+    spin(node)
+    print(f"[bias-node] {node.commands} commands handled", file=sys.stderr)
     return 0
 
 

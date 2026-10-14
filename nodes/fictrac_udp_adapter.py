@@ -32,26 +32,14 @@ import threading
 import time
 
 import rclpy
-from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
-from rclpy.qos import QoSDurabilityPolicy, QoSHistoryPolicy, QoSProfile, QoSReliabilityPolicy
 from std_msgs.msg import String
 
+from _common import RELIABLE_QOS, spin, wrap_line
+
 TOPIC = "/fictrac/raw"
-RAW_QOS = QoSProfile(
-    reliability=QoSReliabilityPolicy.RELIABLE,
-    history=QoSHistoryPolicy.KEEP_LAST,
-    depth=200,
-    durability=QoSDurabilityPolicy.VOLATILE,
-)
+RAW_QOS = RELIABLE_QOS
 
-
-def wrap_line(src: str, seq: int, raw: str, rx_epoch_ms: int, rx_mono_ns: int) -> str:
-    """The JSON envelope every adapter publishes (pure; shared shape with kinefly_udp_adapter)."""
-    return json.dumps(
-        {"src": src, "seq": seq, "rx_epoch_ms": rx_epoch_ms, "rx_mono_ns": rx_mono_ns, "raw": raw},
-        separators=(",", ":"),
-    )
 
 
 class FicTracUdpAdapter(Node):
@@ -127,17 +115,8 @@ def main(argv: list[str] | None = None) -> int:
     args, ros_args = p.parse_known_args(argv)
     rclpy.init(args=ros_args)
     node = FicTracUdpAdapter(args.host, args.port, args.status_every)
-    try:
-        rclpy.spin(node)
-    except (KeyboardInterrupt, ExternalShutdownException):
-        pass  # Ctrl-C: rclpy ≥ Jazzy raises ExternalShutdownException from spin
-    finally:
-        node.destroy_node()
-        try:
-            rclpy.try_shutdown()
-        except Exception:  # rclpy's own SIGINT handler may already have shut the context down (races in Jazzy)
-            pass
-        print(f"[fictrac-adapter] {node.lines} lines, {node.datagrams} datagrams", file=sys.stderr)
+    spin(node)
+    print(f"[fictrac-adapter] {node.lines} lines, {node.datagrams} datagrams", file=sys.stderr)
     return 0
 
 
