@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import queue
 import sys
 import threading
@@ -200,6 +201,12 @@ class BiasNode(Node):
                 # The protocol's connect(ip, port) retargets the node (rig YAML normally sets these).
                 self.http.host = str(params.get("ip") or self.http.host)
                 self.http.port = int(params.get("port") or self.http.port)
+            if command == "startRecording" and params.get("filename") and not os.path.isabs(str(params["filename"])):
+                # Seen on the real Mac port (2026-10-14): a relative name resolves against BIAS's
+                # own cwd (`/` when launched with `open`), start-capture still answers success,
+                # and nothing captures. Say so in the reply instead of letting the run go dark.
+                out["warning"] = f"relative filename {params['filename']!r} resolves against BIAS's working directory, not the rig's; use an absolute path"
+                self.get_logger().warning(out["warning"])
             steps = plan(command, params)
         except ValueError as exc:
             out.update({"ok": False, "outcome": "error", "error": str(exc)})
