@@ -52,6 +52,11 @@ def spin(node) -> None:
             pass
 
 
+# Windows' signal module has no SIGKILL; every "kill it" site uses this constant so the
+# escalation paths (rig.py, the test harness, signal_group) do not raise AttributeError there.
+SIGKILL = getattr(signal, "SIGKILL", 9)
+
+
 def popen_group(argv: list, **kwargs) -> subprocess.Popen:
     """Popen with the child in its OWN process group, on every platform, so a stop signal
     reaches wrappers and what they spawn (`ros2 run … rmw_zenohd` does not forward SIGINT
@@ -75,7 +80,7 @@ def signal_group(proc: subprocess.Popen, sig: int) -> None:
                 return
             except (ValueError, OSError):
                 pass
-        proc.kill() if sig == signal.SIGKILL else proc.terminate()
+        proc.kill() if sig == SIGKILL else proc.terminate()
         return
     try:
         os.killpg(proc.pid, sig)
