@@ -1,0 +1,271 @@
+-- The C compiler identification is Clang 21.1.8
+-- The CXX compiler identification is Clang 21.1.8
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/.pixi/envs/default/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/.pixi/envs/default/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Found ament_cmake: 2.5.6 (/Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/.pixi/envs/default/share/ament_cmake/cmake)
+-- Found Python3: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/.pixi/envs/default/bin/python (found version "3.12.15") found components: Interpreter
+-- Found rosidl_default_generators: 1.6.1 (/Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/.pixi/envs/default/share/rosidl_default_generators/cmake)
+-- Using all available rosidl_typesupport_c: rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c
+-- Using all available rosidl_typesupport_cpp: rosidl_typesupport_fastrtps_cpp;rosidl_typesupport_introspection_cpp
+-- Found rosidl_adapter: 4.6.9 (/Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/.pixi/envs/default/share/rosidl_adapter/cmake)
+-- Found ament_cmake_ros: 0.12.1 (/Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/.pixi/envs/default/share/ament_cmake_ros/cmake)
+-- Using all available rosidl_typesupport_c: rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c
+-- Using all available rosidl_typesupport_cpp: rosidl_typesupport_fastrtps_cpp;rosidl_typesupport_introspection_cpp
+-- Found python_cmake_module: 0.11.1 (/Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/.pixi/envs/default/share/python_cmake_module/cmake)
+-- Found PythonExtra: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/.pixi/envs/default/bin/python
+-- Found Python3: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/.pixi/envs/default/bin/python (found version "3.12.15") found components: Interpreter Development NumPy Development.Module Development.Embed
+-- Found Python3: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/.pixi/envs/default/bin/python (found version "3.12.15") found components: Interpreter
+-- Configuring done (14.9s)
+-- Generating done (0.1s)
+-- Build files have been written to: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/build/arena_interfaces
+[1/57] cd /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/build/arena_interfaces && /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/.pixi/envs/default/bin/cmake -E copy_directory /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/build/arena_interfaces/rosidl_generator_py/arena_interfaces /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/build/arena_interfaces/ament_cmake_python/arena_interfaces/arena_interfaces
+[2/57] Generating type hashes for ROS interfaces
+[3/57] Generating Rust code for ROS interfaces
+[4/57] cd /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/build/arena_interfaces/ament_cmake_python/arena_interfaces && /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/.pixi/envs/default/bin/python setup.py egg_info
+running egg_info
+creating arena_interfaces.egg-info
+writing arena_interfaces.egg-info/PKG-INFO
+writing dependency_links to arena_interfaces.egg-info/dependency_links.txt
+writing top-level names to arena_interfaces.egg-info/top_level.txt
+writing manifest file 'arena_interfaces.egg-info/SOURCES.txt'
+reading manifest file 'arena_interfaces.egg-info/SOURCES.txt'
+writing manifest file 'arena_interfaces.egg-info/SOURCES.txt'
+[5/57] Generating C++ code for ROS interfaces
+[6/57] Generating C code for ROS interfaces
+[7/57] Building C object CMakeFiles/arena_interfaces__rosidl_generator_c.dir/rosidl_generator_c/arena_interfaces/msg/detail/fic_trac_frame__type_support.c.o
+[8/57] Building C object CMakeFiles/arena_interfaces__rosidl_generator_c.dir/rosidl_generator_c/arena_interfaces/msg/detail/arena_frame__type_support.c.o
+[9/57] Building C object CMakeFiles/arena_interfaces__rosidl_generator_c.dir/rosidl_generator_c/arena_interfaces/msg/detail/fic_trac_frame__description.c.o
+[10/57] Building C object CMakeFiles/arena_interfaces__rosidl_generator_c.dir/rosidl_generator_c/arena_interfaces/msg/detail/arena_frame__description.c.o
+[11/57] Building C object CMakeFiles/arena_interfaces__rosidl_generator_c.dir/rosidl_generator_c/arena_interfaces/msg/detail/connector_reply__type_support.c.o
+[12/57] Building C object CMakeFiles/arena_interfaces__rosidl_generator_c.dir/rosidl_generator_c/arena_interfaces/msg/detail/connector_reply__description.c.o
+[13/57] Building C object CMakeFiles/arena_interfaces__rosidl_generator_c.dir/rosidl_generator_c/arena_interfaces/msg/detail/arena_frame__functions.c.o
+[14/57] Building C object CMakeFiles/arena_interfaces__rosidl_generator_c.dir/rosidl_generator_c/arena_interfaces/msg/detail/fic_trac_frame__functions.c.o
+[15/57] Building C object CMakeFiles/arena_interfaces__rosidl_generator_c.dir/rosidl_generator_c/arena_interfaces/msg/detail/connector_reply__functions.c.o
+[16/57] Linking C shared library libarena_interfaces__rosidl_generator_c.dylib
+[17/57] Generating C type support dispatch for ROS interfaces
+[18/57] Generating C++ type support dispatch for ROS interfaces
+[19/57] Generating C++ introspection for ROS interfaces
+[20/57] Generating C type support for eProsima Fast-RTPS
+[21/57] Generating C introspection for ROS interfaces
+[22/57] Generating C++ type support for eProsima Fast-RTPS
+[23/57] Building CXX object CMakeFiles/arena_interfaces__rosidl_typesupport_c.dir/rosidl_typesupport_c/arena_interfaces/msg/fic_trac_frame__type_support.cpp.o
+[24/57] Building CXX object CMakeFiles/arena_interfaces__rosidl_typesupport_c.dir/rosidl_typesupport_c/arena_interfaces/msg/connector_reply__type_support.cpp.o
+[25/57] Building CXX object CMakeFiles/arena_interfaces__rosidl_typesupport_c.dir/rosidl_typesupport_c/arena_interfaces/msg/arena_frame__type_support.cpp.o
+[26/57] Building C object CMakeFiles/arena_interfaces__rosidl_typesupport_introspection_c.dir/rosidl_typesupport_introspection_c/arena_interfaces/msg/detail/connector_reply__type_support.c.o
+[27/57] Building C object CMakeFiles/arena_interfaces__rosidl_typesupport_introspection_c.dir/rosidl_typesupport_introspection_c/arena_interfaces/msg/detail/fic_trac_frame__type_support.c.o
+[28/57] Building C object CMakeFiles/arena_interfaces__rosidl_typesupport_introspection_c.dir/rosidl_typesupport_introspection_c/arena_interfaces/msg/detail/arena_frame__type_support.c.o
+[29/57] Linking CXX shared library libarena_interfaces__rosidl_typesupport_c.dylib
+[30/57] Linking C shared library libarena_interfaces__rosidl_typesupport_introspection_c.dylib
+[31/57] Building CXX object CMakeFiles/arena_interfaces__rosidl_typesupport_cpp.dir/rosidl_typesupport_cpp/arena_interfaces/msg/connector_reply__type_support.cpp.o
+[32/57] Building CXX object CMakeFiles/arena_interfaces__rosidl_typesupport_cpp.dir/rosidl_typesupport_cpp/arena_interfaces/msg/fic_trac_frame__type_support.cpp.o
+[33/57] Building CXX object CMakeFiles/arena_interfaces__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/arena_interfaces/msg/detail/arena_frame__type_support.cpp.o
+[34/57] Building CXX object CMakeFiles/arena_interfaces__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/arena_interfaces/msg/detail/connector_reply__type_support.cpp.o
+[35/57] Building CXX object CMakeFiles/arena_interfaces__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/arena_interfaces/msg/detail/fic_trac_frame__type_support.cpp.o
+[36/57] Building CXX object CMakeFiles/arena_interfaces__rosidl_typesupport_fastrtps_c.dir/rosidl_typesupport_fastrtps_c/arena_interfaces/msg/detail/fic_trac_frame__type_support_c.cpp.o
+[37/57] Building CXX object CMakeFiles/arena_interfaces__rosidl_typesupport_cpp.dir/rosidl_typesupport_cpp/arena_interfaces/msg/arena_frame__type_support.cpp.o
+[38/57] Building CXX object CMakeFiles/arena_interfaces__rosidl_typesupport_fastrtps_c.dir/rosidl_typesupport_fastrtps_c/arena_interfaces/msg/detail/connector_reply__type_support_c.cpp.o
+[39/57] Linking CXX shared library libarena_interfaces__rosidl_typesupport_introspection_cpp.dylib
+[40/57] Building CXX object CMakeFiles/arena_interfaces__rosidl_typesupport_fastrtps_c.dir/rosidl_typesupport_fastrtps_c/arena_interfaces/msg/detail/arena_frame__type_support_c.cpp.o
+[41/57] Building CXX object CMakeFiles/arena_interfaces__rosidl_typesupport_fastrtps_cpp.dir/rosidl_typesupport_fastrtps_cpp/arena_interfaces/msg/detail/dds_fastrtps/connector_reply__type_support.cpp.o
+[42/57] Building CXX object CMakeFiles/arena_interfaces__rosidl_typesupport_fastrtps_cpp.dir/rosidl_typesupport_fastrtps_cpp/arena_interfaces/msg/detail/dds_fastrtps/fic_trac_frame__type_support.cpp.o
+[43/57] Building CXX object CMakeFiles/arena_interfaces__rosidl_typesupport_fastrtps_cpp.dir/rosidl_typesupport_fastrtps_cpp/arena_interfaces/msg/detail/dds_fastrtps/arena_frame__type_support.cpp.o
+[44/57] Linking CXX shared library libarena_interfaces__rosidl_typesupport_cpp.dylib
+[45/57] Linking CXX shared library libarena_interfaces__rosidl_typesupport_fastrtps_c.dylib
+[46/57] Linking CXX shared library libarena_interfaces__rosidl_typesupport_fastrtps_cpp.dylib
+[47/57] Generating Python code for ROS interfaces
+[48/57] Building C object CMakeFiles/arena_interfaces_s__rosidl_typesupport_fastrtps_c.dir/rosidl_generator_py/arena_interfaces/_arena_interfaces_s.ep.rosidl_typesupport_fastrtps_c.c.o
+[49/57] Building C object CMakeFiles/arena_interfaces__rosidl_generator_py.dir/rosidl_generator_py/arena_interfaces/msg/_arena_frame_s.c.o
+[50/57] Building C object CMakeFiles/arena_interfaces__rosidl_generator_py.dir/rosidl_generator_py/arena_interfaces/msg/_fic_trac_frame_s.c.o
+[51/57] Building C object CMakeFiles/arena_interfaces__rosidl_generator_py.dir/rosidl_generator_py/arena_interfaces/msg/_connector_reply_s.c.o
+[52/57] Building C object CMakeFiles/arena_interfaces_s__rosidl_typesupport_introspection_c.dir/rosidl_generator_py/arena_interfaces/_arena_interfaces_s.ep.rosidl_typesupport_introspection_c.c.o
+[53/57] Building C object CMakeFiles/arena_interfaces_s__rosidl_typesupport_c.dir/rosidl_generator_py/arena_interfaces/_arena_interfaces_s.ep.rosidl_typesupport_c.c.o
+[54/57] Linking C shared library libarena_interfaces__rosidl_generator_py.dylib
+[55/57] Linking C shared module rosidl_generator_py/arena_interfaces/arena_interfaces_s__rosidl_typesupport_fastrtps_c.so
+[56/57] Linking C shared module rosidl_generator_py/arena_interfaces/arena_interfaces_s__rosidl_typesupport_introspection_c.so
+[57/57] Linking C shared module rosidl_generator_py/arena_interfaces/arena_interfaces_s__rosidl_typesupport_c.so
+-- Install configuration: "Release"
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/ament_index/resource_index/rosidl_interfaces/arena_interfaces
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/arena_interfaces/msg/FicTracFrame.json
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/arena_interfaces/msg/ArenaFrame.json
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/arena_interfaces/msg/ConnectorReply.json
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/rosidl_generator_c__visibility_control.h
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/fic_trac_frame.h
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/arena_frame.h
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/detail
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/detail/arena_frame__struct.h
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/detail/fic_trac_frame__struct.h
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/detail/connector_reply__struct.h
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/detail/arena_frame__type_support.h
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/detail/fic_trac_frame__type_support.c
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/detail/arena_frame__functions.c
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/detail/connector_reply__functions.c
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/detail/connector_reply__type_support.h
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/detail/arena_frame__description.c
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/detail/fic_trac_frame__functions.h
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/detail/arena_frame__type_support.c
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/detail/fic_trac_frame__description.c
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/detail/arena_frame__functions.h
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/detail/fic_trac_frame__type_support.h
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/detail/fic_trac_frame__functions.c
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/detail/connector_reply__description.c
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/detail/connector_reply__type_support.c
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/detail/connector_reply__functions.h
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/connector_reply.h
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/libarena_interfaces__rosidl_generator_c.dylib
+-- Up-to-date: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces
+-- Up-to-date: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg
+-- Up-to-date: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/detail
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/detail/connector_reply__rosidl_typesupport_fastrtps_c.h
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/detail/arena_frame__rosidl_typesupport_fastrtps_c.h
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/detail/fic_trac_frame__rosidl_typesupport_fastrtps_c.h
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/rosidl_typesupport_fastrtps_c__visibility_control.h
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/libarena_interfaces__rosidl_typesupport_fastrtps_c.dylib
+-- Up-to-date: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces
+-- Up-to-date: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg
+-- Up-to-date: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/detail
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/detail/arena_frame__rosidl_typesupport_introspection_c.h
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/detail/fic_trac_frame__type_support.c
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/detail/arena_frame__type_support.c
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/detail/fic_trac_frame__rosidl_typesupport_introspection_c.h
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/detail/connector_reply__rosidl_typesupport_introspection_c.h
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/detail/connector_reply__type_support.c
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/rosidl_typesupport_introspection_c__visibility_control.h
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/libarena_interfaces__rosidl_typesupport_introspection_c.dylib
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/libarena_interfaces__rosidl_typesupport_c.dylib
+-- Up-to-date: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces
+-- Up-to-date: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg
+-- Up-to-date: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/detail
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/detail/connector_reply__builder.hpp
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/detail/arena_frame__traits.hpp
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/detail/fic_trac_frame__traits.hpp
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/detail/connector_reply__traits.hpp
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/detail/arena_frame__builder.hpp
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/detail/fic_trac_frame__type_support.hpp
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/detail/fic_trac_frame__builder.hpp
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/detail/arena_frame__struct.hpp
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/detail/arena_frame__type_support.hpp
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/detail/connector_reply__struct.hpp
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/detail/fic_trac_frame__struct.hpp
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/detail/connector_reply__type_support.hpp
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/rosidl_generator_cpp__visibility_control.hpp
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/connector_reply.hpp
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/fic_trac_frame.hpp
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/arena_frame.hpp
+-- Up-to-date: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces
+-- Up-to-date: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/rosidl_typesupport_fastrtps_cpp__visibility_control.h
+-- Up-to-date: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/detail
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/detail/arena_frame__rosidl_typesupport_fastrtps_cpp.hpp
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/detail/fic_trac_frame__rosidl_typesupport_fastrtps_cpp.hpp
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/detail/dds_fastrtps
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/detail/connector_reply__rosidl_typesupport_fastrtps_cpp.hpp
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/libarena_interfaces__rosidl_typesupport_fastrtps_cpp.dylib
+-- Up-to-date: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces
+-- Up-to-date: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg
+-- Up-to-date: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/detail
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/detail/connector_reply__rosidl_typesupport_introspection_cpp.hpp
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/detail/connector_reply__type_support.cpp
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/detail/arena_frame__type_support.cpp
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/detail/arena_frame__rosidl_typesupport_introspection_cpp.hpp
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/detail/fic_trac_frame__rosidl_typesupport_introspection_cpp.hpp
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/include/arena_interfaces/arena_interfaces/msg/detail/fic_trac_frame__type_support.cpp
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/libarena_interfaces__rosidl_typesupport_introspection_cpp.dylib
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/libarena_interfaces__rosidl_typesupport_cpp.dylib
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/arena_interfaces/environment/pythonpath.sh
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/arena_interfaces/environment/pythonpath.dsv
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/python3.12/site-packages/arena_interfaces-0.1.0-py3.12.egg-info
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/python3.12/site-packages/arena_interfaces-0.1.0-py3.12.egg-info/PKG-INFO
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/python3.12/site-packages/arena_interfaces-0.1.0-py3.12.egg-info/SOURCES.txt
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/python3.12/site-packages/arena_interfaces-0.1.0-py3.12.egg-info/top_level.txt
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/python3.12/site-packages/arena_interfaces-0.1.0-py3.12.egg-info/dependency_links.txt
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/python3.12/site-packages/arena_interfaces
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/python3.12/site-packages/arena_interfaces/msg
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/python3.12/site-packages/arena_interfaces/msg/_arena_frame.py
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/python3.12/site-packages/arena_interfaces/msg/__init__.py
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/python3.12/site-packages/arena_interfaces/msg/_arena_frame_s.c
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/python3.12/site-packages/arena_interfaces/msg/_connector_reply.py
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/python3.12/site-packages/arena_interfaces/msg/_fic_trac_frame_s.c
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/python3.12/site-packages/arena_interfaces/msg/_fic_trac_frame.py
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/python3.12/site-packages/arena_interfaces/msg/_connector_reply_s.c
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/python3.12/site-packages/arena_interfaces/arena_interfaces_s__rosidl_typesupport_introspection_c.so
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/python3.12/site-packages/arena_interfaces/_arena_interfaces_s.ep.rosidl_typesupport_c.c
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/python3.12/site-packages/arena_interfaces/__init__.py
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/python3.12/site-packages/arena_interfaces/arena_interfaces_s__rosidl_typesupport_c.so
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/python3.12/site-packages/arena_interfaces/_arena_interfaces_s.ep.rosidl_typesupport_introspection_c.c
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/python3.12/site-packages/arena_interfaces/_arena_interfaces_s.ep.rosidl_typesupport_fastrtps_c.c
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/python3.12/site-packages/arena_interfaces/arena_interfaces_s__rosidl_typesupport_fastrtps_c.so
+Listing '/Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/python3.12/site-packages/arena_interfaces'...
+Compiling '/Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/python3.12/site-packages/arena_interfaces/__init__.py'...
+Listing '/Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/python3.12/site-packages/arena_interfaces/msg'...
+Compiling '/Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/python3.12/site-packages/arena_interfaces/msg/__init__.py'...
+Compiling '/Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/python3.12/site-packages/arena_interfaces/msg/_arena_frame.py'...
+Compiling '/Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/python3.12/site-packages/arena_interfaces/msg/_connector_reply.py'...
+Compiling '/Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/python3.12/site-packages/arena_interfaces/msg/_fic_trac_frame.py'...
+-- Up-to-date: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/python3.12/site-packages/arena_interfaces/arena_interfaces_s__rosidl_typesupport_fastrtps_c.so
+-- Up-to-date: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/python3.12/site-packages/arena_interfaces/arena_interfaces_s__rosidl_typesupport_introspection_c.so
+-- Up-to-date: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/python3.12/site-packages/arena_interfaces/arena_interfaces_s__rosidl_typesupport_c.so
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/libarena_interfaces__rosidl_generator_py.dylib
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/arena_interfaces/rust
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/arena_interfaces/rust/Cargo.toml
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/arena_interfaces/rust/build.rs
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/arena_interfaces/rust/src
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/arena_interfaces/rust/src/msg
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/arena_interfaces/rust/src/msg/rmw.rs
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/arena_interfaces/rust/src/lib.rs
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/arena_interfaces/rust/src/msg.rs
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/arena_interfaces/msg/FicTracFrame.idl
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/arena_interfaces/msg/ArenaFrame.idl
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/arena_interfaces/msg/ConnectorReply.idl
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/arena_interfaces/msg/FicTracFrame.msg
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/arena_interfaces/msg/ArenaFrame.msg
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/arena_interfaces/msg/ConnectorReply.msg
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/ament_index/resource_index/package_run_dependencies/arena_interfaces
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/ament_index/resource_index/parent_prefix_path/arena_interfaces
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/arena_interfaces/environment/ament_prefix_path.sh
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/arena_interfaces/environment/ament_prefix_path.dsv
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/arena_interfaces/environment/path.sh
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/arena_interfaces/environment/path.dsv
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/arena_interfaces/local_setup.bash
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/arena_interfaces/local_setup.sh
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/arena_interfaces/local_setup.zsh
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/arena_interfaces/local_setup.dsv
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/arena_interfaces/package.dsv
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/ament_index/resource_index/packages/arena_interfaces
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/arena_interfaces/cmake/export_arena_interfaces__rosidl_generator_cExport.cmake
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/arena_interfaces/cmake/export_arena_interfaces__rosidl_generator_cExport-release.cmake
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/arena_interfaces/cmake/export_arena_interfaces__rosidl_typesupport_fastrtps_cExport.cmake
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/arena_interfaces/cmake/export_arena_interfaces__rosidl_typesupport_fastrtps_cExport-release.cmake
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/arena_interfaces/cmake/arena_interfaces__rosidl_typesupport_introspection_cExport.cmake
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/arena_interfaces/cmake/arena_interfaces__rosidl_typesupport_introspection_cExport-release.cmake
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/arena_interfaces/cmake/arena_interfaces__rosidl_typesupport_cExport.cmake
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/arena_interfaces/cmake/arena_interfaces__rosidl_typesupport_cExport-release.cmake
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/arena_interfaces/cmake/export_arena_interfaces__rosidl_generator_cppExport.cmake
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/arena_interfaces/cmake/export_arena_interfaces__rosidl_typesupport_fastrtps_cppExport.cmake
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/arena_interfaces/cmake/export_arena_interfaces__rosidl_typesupport_fastrtps_cppExport-release.cmake
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/arena_interfaces/cmake/arena_interfaces__rosidl_typesupport_introspection_cppExport.cmake
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/arena_interfaces/cmake/arena_interfaces__rosidl_typesupport_introspection_cppExport-release.cmake
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/arena_interfaces/cmake/arena_interfaces__rosidl_typesupport_cppExport.cmake
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/arena_interfaces/cmake/arena_interfaces__rosidl_typesupport_cppExport-release.cmake
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/arena_interfaces/cmake/export_arena_interfaces__rosidl_generator_pyExport.cmake
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/arena_interfaces/cmake/export_arena_interfaces__rosidl_generator_pyExport-release.cmake
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/arena_interfaces/cmake/rosidl_cmake-extras.cmake
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/arena_interfaces/cmake/ament_cmake_export_include_directories-extras.cmake
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/arena_interfaces/cmake/ament_cmake_export_libraries-extras.cmake
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/arena_interfaces/cmake/ament_cmake_export_targets-extras.cmake
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/arena_interfaces/cmake/rosidl_cmake_export_typesupport_targets-extras.cmake
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/arena_interfaces/cmake/ament_cmake_export_dependencies-extras.cmake
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/arena_interfaces/cmake/rosidl_cmake_export_typesupport_libraries-extras.cmake
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/arena_interfaces/cmake/rosidl_cmake_aggregate_target-extras.cmake
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/arena_interfaces/cmake/arena_interfacesConfig.cmake
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/arena_interfaces/cmake/arena_interfacesConfig-version.cmake
+-- Installing: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/share/arena_interfaces/package.xml

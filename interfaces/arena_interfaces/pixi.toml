@@ -1,0 +1,21 @@
+# arena_interfaces as a pixi source package (LAB-303 Plan B item 3). The ros2-poc workspace
+# depends on it by path (`arena_interfaces = { path = "interfaces/arena_interfaces" }`), so
+# `pixi install` builds it with the RoboStack pixi-build-ros backend — a conda package made from
+# this package.xml/CMakeLists.txt, with no colcon step and nothing to source. Preview feature:
+# `preview = ["pixi-build"]` in the workspace manifest. Measured on the Mac: README "Plan B spike".
+[package]
+name = "arena_interfaces"
+version = "0.1.0"
+
+[package.build]
+backend = { name = "pixi-build-ros", version = "*", channels = ["https://prefix.dev/pixi-build-backends", "https://prefix.dev/conda-forge", "https://prefix.dev/robostack-jazzy"] }
+
+[package.build.config]
+distro = "jazzy"
+
+[package.host-dependencies]
+ros-jazzy-ament-cmake = "*"
+ros-jazzy-rosidl-default-generators = "*"
+
+[package.run-dependencies]
+ros-jazzy-rosidl-default-runtime = "*"

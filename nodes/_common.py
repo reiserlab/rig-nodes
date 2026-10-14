@@ -97,3 +97,61 @@ def wait_port(host: str, port: int, timeout_s: float) -> bool:
         except OSError:
             time.sleep(0.2)
     return False
+
+
+# ── typed interfaces (LAB-303 Plan B item 3) ──────────────────────────────────────────
+INTERFACES_INSTALL = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "interfaces", "install")
+
+
+def _prepend_env(name: str, value: str) -> None:
+    cur = os.environ.get(name, "")
+    parts = cur.split(os.pathsep) if cur else []
+    if value not in parts:
+        os.environ[name] = os.pathsep.join([value] + parts)
+
+
+def setup_interfaces(prefix: str | None = None) -> bool:
+    """Make a colcon-built `interfaces/install` visible to THIS process and its children —
+    the equivalent of sourcing install/setup.sh, done in Python so Windows needs no shell
+    script. Returns True when the prefix exists. Call it BEFORE importing arena_interfaces."""
+    import sys as _sys
+
+    prefix = prefix or INTERFACES_INSTALL
+    if not os.path.isdir(prefix):
+        return False
+    _prepend_env("AMENT_PREFIX_PATH", prefix)
+    libdir = os.path.join(prefix, "lib")
+    bindir = os.path.join(prefix, "bin")
+    _prepend_env("PATH", bindir if os.name == "nt" else libdir)
+    # rcpputils::find_library_path searches these for the typesupport libraries.
+    _prepend_env("DYLD_LIBRARY_PATH" if _sys.platform == "darwin" else "LD_LIBRARY_PATH", libdir)
+    if os.name == "nt":
+        _prepend_env("PATH", libdir)
+        try:
+            os.add_dll_directory(libdir)
+        except (AttributeError, OSError):
+            pass
+    sp = None
+    if os.name == "nt":
+        cand = os.path.join(prefix, "Lib", "site-packages")
+        sp = cand if os.path.isdir(cand) else None
+    if sp is None:
+        pyver = f"python{_sys.version_info.major}.{_sys.version_info.minor}"
+        cand = os.path.join(libdir, pyver, "site-packages")
+        sp = cand if os.path.isdir(cand) else None
+    if sp:
+        _prepend_env("PYTHONPATH", sp)
+        if sp not in _sys.path:
+            _sys.path.insert(0, sp)
+    return True
+
+
+def interfaces_available() -> bool:
+    """True when arena_interfaces imports (after setup_interfaces)."""
+    setup_interfaces()
+    try:
+        import arena_interfaces.msg  # noqa: F401
+
+        return True
+    except Exception:
+        return False

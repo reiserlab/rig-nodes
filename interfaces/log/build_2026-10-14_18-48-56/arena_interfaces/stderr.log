@@ -1,0 +1,36 @@
+CMake Warning (deprecated) at CMakeLists.txt:1 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+This warning is for project developers.  Use -Wno-author or -Wno-deprecated
+to suppress it.
+
+CMake Warning (unused-cli):
+  Manually-specified variables were not used by the project:
+
+    Python_EXECUTABLE
+
+
+/Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/.pixi/envs/default/bin/install_name_tool: warning: changes being made to the file will invalidate the code signature in: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/libarena_interfaces__rosidl_typesupport_fastrtps_c.dylib
+[cctools-port]: generating fake signature for '/Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/libarena_interfaces__rosidl_typesupport_fastrtps_c.dylib'
+/Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/.pixi/envs/default/bin/install_name_tool: warning: changes being made to the file will invalidate the code signature in: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/libarena_interfaces__rosidl_typesupport_introspection_c.dylib
+[cctools-port]: generating fake signature for '/Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/libarena_interfaces__rosidl_typesupport_introspection_c.dylib'
+/Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/.pixi/envs/default/bin/install_name_tool: warning: changes being made to the file will invalidate the code signature in: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/libarena_interfaces__rosidl_typesupport_c.dylib
+[cctools-port]: generating fake signature for '/Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/libarena_interfaces__rosidl_typesupport_c.dylib'
+/Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/.pixi/envs/default/bin/install_name_tool: warning: changes being made to the file will invalidate the code signature in: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/libarena_interfaces__rosidl_typesupport_fastrtps_cpp.dylib
+[cctools-port]: generating fake signature for '/Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/libarena_interfaces__rosidl_typesupport_fastrtps_cpp.dylib'
+/Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/.pixi/envs/default/bin/install_name_tool: warning: changes being made to the file will invalidate the code signature in: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/libarena_interfaces__rosidl_typesupport_introspection_cpp.dylib
+[cctools-port]: generating fake signature for '/Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/libarena_interfaces__rosidl_typesupport_introspection_cpp.dylib'
+/Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/.pixi/envs/default/bin/install_name_tool: warning: changes being made to the file will invalidate the code signature in: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/libarena_interfaces__rosidl_typesupport_cpp.dylib
+[cctools-port]: generating fake signature for '/Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/libarena_interfaces__rosidl_typesupport_cpp.dylib'
+/Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/.pixi/envs/default/bin/install_name_tool: warning: changes being made to the file will invalidate the code signature in: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/python3.12/site-packages/arena_interfaces/arena_interfaces_s__rosidl_typesupport_fastrtps_c.so
+[cctools-port]: generating fake signature for '/Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/python3.12/site-packages/arena_interfaces/arena_interfaces_s__rosidl_typesupport_fastrtps_c.so'
+/Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/.pixi/envs/default/bin/install_name_tool: warning: changes being made to the file will invalidate the code signature in: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/python3.12/site-packages/arena_interfaces/arena_interfaces_s__rosidl_typesupport_introspection_c.so
+[cctools-port]: generating fake signature for '/Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/python3.12/site-packages/arena_interfaces/arena_interfaces_s__rosidl_typesupport_introspection_c.so'
+/Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/.pixi/envs/default/bin/install_name_tool: warning: changes being made to the file will invalidate the code signature in: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/python3.12/site-packages/arena_interfaces/arena_interfaces_s__rosidl_typesupport_c.so
+[cctools-port]: generating fake signature for '/Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/python3.12/site-packages/arena_interfaces/arena_interfaces_s__rosidl_typesupport_c.so'
+/Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/.pixi/envs/default/bin/install_name_tool: warning: changes being made to the file will invalidate the code signature in: /Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/libarena_interfaces__rosidl_generator_py.dylib
+[cctools-port]: generating fake signature for '/Users/reiserm/Documents/GitHub/webDisplayTools/.claude/worktrees/vigorous-moser-b41bf7/ros2-poc/interfaces/install/lib/libarena_interfaces__rosidl_generator_py.dylib'
