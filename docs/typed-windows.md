@@ -28,7 +28,8 @@ Tools), cmake 4.4.4, RoboStack Jazzy. Package cache warm.
 | T5 | `typed` feature depends on `arena_interfaces` from that channel (no path dep, no toolchain), fresh env, `--locked` | **PASS 9 s, no build backend started** | `--check`: importable, serializes; harness **48 / 48** in 56 s, `typed topics: True` |
 
 T1–T3 and T5 were run in a scratch detached worktree at `C:\w\t` (T5's manifest change is not committed;
-§5 has it). Logs on ww18 in `C:\w\*.log`.
+§5 has it). Logs, T1's package-file list and the §4b recipes are on ww18 in `C:\w\logs-w2\` (not
+committed); the scratch worktree and envs were removed.
 
 ## 1. Where the `..` comes from
 
