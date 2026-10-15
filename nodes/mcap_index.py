@@ -33,7 +33,7 @@ def reindex(mcap_path: str | os.PathLike, keep_original: bool = False, compressi
     src = Path(mcap_path)
     tmp = src.with_suffix(".indexed.tmp")
     comp = {"zstd": CompressionType.ZSTD, "lz4": CompressionType.LZ4, "none": CompressionType.NONE}[compression]
-    t0 = time.monotonic()
+    t0 = time.perf_counter()
     schema_map: dict[int, int] = {}
     channel_map: dict[int, int] = {}
     counts: dict[int, int] = {}
@@ -84,7 +84,7 @@ def reindex(mcap_path: str | os.PathLike, keep_original: bool = False, compressi
     ok = got == want and summ is not None and bool(summ.chunk_indexes)
     res = {"file": str(src), "messages": n, "bytes_before": src.stat().st_size, "bytes_after": tmp.stat().st_size,
            "chunks": len(summ.chunk_indexes) if summ else 0, "compression": compression, "verified": ok,
-           "seconds": round(time.monotonic() - t0, 2)}
+           "seconds": round(time.perf_counter() - t0, 2)}
     if not ok:
         tmp.unlink(missing_ok=True)
         res["error"] = f"verification failed: per-topic counts {got} vs {want}"

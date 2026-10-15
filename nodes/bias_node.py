@@ -70,7 +70,9 @@ class BiasHttp:
         """→ {"command", "ok", "message", "value", "rtt_ms"} or raises TimeoutError / OSError."""
         q = command if value is None else f"{command}={urllib.parse.quote(str(value), safe='/:\\')}"
         url = f"{self.base}?{q}"
-        t0 = time.monotonic()
+        # perf_counter, not monotonic: on Windows monotonic ticks every 15.625 ms (GetTickCount64),
+        # which turned every RTT into 0 / 15 / 16 / 31 ms (ww18 2026-10-15).
+        t0 = time.perf_counter()
         try:
             with urllib.request.urlopen(url, timeout=self.timeout_s) as resp:
                 body = resp.read()
@@ -80,7 +82,7 @@ class BiasHttp:
             raise OSError(str(exc)) from exc
         except TimeoutError:
             raise
-        rtt = (time.monotonic() - t0) * 1000.0
+        rtt = (time.perf_counter() - t0) * 1000.0
         try:
             arr = json.loads(body.decode("utf-8"))
         except (UnicodeDecodeError, json.JSONDecodeError):
@@ -198,7 +200,7 @@ class BiasNode(Node):
         command = str(req.get("command", ""))
         params = req.get("params") or {}
         t_ms = int(time.time() * 1000)
-        t0 = time.monotonic()
+        t0 = time.perf_counter()
         out: dict = {"id": cid, "command": command, "params": params, "t_ms": t_ms, "steps": []}
         try:
             if command == "connect" and (params.get("ip") or params.get("port")):
@@ -245,7 +247,7 @@ class BiasNode(Node):
                 out["artifact"] = {"kind": "video", "path": r["value"], "program": "bias"}
         else:
             out.update({"ok": True, "outcome": "ok", "value": value})
-        out["rtt_ms"] = round((time.monotonic() - t0) * 1000.0, 2)
+        out["rtt_ms"] = round((time.perf_counter() - t0) * 1000.0, 2)
         self._publish(self.reply_pub, out)
         # rclpy caches a severity per call site, so info and warning need separate statements.
         if out["ok"]:

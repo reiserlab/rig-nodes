@@ -87,7 +87,7 @@ class Recorder:
             w.create_topic(rosbag2_py.TopicMetadata(id=i, name=name, type=typ, serialization_format="cdr"))
         with self._lock:
             self._w = w
-            self.opened_mono = time.monotonic()
+            self.opened_mono = time.perf_counter()
             pending, self._pending = self._pending, None
             for topic, data, log_ns, pub_ns in pending or []:
                 self._write_locked(topic, data, log_ns, pub_ns)
@@ -153,5 +153,5 @@ class Recorder:
             "records": self.count,
             "payload_bytes": self.bytes,
             "profile": self.profile,
-            "open_s": round(time.monotonic() - self.opened_mono, 3) if self.opened_mono else None,
+            "open_s": round(time.perf_counter() - self.opened_mono, 3) if self.opened_mono else None,
         }
