@@ -42,7 +42,7 @@ import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String
 
-from _common import RELIABLE_QOS, probe_interfaces, spin, wrap_line
+from _common import RELIABLE_QOS, mono_ns, probe_interfaces, raise_timer_resolution, spin, wall_ms, wrap_line
 
 _IFACES = probe_interfaces()  # import + serialize; None → String only
 HAVE_IFACES = _IFACES is not None
@@ -95,7 +95,7 @@ class FicTracUdpAdapter(Node):
 
     def _publish(self, raw: str) -> None:
         self.seq += 1
-        rx_ms, rx_ns = int(time.time() * 1000), time.monotonic_ns()
+        rx_ms, rx_ns = wall_ms(), mono_ns()  # precise on Windows too (_common "clocks")
         if self.pub is not None:
             msg = String()
             msg.data = wrap_line("fictrac", self.seq, raw, rx_ms, rx_ns)
@@ -151,6 +151,7 @@ def main(argv: list[str] | None = None) -> int:
                    help="also publish /fictrac/frame as arena_interfaces/FicTracFrame (auto: when the package imports; only: drop /fictrac/raw)")
     # ros2 run / launch pass --ros-args; keep them for rclpy.
     args, ros_args = p.parse_known_args(argv)
+    raise_timer_resolution()  # Windows: 1 ms system timer for this process (_common "clocks")
     rclpy.init(args=ros_args)
     node = FicTracUdpAdapter(args.host, args.port, args.status_every, args.typed)
     spin(node)

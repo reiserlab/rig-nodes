@@ -7,6 +7,7 @@
                  ExternalShutdownException from spin, and rclpy's own handler may already
                  have shut the context down, so try_shutdown can raise too).
 * `wait_port`  — poll a TCP port (the Zenoh router on 127.0.0.1:7447).
+* `wall_ns` / `wall_ms` / `mono_ns` / `raise_timer_resolution` — sub-ms clocks on Windows too.
 """
 
 from __future__ import annotations
@@ -21,6 +22,65 @@ import time
 import rclpy
 from rclpy.executors import ExternalShutdownException
 from rclpy.qos import QoSDurabilityPolicy, QoSHistoryPolicy, QoSProfile, QoSReliabilityPolicy
+
+# ── clocks ───────────────────────────────────────────────────────────────────────────────
+# Python 3.12 on Windows (RoboStack Jazzy pins it): time.time() is GetSystemTimeAsFileTime,
+# which advances once per timer interrupt — 15.625 ms unless some process has raised the rate —
+# and time.monotonic() is GetTickCount64, 15.625 ms always. Measured on ww18 2026-10-15: idle
+# PC, run-log `ms` stamps would come in 15.6 ms steps, 2.3 ms behind the true time.
+# GetSystemTimePreciseAsFileTime is the wall clock interpolated with the performance counter
+# (~1 µs; what Python 3.13 made time.time()), and perf_counter is QueryPerformanceCounter.
+# Elsewhere these are the stdlib clocks unchanged.
+if os.name == "nt":
+    import ctypes
+    from ctypes import wintypes
+
+    _k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    _k32.GetSystemTimePreciseAsFileTime.argtypes = [ctypes.POINTER(ctypes.c_ulonglong)]
+    _k32.GetSystemTimePreciseAsFileTime.restype = None
+    _k32.GetCurrentProcess.restype = wintypes.HANDLE
+    _k32.SetProcessInformation.argtypes = [wintypes.HANDLE, ctypes.c_int, ctypes.c_void_p, wintypes.DWORD]
+    _k32.SetProcessInformation.restype = wintypes.BOOL
+    _FILETIME_UNIX_EPOCH = 116444736000000000  # 100 ns intervals from 1601-01-01 to 1970-01-01
+
+    def wall_ns() -> int:
+        ft = ctypes.c_ulonglong()
+        _k32.GetSystemTimePreciseAsFileTime(ctypes.byref(ft))
+        return (ft.value - _FILETIME_UNIX_EPOCH) * 100
+
+    mono_ns = time.perf_counter_ns
+else:
+    wall_ns = time.time_ns
+    mono_ns = time.monotonic_ns
+
+
+def wall_ms() -> int:
+    """Wall-clock ms since the epoch, like bridge.py's now_ms() but precise on Windows."""
+    return wall_ns() // 1_000_000
+
+
+def raise_timer_resolution(period_ms: int = 1) -> bool:
+    """Windows: a `period_ms` system timer for THIS process (timeBeginPeriod; per process since
+    Windows 10 2004), kept when its console is hidden (Windows 11 otherwise may ignore the
+    request for an occluded or minimized process). Sharpens waits and timeouts — socket,
+    asyncio, rcl; the stamps do not depend on it (wall_ns). Windows releases it at exit.
+    Returns True when granted; a no-op elsewhere."""
+    if os.name != "nt":
+        return False
+    try:
+        granted = ctypes.WinDLL("winmm").timeBeginPeriod(period_ms) == 0  # TIMERR_NOERROR
+
+        class _PowerThrottling(ctypes.Structure):
+            _fields_ = [("Version", wintypes.ULONG), ("ControlMask", wintypes.ULONG), ("StateMask", wintypes.ULONG)]
+
+        # ProcessPowerThrottling = 4; PROCESS_POWER_THROTTLING_IGNORE_TIMER_RESOLUTION = 0x4,
+        # StateMask 0 = never ignore this process's timer request.
+        st = _PowerThrottling(1, 0x4, 0)
+        _k32.SetProcessInformation(_k32.GetCurrentProcess(), 4, ctypes.byref(st), ctypes.sizeof(st))
+        return granted
+    except (AttributeError, OSError):
+        return False
+
 
 RELIABLE_QOS = QoSProfile(
     reliability=QoSReliabilityPolicy.RELIABLE,

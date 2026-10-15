@@ -36,6 +36,8 @@ import rosbag2_py
 from rclpy.serialization import serialize_message
 from std_msgs.msg import String
 
+from _common import wall_ns  # the precise wall clock on Windows (time.time_ns elsewhere)
+
 STRING_TYPE = "std_msgs/msg/String"
 
 PROFILES = {
@@ -96,7 +98,7 @@ class Recorder:
         """Record already-serialized CDR bytes (a raw subscription's payload). `t_ns` = the
         recorder's receive time (MCAP log_time; default now); `pub_ns` = the producer's own
         stamp when it has one (MCAP publish_time; the closed-loop node's sample time)."""
-        log_ns = time.time_ns() if t_ns is None else t_ns
+        log_ns = wall_ns() if t_ns is None else t_ns
         with self._lock:
             if self._w is None:
                 if self._pending is not None:  # open() in progress: keep, write once open

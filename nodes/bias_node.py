@@ -45,7 +45,7 @@ import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String
 
-from _common import RELIABLE_QOS, spin
+from _common import RELIABLE_QOS, raise_timer_resolution, spin, wall_ms
 
 CMD_TOPIC = "/bias/cmd"
 REPLY_TOPIC = "/bias/reply"
@@ -148,7 +148,7 @@ class BiasNode(Node):
         self.get_logger().info(f"BIAS at {http.base} ← {CMD_TOPIC} → {REPLY_TOPIC}, {STATUS_TOPIC} every {status_every_s:g}s")
 
     def _publish(self, pub, obj: dict) -> None:
-        obj.setdefault("rx_epoch_ms", int(time.time() * 1000))
+        obj.setdefault("rx_epoch_ms", wall_ms())
         m = String()
         m.data = json.dumps(obj, separators=(",", ":"), default=str)
         pub.publish(m)
@@ -186,7 +186,7 @@ class BiasNode(Node):
                                                    "ok": False, "outcome": "error", "error": f"node error: {exc!r}"})
 
     def _do_status(self) -> None:
-        t_ms = int(time.time() * 1000)
+        t_ms = wall_ms()
         try:
             r = self.http.call("get-status")
             st = r["value"] if isinstance(r["value"], dict) else {}
@@ -199,7 +199,7 @@ class BiasNode(Node):
         cid = req.get("id")
         command = str(req.get("command", ""))
         params = req.get("params") or {}
-        t_ms = int(time.time() * 1000)
+        t_ms = wall_ms()
         t0 = time.perf_counter()
         out: dict = {"id": cid, "command": command, "params": params, "t_ms": t_ms, "steps": []}
         try:
@@ -264,6 +264,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--status-every", type=float, default=1.0, help="get-status poll period in s; 0 = off (default: 1)")
     p.add_argument("--video-dir", default=None, help="directory a RELATIVE startRecording filename is resolved against (default: pass through + warn)")
     args, ros_args = p.parse_known_args(argv)
+    raise_timer_resolution()  # Windows: 1 ms system timer for this process (_common "clocks")
     rclpy.init(args=ros_args)
     node = BiasNode(BiasHttp(args.host, args.port, args.timeout_s), args.status_every, video_dir=args.video_dir)
     spin(node)

@@ -35,7 +35,7 @@ import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String
 
-from _common import RELIABLE_QOS, spin, wrap_line
+from _common import RELIABLE_QOS, mono_ns, raise_timer_resolution, spin, wall_ms, wrap_line
 
 TOPIC = "/kinefly/raw"
 DEFAULT_PORT = 60001
@@ -90,7 +90,7 @@ class KineflyUdpAdapter(Node):
                 continue
             except OSError:
                 break
-            rx_epoch_ms, rx_mono_ns = int(time.time() * 1000), time.monotonic_ns()
+            rx_epoch_ms, rx_mono_ns = wall_ms(), mono_ns()  # precise on Windows too (_common "clocks")
             why = kf1_reject_reason(data)
             if why is not None:
                 self.rejected += 1
@@ -126,6 +126,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--port", type=int, default=DEFAULT_PORT, help=f"UDP bind port — Kinefly's --udp destination (default: {DEFAULT_PORT})")
     p.add_argument("--status-every", type=float, default=5.0, help="stderr rate line interval in s; 0 = off (default: 5)")
     args, ros_args = p.parse_known_args(argv)
+    raise_timer_resolution()  # Windows: 1 ms system timer for this process (_common "clocks")
     rclpy.init(args=ros_args)
     node = KineflyUdpAdapter(args.host, args.port, args.status_every)
     spin(node)
