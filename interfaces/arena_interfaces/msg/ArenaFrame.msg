@@ -14,3 +14,10 @@ float64 hd            # integrated heading, radians (col 17)
 uint32 epoch          # +1 per heading tare; 0 before the first
 float64 bias_deg      # bias angle applied at this evaluation (0 when the bias is `none`)
 uint64 seq            # the bridge writer's emission order within the run (0 when unknown)
+# Derived channels for live viewing (Foxglove) and ROS-native consumers ONLY — the hub message
+# to the Studio and the behavior_v1 columns do not carry them. Two-point differences over
+# consecutive frames on the FicTrac camera clock `ft` (falling back to the bridge clock when
+# ft is absent), the way js/kinematics.js derives the same channels; NaN on the first frame
+# of a run, when the clock does not advance, or when FicTrac restarted.
+float64 turning_dps   # heading rate, deg/s (positive = increasing FicTrac heading)
+float64 forward_mms   # forward velocity, mm/s (x/y step projected onto the heading × ball radius; --ball-mm, 9 mm default)

@@ -152,8 +152,23 @@ def probe_interfaces():
     typesupport library cannot be dlopen'ed (seen with a colcon install visible from the
     default env: `RMWError: … Could not load library libarena_interfaces__rosidl_typesupport_
     fastrtps_c.dylib`) would otherwise make a node pick typed topics and die at its first
-    message. One serialize_message() is the test."""
-    setup_interfaces()
+    message. One serialize_message() is the test.
+
+    The ENVIRONMENT's package (pixi-build, `pixi install -e typed`) is tried FIRST and a colcon
+    `interfaces/install` is consulted only when nothing imports without it. Prepending a stale
+    colcon prefix on top of the env mixed two builds (2026-10-14, after ArenaFrame gained two
+    fields): the old Python class + C struct from the prefix, the new typesupport library from
+    the env — rclpy serialized 16 bytes PAST the struct, and every recorded frame carried
+    garbage in the new fields while the harness stayed green. One build per process, always."""
+    found = _try_interfaces()
+    if found is not None:
+        return found
+    if setup_interfaces():
+        return _try_interfaces()
+    return None
+
+
+def _try_interfaces():
     try:
         from arena_interfaces.msg import ArenaFrame, FicTracFrame
         from rclpy.serialization import serialize_message
