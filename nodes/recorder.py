@@ -125,7 +125,7 @@ class Recorder:
         """Record a typed ROS message object."""
         return self.write_raw(topic, serialize_message(msg), t_ns, pub_ns)
 
-    def close(self) -> dict:
+    def close(self, reindex: bool = True) -> dict:
         with self._lock:
             w, self._w = self._w, None
         if w is None:
@@ -135,7 +135,18 @@ class Recorder:
         else:  # older rosbag2_py: the destructor closes
             del w
         files = sorted(self.bag_dir.glob("*.mcap"))
+        indexed = None
+        if reindex and self.profile == "crashsafe":
+            # The run closed cleanly: trade the crash-safe layout for an indexed, compressed one
+            # (same records; Foxglove and every seeking reader then open it without a scan).
+            try:
+                from mcap_index import reindex as _reindex
+
+                indexed = [_reindex(f) for f in files]
+            except Exception as exc:  # never let a post-close rewrite lose the run
+                indexed = [{"error": repr(exc)}]
         return {
+            "indexed": indexed,
             "bag": str(self.bag_dir),
             "files": [f.name for f in files],
             "bytes_on_disk": sum(f.stat().st_size for f in files),
