@@ -42,16 +42,11 @@ import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String
 
-from _common import RELIABLE_QOS, setup_interfaces, spin, wrap_line
+from _common import RELIABLE_QOS, probe_interfaces, spin, wrap_line
 
-setup_interfaces()
-try:
-    from arena_interfaces.msg import FicTracFrame
-
-    HAVE_IFACES = True
-except Exception:
-    FicTracFrame = None  # type: ignore[assignment]
-    HAVE_IFACES = False
+_IFACES = probe_interfaces()  # import + serialize; None → String only
+HAVE_IFACES = _IFACES is not None
+FicTracFrame = _IFACES[1] if _IFACES else None  # type: ignore[assignment]
 
 TOPIC = "/fictrac/raw"
 TYPED_TOPIC = "/fictrac/frame"

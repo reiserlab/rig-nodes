@@ -37,11 +37,11 @@ INSTALL = IFACES / "install"
 RESULT = IFACES / "build-result.json"
 
 sys.path.insert(0, str(HERE))
-from _common import setup_interfaces  # noqa: E402
+from _common import probe_interfaces, setup_interfaces  # noqa: E402
 
 
 def check() -> dict:
-    out = {"install_prefix": str(INSTALL), "built": INSTALL.exists()}
+    out = {"install_prefix": str(INSTALL), "built": INSTALL.exists(), "usable": probe_interfaces() is not None}
     setup_interfaces()
     try:
         from arena_interfaces.msg import ArenaFrame, ConnectorReply, FicTracFrame  # noqa: F401
@@ -117,7 +117,7 @@ def main(argv=None) -> int:
     if a.check:
         r = check()
         print(json.dumps(r, indent=1))
-        return 0 if r.get("importable") else 1
+        return 0 if r.get("usable") else 1
     r = build(a.clean)
     RESULT.write_text(json.dumps(r, indent=1) + "\n", encoding="utf-8")
     print(json.dumps({k: v for k, v in r.items() if k != "log_tail"}, indent=1))

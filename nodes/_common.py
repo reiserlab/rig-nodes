@@ -146,12 +146,25 @@ def setup_interfaces(prefix: str | None = None) -> bool:
     return True
 
 
-def interfaces_available() -> bool:
-    """True when arena_interfaces imports (after setup_interfaces)."""
+def probe_interfaces():
+    """(ArenaFrame, FicTracFrame) when arena_interfaces imports AND its typesupport actually
+    loads — else None. An import alone is not enough: a package that is importable but whose
+    typesupport library cannot be dlopen'ed (seen with a colcon install visible from the
+    default env: `RMWError: … Could not load library libarena_interfaces__rosidl_typesupport_
+    fastrtps_c.dylib`) would otherwise make a node pick typed topics and die at its first
+    message. One serialize_message() is the test."""
     setup_interfaces()
     try:
-        import arena_interfaces.msg  # noqa: F401
+        from arena_interfaces.msg import ArenaFrame, FicTracFrame
+        from rclpy.serialization import serialize_message
 
-        return True
+        serialize_message(ArenaFrame())
+        serialize_message(FicTracFrame())
+        return ArenaFrame, FicTracFrame
     except Exception:
-        return False
+        return None
+
+
+def interfaces_available() -> bool:
+    """True when arena_interfaces imports and serializes (after setup_interfaces)."""
+    return probe_interfaces() is not None
