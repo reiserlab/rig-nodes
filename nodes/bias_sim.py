@@ -15,7 +15,8 @@ mistakes show up (start-capture before connect fails, as on the real program):
                                               a small file is written at that path (relative
                                               paths land in --video-dir) and reported as value
   get-status                                  {"connected","capturing","logging","frameCount",
-                                               "framesPerSec","timeStamp","videoFile"}
+                                               "framesPerSec","timeStamp","videoFile",
+                                               "sim": true}  (so a run log says who answered)
   get-time-stamp / get-frame-count            scalars
   load-configuration=<file>                   accepted, echoed
 
@@ -32,6 +33,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import socket
 import sys
 import threading
 import time
@@ -71,6 +73,7 @@ class BiasState:
             "framesPerSec": self.fps if self.capturing else 0.0,
             "timeStamp": round(time.time() - self.t0, 6),
             "videoFile": self.video_file,
+            "sim": True,
         }
 
     def _video_path(self) -> str:
@@ -178,6 +181,25 @@ def make_handler(state: BiasState):
     return Handler
 
 
+class _Server(ThreadingHTTPServer):
+    # Windows: socketserver's SO_REUSEADDR would let a second sim bind OVER this one; bind
+    # exclusively there instead (the two options cannot be combined).
+    allow_reuse_address = os.name != "nt"
+
+    def server_bind(self) -> None:
+        if os.name == "nt" and hasattr(socket, "SO_EXCLUSIVEADDRUSE"):
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        super().server_bind()
+
+
+def answering(host: str, port: int) -> bool:
+    try:
+        with socket.create_connection((host, port), timeout=0.5):
+            return True
+    except OSError:
+        return False
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--host", default="127.0.0.1")
@@ -186,8 +208,17 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--video-dir", default="bias-videos", help="where relative video paths land (default: ./bias-videos)")
     p.add_argument("--latency-ms", type=float, default=0.0, help="artificial reply delay, for timeout tests")
     args = p.parse_args(argv)
+    # Refuse to start next to a live program on the port. On Windows the real BIAS's listener
+    # (Qt, 0.0.0.0) shares its address, so our bind would SUCCEED and every 127.0.0.1 client —
+    # the rig's bias node included — would then talk to this sim (ww18 2026-10-15). Only a
+    # connect sees that listener.
+    if answering(args.host, args.port):
+        print(f"[bias-sim] cannot start: something already answers on {args.host}:{args.port} — probably the real BIAS "
+              f"(or another bias-sim); binding here would hide it from every local client. Close it, or pass --port.",
+              file=sys.stderr)
+        return 2
     state = BiasState(args.fps, args.video_dir, args.latency_ms / 1000.0)
-    srv = ThreadingHTTPServer((args.host, args.port), make_handler(state))
+    srv = _Server((args.host, args.port), make_handler(state))
     print(f"[bias-sim] http://{args.host}:{args.port}/?<command>  (fps {args.fps:g}, videos → {args.video_dir})", file=sys.stderr)
     try:
         srv.serve_forever()
