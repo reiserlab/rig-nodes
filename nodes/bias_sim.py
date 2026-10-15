@@ -117,6 +117,10 @@ class BiasState:
                     with open(path, "wb") as fh:
                         fh.write(json.dumps({"bias_sim": True, "frames": self.frames_before, "fps": self.fps}).encode())
                     self.written.append(path)
+                    # Like BIAS: one camera timestamp per frame (s from capture start), next to the
+                    # video, ONE file per camera that the next recording overwrites.
+                    with open(os.path.join(os.path.dirname(path) or ".", "stamp_log_cam0.txt"), "w", encoding="ascii", newline="\n") as fh:
+                        fh.write("".join(f"{i / self.fps:.6f}\n" for i in range(self.frames_before)))
                     val = path
                     msg = f"capture stopped, video written {path}"
         elif cmd == "enable-logging":
