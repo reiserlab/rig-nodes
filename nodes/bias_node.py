@@ -19,7 +19,8 @@ sequence `BiasPlugin.m` performs. The bridge node logs every reply and status li
 run log as `{"type":"connector","src":"bias",…}` events, so the video file identity
 (`artifact`) and every command/reply pair sit in the same file as the FicTrac rows.
 
-LAB-303 semantics carried here: `timeout_s` per HTTP call; a timeout is an UNKNOWN outcome
+LAB-303 semantics carried here: `timeout_s` per HTTP call (`slow_timeout_s` for the camera /
+writer commands in SLOW_HTTP — a real camera connect takes seconds); a timeout is an UNKNOWN outcome
 (`outcome: "unknown"`), after which the node reconciles with `get-status` before anything
 else. `critical` / `on_loss` are the runner's decision (the Studio side, shared by both
 plans) — the node only reports.
@@ -52,19 +53,27 @@ REPLY_TOPIC = "/bias/reply"
 STATUS_TOPIC = "/bias/status"
 QOS = RELIABLE_QOS
 PLUGIN_COMMANDS = ("connect", "startRecording", "stopRecording", "startPreview", "stopCapture", "getTimestamp", "disconnect")
+# HTTP commands that touch the camera or the video writer and can legitimately take seconds:
+# the Atlas10 BIAS on ww18 answers `connect` after 2.18 s (camera discovery + transport setup),
+# past the 2 s per-call timeout, so a successful connect came back `outcome: "unknown"`.
+SLOW_HTTP = frozenset({"connect", "disconnect", "load-configuration", "start-capture", "stop-capture", "close"})
 
 
 class BiasHttp:
     """Blocking HTTP client for BIAS's command port. One command per request."""
 
-    def __init__(self, host: str, port: int, timeout_s: float) -> None:
+    def __init__(self, host: str, port: int, timeout_s: float, slow_timeout_s: float | None = None) -> None:
         self.host = host
         self.port = port
         self.timeout_s = timeout_s
+        self.slow_timeout_s = max(timeout_s, slow_timeout_s if slow_timeout_s is not None else timeout_s)
 
     @property
     def base(self) -> str:
         return f"http://{self.host}:{self.port}/"
+
+    def timeout_for(self, command: str) -> float:
+        return self.slow_timeout_s if command in SLOW_HTTP else self.timeout_s
 
     def call(self, command: str, value: str | None = None) -> dict:
         """→ {"command", "ok", "message", "value", "rtt_ms"} or raises TimeoutError / OSError."""
@@ -74,7 +83,7 @@ class BiasHttp:
         # which turned every RTT into 0 / 15 / 16 / 31 ms (ww18 2026-10-15).
         t0 = time.perf_counter()
         try:
-            with urllib.request.urlopen(url, timeout=self.timeout_s) as resp:
+            with urllib.request.urlopen(url, timeout=self.timeout_for(command)) as resp:
                 body = resp.read()
         except urllib.error.URLError as exc:
             if isinstance(exc.reason, TimeoutError) or "timed out" in str(exc.reason):
@@ -230,7 +239,7 @@ class BiasNode(Node):
             except TimeoutError as exc:
                 # UNKNOWN: the command may or may not have taken effect. Reconcile before
                 # anything else runs, and say so.
-                out["steps"].append({"command": http_cmd, "ok": None, "error": f"timeout after {self.http.timeout_s}s"})
+                out["steps"].append({"command": http_cmd, "ok": None, "error": f"timeout after {self.http.timeout_for(http_cmd)}s"})
                 out.update({"ok": False, "outcome": "unknown", "error": str(exc)})
                 self._do_status()
                 break
@@ -261,12 +270,14 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--host", default="127.0.0.1", help="BIAS command-port host (default: 127.0.0.1)")
     p.add_argument("--port", type=int, default=5010, help="BIAS command port (default: 5010)")
     p.add_argument("--timeout-s", type=float, default=2.0, help="per-HTTP-call timeout; a timeout is an UNKNOWN outcome (default: 2)")
+    p.add_argument("--slow-timeout-s", type=float, default=15.0,
+                   help=f"timeout for the camera/writer commands ({', '.join(sorted(SLOW_HTTP))}); default: 15")
     p.add_argument("--status-every", type=float, default=1.0, help="get-status poll period in s; 0 = off (default: 1)")
     p.add_argument("--video-dir", default=None, help="directory a RELATIVE startRecording filename is resolved against (default: pass through + warn)")
     args, ros_args = p.parse_known_args(argv)
     raise_timer_resolution()  # Windows: 1 ms system timer for this process (_common "clocks")
     rclpy.init(args=ros_args)
-    node = BiasNode(BiasHttp(args.host, args.port, args.timeout_s), args.status_every, video_dir=args.video_dir)
+    node = BiasNode(BiasHttp(args.host, args.port, args.timeout_s, args.slow_timeout_s), args.status_every, video_dir=args.video_dir)
     spin(node)
     print(f"[bias-node] {node.commands} commands handled", file=sys.stderr)
     return 0
