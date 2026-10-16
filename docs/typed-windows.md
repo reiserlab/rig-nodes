@@ -26,6 +26,7 @@ Tools), cmake 4.4.4, RoboStack Jazzy. Package cache warm.
 | T3 | T2 from this worktree (checkout path **79 chars**) + `detached-environments = 'C:\w\px'` | **PASS** 36 s; longest object path 253 chars | `--check`: importable, serializes |
 | T4 | `pixi publish --path interfaces\arena_interfaces\pixi.toml --target-channel C:\w\chan` | 26 s → an indexed file channel, `win-64/arena_interfaces-0.1.0-ha41a7fa_0.conda` (101 KiB) | `pixi build --path … --output-dir` the same, 27 s |
 | T5 | `typed` feature depends on `arena_interfaces` from that channel (no path dep, no toolchain), fresh env, `--locked` | **PASS 9 s, no build backend started** | `--check`: importable, serializes; harness **48 / 48** in 56 s, `typed topics: True` |
+| T6 | 2026-10-16, **committed**: the T4 package in `channel/` (3051258), read by the new win-64 env `typed-prebuilt` over raw.githubusercontent.com pinned to that commit; own solve group (lock +552 lines, nothing else changed) | **PASS 5 s** `--locked`, no build backend started | `--check`: importable, serializes; harness **49 / 49** in 52 s (one check more than T2/T5 by now), `typed topics: True` |
 
 T1–T3 and T5 were run in a scratch detached worktree at `C:\w\t` (T5's manifest change is not committed;
 §5 has it). Logs, T1's package-file list and the §4b recipes are on ww18 in `C:\w\logs-w2\` (not
@@ -285,8 +286,11 @@ Notes and costs:
   so there is no token to rotate. It does add `prefix.dev` to a rig's network allowlist: today's
   default env reaches only `conda.anaconda.org`, and the source build already reaches prefix.dev
   for the backend. An anaconda.org org channel (`conda.anaconda.org/<org>`) keeps a single host but
-  needs an API-token secret. A third option, not tried: commit the three `.conda` files (~100 KiB
-  each) to the repo as a local channel.
+  needs an API-token secret. A third option, tried for win-64 in T6: commit the `.conda` files
+  (~100 KiB each) to the repo. A relative `./channel` doesn't work, because pixi writes it into
+  `pixi.lock` as the committing machine's absolute path. Reading the same files over
+  raw.githubusercontent.com, pinned to a commit, keeps the lock portable. It also gives every rig a
+  dependency on GitHub's raw host, and the repo grows with every rebuild.
 - **Partial channel = no lock.** The workspace locks win-64, osx-arm64 and linux-64 together. With
   only the win-64 build in the channel, the lock could not resolve the other two platforms (seen in
   T5 until the scratch feature was limited to win-64). So publish all three platforms in one job.
@@ -308,7 +312,7 @@ Notes and costs:
 
 | | default env (String topics) | typed, built on the PC (today) | typed, prebuilt channel (§5) |
 |---|---|---|---|
-| install | `pixi install` | `pixi install -e typed` | `pixi install -e typed` |
+| install | `pixi install` | `pixi install -e typed` | `pixi install -e typed` (today, for testing: `-e typed-prebuilt`, win-64, WINDOWS-TEST.md 7b) |
 | compiler | — | MSVC **v143** toolset (VS 2022 Build Tools, or the v143 group in VS 2026; UAC, < 5 min) | — |
 | path setup | — | short checkout **or** `detached-environments` ≤ 12 chars | — |
 | network | conda.anaconda.org | + prefix.dev (backend) | + the channel host |
