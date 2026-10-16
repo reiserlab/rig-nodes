@@ -45,6 +45,11 @@ STATE = {
 }
 OBJECT_VALUED = {"hScan2D", "hRoiManager", "hStackManager", "hChannels", "hDisplay", "hScan2D.virtualChannelSettings"}
 _lock = threading.Lock()
+STALL_ON: set = set()  # canonical property paths whose `get` gets NO reply (--stall-on; a B2-style silence on an allowed property)
+
+
+class _Stall(Exception):
+    """Drop this request without a reply."""
 _acq = {"t_end": None, "t_start": None, "grabs": 0, "aborts": 0}
 
 
@@ -66,6 +71,8 @@ def _resolve(path: str):
 
 def get(path: str):
     _tick()
+    if path in STALL_ON or ("hSI." + path) in STALL_ON:
+        raise _Stall(path)
     if _strip(path) in OBJECT_VALUED:
         return object()  # unencodable → B2
     node, key = _resolve(path)
@@ -175,6 +182,9 @@ def serve(args: argparse.Namespace, stop: threading.Event | None = None) -> None
                         else:
                             raise ValueError(f"unknown command {c!r}")
                         rsp = json.dumps(msg)
+                    except _Stall as e:
+                        print(f"[si-json-mock] --stall-on: {e} → no reply", file=sys.stderr, flush=True)
+                        continue
                     except TypeError:
                         if args.b2:
                             print(f"[si-json-mock] B2: object-valued {msg.get('property')!r} → no reply (stock behavior)", file=sys.stderr, flush=True)
@@ -199,7 +209,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--no-b2", dest="b2", action="store_false", help="patched behavior: an error reply instead of silence on object-valued gets")
     p.add_argument("--start-delay-s", type=float, default=0.3, help="how long startGrab/startFocus block before replying (Bergamo: 1.2–2.4 s)")
     p.add_argument("--grab-s", type=float, default=None, help="grab duration override (default: framesPerSlice / scanFrameRate)")
+    p.add_argument("--stall-on", action="append", default=[], help="property path whose get is never answered (harness: the UNKNOWN path on an allowlisted property)")
     args = p.parse_args(argv)
+    STALL_ON.update(a if a.startswith("hSI.") else "hSI." + a for a in args.stall_on)
     try:
         serve(args)
     except KeyboardInterrupt:
