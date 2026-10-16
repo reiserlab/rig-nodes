@@ -262,15 +262,30 @@ class ScanImageNode(Node):
 
     # ── status ──────────────────────────────────────────────────────────────────────────
     def _snapshot(self, steps: list | None = None) -> dict:
-        """The status snapshot: one `get` per STATUS_PROPS (all scalar). Raises on the first failure."""
+        """The status snapshot: one `get` per STATUS_PROPS (all scalar). acqState must read; any
+        other property that ScanImage answers with an error is None + `errors[prop]` — e.g.
+        hDisplay.lastFrameNumber throws "Index exceeds array bounds" until the first acquisition
+        after ScanImage starts (Bergamo, 2026-10-16). Timeouts and socket errors still raise."""
         out: dict = {}
+        errors: dict = {}
         rtt_total = 0.0
         for prop in STATUS_PROPS:
-            v, rtt = self.cli.get(prop)
+            try:
+                v, rtt = self.cli.get(prop)
+            except SiError as exc:
+                if prop == "hSI.acqState":
+                    raise
+                out[prop.split(".")[-1]] = None
+                errors[prop] = str(exc).splitlines()[0]
+                if steps is not None:
+                    steps.append({"command": "get", "property": prop, "ok": False, "error": errors[prop]})
+                continue
             rtt_total += rtt
             out[prop.split(".")[-1]] = v
             if steps is not None:
                 steps.append({"command": "get", "property": prop, "ok": True, "value": v, "rtt_ms": rtt})
+        if errors:
+            out["errors"] = errors
         out["rtt_ms"] = round(rtt_total, 2)
         return out
 
