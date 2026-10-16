@@ -212,6 +212,10 @@ packaging (and passes the outside-prefix check)
 
 ## 5. Fallback: build once in CI, publish to a channel
 
+**Decided 2026-10-16: this is the rig route** — `typed-distribution-decision.md` has the decision, the
+implemented workflow (`.github/workflows/arena-interfaces.yml`) and the release recipe; the text below is the
+measurement record and the original sketch.
+
 Rigs install `arena_interfaces` as a plain binary, like every RoboStack package. That means no
 MSVC, no backend, no MAX_PATH and no `detached-environments`, and the `typed` install becomes a
 download like the default one. T4 + T5 tested this on ww18 with a local file channel.

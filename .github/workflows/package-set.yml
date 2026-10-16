@@ -1,0 +1,140 @@
+# Build ros2-poc/interfaces/arena_interfaces (the typed ROS 2 messages of the arena bridge graph,
+# LAB-303) ONCE per platform in CI and publish the result as a conda channel, so a rig PC installs
+# typed messages as a download — no MSVC, no build backend, no MAX_PATH workaround. Decision and
+# the consumer-side manifest edits: ros2-poc/docs/typed-distribution-decision.md; the measurements
+# behind it: ros2-poc/docs/typed-windows.md.
+#
+# Runs: build-only on a PR that touches the package or this file (proves the three platforms still
+# build); the `arena-interfaces-channel` artifact on every run; the hosted-channel upload only on an
+# `arena-interfaces-v*` tag AND only when the repository variable ARENA_INTERFACES_CHANNEL names a
+# prefix.dev channel (with the PREFIX_API_KEY secret). Until the lab owns one, the channel artifact
+# is committed into ros2-poc/channel/ by hand (the decision note has the recipe).
+name: arena-interfaces
+
+on:
+    pull_request:
+        paths:
+            - 'ros2-poc/interfaces/**'
+            - '.github/workflows/arena-interfaces.yml'
+    push:
+        tags: ['arena-interfaces-v*']
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+concurrency:
+    group: arena-interfaces-${{ github.event.pull_request.number || github.ref }}
+    cancel-in-progress: true
+
+env:
+    # The pixi + pixi-build-ros pair the package was last built and tested with (ww18 2026-10-16,
+    # docs/typed-windows.md). Bump deliberately: the backend is NOT in pixi.lock.
+    PIXI_VERSION: v0.80.0
+
+jobs:
+    build:
+        name: build (${{ matrix.subdir }})
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    # windows-2022 carries VS 2022 → conda-forge's vs2022 activation finds the v143
+                    # toolset without the Build-Tools-2026 detour of docs/typed-windows.md W2.
+                    - { os: windows-2022, subdir: win-64 }
+                    - { os: macos-14, subdir: osx-arm64 }
+                    - { os: ubuntu-24.04, subdir: linux-64 }
+        runs-on: ${{ matrix.os }}
+        defaults:
+            run:
+                shell: bash
+                working-directory: ros2-poc
+        steps:
+            - uses: actions/checkout@v7
+              with:
+                  persist-credentials: false
+            - uses: prefix-dev/setup-pixi@v0.10.2
+              with:
+                  pixi-version: ${{ env.PIXI_VERSION }}
+                  run-install: false
+            # MAX_PATH: the runner's checkout (D:\a\webDisplayTools\webDisplayTools\ros2-poc, 45
+            # chars) plus the ~211 chars the rosidl build adds crosses 260. detached-environments
+            # moves .pixi (build workspace included) to a 4-char root — the ww18 recipe.
+            - name: Windows build root
+              if: runner.os == 'Windows'
+              run: pixi config set --local detached-environments 'C:\px'
+            - name: pixi build arena_interfaces
+              run: |
+                  rm -rf ../dist
+                  pixi build --path interfaces/arena_interfaces/pixi.toml --output-dir ../dist
+                  mkdir -p ../dist/${{ matrix.subdir }}
+                  mv ../dist/*.conda ../dist/${{ matrix.subdir }}/
+                  ls -la ../dist/${{ matrix.subdir }}
+            # The archive must be a well-formed .conda for the subdir it claims; `..` in a packaged
+            # path (the Windows bug the CMakeLists workaround covers) would already have failed above.
+            - name: inspect the package
+              run: |
+                  f=$(ls ../dist/${{ matrix.subdir }}/*.conda)
+                  python3 - "$f" <<'EOF'
+                  import sys, zipfile
+                  path = sys.argv[1]
+                  names = zipfile.ZipFile(path).namelist()  # a .conda = zip{pkg-*.tar.zst, info-*.tar.zst, metadata.json}
+                  assert any(n.startswith("pkg-") for n in names) and any(n.startswith("info-") for n in names), names
+                  print(path, names)
+                  EOF
+            - uses: actions/upload-artifact@v5
+              with:
+                  name: arena_interfaces-${{ matrix.subdir }}
+                  path: dist/${{ matrix.subdir }}/*.conda
+                  if-no-files-found: error
+                  retention-days: 30
+
+    channel:
+        name: channel (index + artifact)
+        needs: build
+        runs-on: ubuntu-24.04
+        steps:
+            - uses: prefix-dev/setup-pixi@v0.10.2
+              with:
+                  pixi-version: ${{ env.PIXI_VERSION }}
+                  run-install: false
+            # One artifact per subdir → channel/<subdir>/<pkg>.conda (upload paths are relative to
+            # dist/<subdir>, so the subdir is restored here from the artifact name).
+            - uses: actions/download-artifact@v5
+              with:
+                  pattern: arena_interfaces-*
+                  path: artifacts
+            - name: assemble + index the channel
+              run: |
+                  mkdir -p channel
+                  for d in artifacts/arena_interfaces-*; do
+                      subdir=${d#artifacts/arena_interfaces-}
+                      mkdir -p "channel/$subdir"
+                      cp "$d"/*.conda "channel/$subdir/"
+                  done
+                  pixi exec rattler-index fs channel
+                  find channel -type f | sort
+                  python3 - <<'EOF'
+                  import json, pathlib
+                  for rd in sorted(pathlib.Path("channel").glob("*/repodata.json")):
+                      pk = json.load(open(rd))["packages.conda"]
+                      for name, rec in pk.items():
+                          print(rd.parent.name, name, rec["sha256"], [d for d in rec["depends"] if d.startswith("ros2-distro-mutex")])
+                  EOF
+            # The deliverable: a complete three-platform channel. Commit it into ros2-poc/channel/
+            # (decision note §"Releasing a new build") or let the step below upload it.
+            - uses: actions/upload-artifact@v5
+              with:
+                  name: arena-interfaces-channel
+                  path: channel
+                  if-no-files-found: error
+                  retention-days: 90
+            # Hosted channel (prefix.dev), only when the lab has one: set the repository variable
+            # ARENA_INTERFACES_CHANNEL to its name and the secret PREFIX_API_KEY. Tags only, so a
+            # PR build can never publish.
+            - name: upload to the hosted channel
+              if: startsWith(github.ref, 'refs/tags/arena-interfaces-v') && vars.ARENA_INTERFACES_CHANNEL != ''
+              env:
+                  PREFIX_API_KEY: ${{ secrets.PREFIX_API_KEY }}
+                  ARENA_INTERFACES_CHANNEL: ${{ vars.ARENA_INTERFACES_CHANNEL }}
+              run: pixi exec rattler-build upload prefix --channel "$ARENA_INTERFACES_CHANNEL" channel/*/*.conda
