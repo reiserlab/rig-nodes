@@ -422,7 +422,15 @@ class ScanImageNode(Node):
             waited = round(time.monotonic() - t0, 3)
             if st != "idle":
                 raise SiError(f"still '{st}' after {waited:g} s (timeout_s {to:g}); use abort")
-            return {"acqState": st, "waited_s": waited, "lastFrameNumber": self._get("hSI.hDisplay.lastFrameNumber", steps),
+            # lastFrameNumber is informational: on the Bergamo (2026.0.0) it throws "Index exceeds
+            # array bounds" even right after a grab, so it must not turn a reached idle into an error.
+            try:
+                last = self._get("hSI.hDisplay.lastFrameNumber", steps)
+            except SiError as exc:
+                last = None
+                steps.append({"command": "get", "property": "hSI.hDisplay.lastFrameNumber", "ok": False,
+                              "error": str(exc).splitlines()[0]})
+            return {"acqState": st, "waited_s": waited, "lastFrameNumber": last,
                     "logFileCounter": self._get("hSI.hScan2D.logFileCounter", steps)}
         if command == "abort":
             rtt = self.cli.eval(EVAL_ABORT, self.cli.slow_timeout_s)
