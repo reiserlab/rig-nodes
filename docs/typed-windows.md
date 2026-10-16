@@ -85,9 +85,10 @@ prefix) or on Linux/macOS. Side effects, both harmless here:
 
 - ament_cmake_python byte-compiles `"${CMAKE_INSTALL_PREFIX}/${PYTHON_INSTALL_DIR}/<pkg>"`, so
   with an absolute value it logs `Can't list '%PREFIX%/Library/%PREFIX%/Lib/site-packages/arena_interfaces'`
-  and compiles nothing. The package is unchanged either way: compileall's `.pyc` files were never
-  in `install_manifest.txt`, so since #6691 they are not packaged (0 of 151, before and after).
-  Python compiles on first import.
+  and compiles nothing. The package is unchanged either way: the 5 `.pyc` files in it come from
+  rattler-build's own post-build step ("Compiling 5 .py files to .pyc", in the failing build and in
+  the fixed one), not from ament's compileall, whose output never reaches `install_manifest.txt`.
+  (Corrected 2026-10-16; an earlier version said no `.pyc` were packaged.)
 - `share/arena_interfaces/environment/pythonpath.dsv` now holds an absolute path. rattler-build
   rewrites it to the install prefix (checked in the installed env); conda environments don't
   read these hooks.
@@ -140,6 +141,10 @@ doesn't touch. `LongPathsEnabled` was not tried (it is 0 on ww18, and changing i
 > after). If you'd rather keep the relative value the ament README asks for, you could instead normalize
 > the manifest lines before appending them to `%RATTLER_BUILD_PACKAGE_FILES%`. Or rattler-build could
 > normalize the list itself (prefix-dev/rattler-build#2875), which would cover every template.
+
+**Correction to the posted text:** "0 of 151 … haven't been packaged" is wrong. The package holds 5
+`.pyc` files, compiled by rattler-build's own post-build step in both builds. The conclusion (the
+skipped compileall doesn't change the package) still holds.
 >
 > **On the MAX_PATH note in #6955:** `detached-environments` moves `bld/` along with the envs. With
 > `pixi config set --local detached-environments C:\px`, a checkout 79 characters deep built fine for
