@@ -136,15 +136,14 @@ doesn't touch. `LongPathsEnabled` was not tried (it is 0 on ww18, and changing i
 > **Side effect worth a line in the PR:** ament_cmake_python byte-compiles
 > `"${CMAKE_INSTALL_PREFIX}/${ARG_DESTINATION}/<pkg>"` (`ament_python_install_package.cmake`). With an
 > absolute `PYTHON_INSTALL_DIR` that becomes `%PREFIX%/Library/%PREFIX%/Lib/site-packages/<pkg>`, and the
-> build logs `Can't list …` (not fatal). The package doesn't change: compileall's `.pyc` files were never
-> in `install_manifest.txt`, so they haven't been packaged since #6691 (0 of 151 here, before and
-> after). If you'd rather keep the relative value the ament README asks for, you could instead normalize
+> build logs `Can't list …` (not fatal). The package doesn't change: its 5 `.pyc` files come from
+> rattler-build's own post-build step ("Compiling 5 .py files to .pyc", in the failing build and the fixed
+> one alike), not from ament's compileall, whose output never reaches `install_manifest.txt`. If you'd rather keep the relative value the ament README asks for, you could instead normalize
 > the manifest lines before appending them to `%RATTLER_BUILD_PACKAGE_FILES%`. Or rattler-build could
 > normalize the list itself (prefix-dev/rattler-build#2875), which would cover every template.
 
-**Correction to the posted text:** "0 of 151 … haven't been packaged" is wrong. The package holds 5
-`.pyc` files, compiled by rattler-build's own post-build step in both builds. The conclusion (the
-skipped compileall doesn't change the package) still holds.
+Edited on GitHub 2026-10-16: the `.pyc` sentence first said none were packaged; the package does
+hold 5, compiled by rattler-build. The quote above is the corrected text.
 >
 > **On the MAX_PATH note in #6955:** `detached-environments` moves `bld/` along with the envs. With
 > `pixi config set --local detached-environments C:\px`, a checkout 79 characters deep built fine for
