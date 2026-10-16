@@ -110,9 +110,9 @@ viz-env check now uses the running env's sibling (`CONDA_PREFIX`), so `--foxglov
 detached envs. The harness's `find_node()` looks in the *root* workspace, which this setting
 doesn't touch. `LongPathsEnabled` was not tried (it is 0 on ww18, and changing it needs admin).
 
-## 4. Upstream — drafts, not filed
+## 4. Upstream — filed 2026-10-16 (text below as posted)
 
-### 4a. Comment for prefix-dev/pixi#7226 (cross-link from #6955)
+### 4a. Comment on prefix-dev/pixi#7226 — [posted](https://github.com/prefix-dev/pixi/pull/7226#issuecomment-6217653890)
 
 > Confirming this on a second machine with the newest backend build, plus one side effect.
 >
@@ -139,13 +139,13 @@ doesn't touch. `LongPathsEnabled` was not tried (it is 0 on ww18, and changing i
 > in `install_manifest.txt`, so they haven't been packaged since #6691 (0 of 151 here, before and
 > after). If you'd rather keep the relative value the ament README asks for, you could instead normalize
 > the manifest lines before appending them to `%RATTLER_BUILD_PACKAGE_FILES%`. Or rattler-build could
-> normalize the list itself (<link to 4b>), which would cover every template.
+> normalize the list itself (prefix-dev/rattler-build#2875), which would cover every template.
 >
 > **On the MAX_PATH note in #6955:** `detached-environments` moves `bld/` along with the envs. With
 > `pixi config set --local detached-environments C:\px`, a checkout 79 characters deep built fine for
 > us (longest object path 253 characters).
 
-### 4b. New issue for prefix-dev/rattler-build
+### 4b. Issue prefix-dev/rattler-build#2875 — [filed](https://github.com/prefix-dev/rattler-build/issues/2875) (links back to 4a)
 
 **Title:** `RATTLER_BUILD_PACKAGE_FILES` entries are not normalized: a `..` inside the prefix breaks
 packaging (and passes the outside-prefix check)
