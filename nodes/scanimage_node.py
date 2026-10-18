@@ -112,6 +112,27 @@ def canon(prop: str) -> str:
     return prop if prop.startswith("hSI.") or not prop else "hSI." + prop
 
 
+def coerce_scalar(value):
+    """A protocol's `set` value arrives as text from the designer ("640", "true", "F:\\data"):
+    make it the JSON scalar the ScanImage property wants — int, float, bool — and leave real
+    text (paths, stems) alone. Non-strings pass through unchanged."""
+    if not isinstance(value, str):
+        return value
+    t = value.strip()
+    low = t.lower()
+    if low in ("true", "false"):
+        return low == "true"
+    try:
+        return int(t)
+    except ValueError:
+        pass
+    try:
+        f = float(t)
+        return f if t.lower() not in ("nan", "inf", "-inf", "+inf") else value
+    except ValueError:
+        return value
+
+
 class SiError(RuntimeError):
     """The server replied with an error."""
 
@@ -354,6 +375,7 @@ class ScanImageNode(Node):
             raise ValueError(f"{prop!r} may not be set from a protocol (allowlist: {sorted(SET_ALLOWLIST)})")
         if isinstance(value, (dict, list)):
             raise ValueError(f"{prop}: only scalar values may be set")
+        value = coerce_scalar(value)
         actual, rtt = self.cli.set(prop, value)
         steps.append({"command": "set", "property": prop, "value": value, "ok": True, "actual": actual, "rtt_ms": rtt})
         return actual

@@ -1,5 +1,10 @@
 # ros2-poc/channel — a prebuilt arena_interfaces (LAB-303 Plan B test, win-64 only)
 
+> **2026-10-18:** the package payload (`win-64/*.conda`, repodata) was removed from the tree —
+> a binary in git history is enough for the pinned URL the `typed-prebuilt` environment reads
+> (commit `30512581`, see `../pixi.toml`), and the CI-built channel replaces it. This README stays
+> as the record of how the one-off package was built.
+
 A conda channel with one package, read by the opt-in `typed-prebuilt` environment in
 `../pixi.toml` over raw.githubusercontent.com (pinned to the commit that added these files), so a
 Windows PC **without Visual Studio** can run the graph with typed messages. Stand-in for the

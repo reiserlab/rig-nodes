@@ -53,11 +53,16 @@ def _yaml_from(d: dict) -> str:
 
 
 class Recorder:
-    def __init__(self, bag_dir: str | os.PathLike, topics: dict[str, str], profile: str = "default") -> None:
-        """`topics`: topic name → ROS type name (e.g. 'std_msgs/msg/String')."""
+    def __init__(self, bag_dir: str | os.PathLike, topics: dict[str, str], profile: str = "default",
+                 max_bag_bytes: int = 0) -> None:
+        """`topics`: topic name → ROS type name (e.g. 'std_msgs/msg/String'). `max_bag_bytes` > 0
+        asks rosbag2 to split the bag into `<run>_0.mcap`, `_1.mcap`, … at about that size (a
+        threshold rosbag2 checks after each write, not a hard cap; off by default — bags are
+        archived on a share, not pushed to GitHub, so size limits are the exception)."""
         self.bag_dir = Path(bag_dir)
         self.topics = dict(topics)
         self.profile = profile
+        self.max_bag_bytes = int(max_bag_bytes or 0)
         self._w = None
         self._lock = threading.Lock()
         self.count = 0
@@ -74,10 +79,19 @@ class Recorder:
         preset, cfg, cache = PROFILES[self.profile]
         cfg_path = ""
         if cfg:
-            cfg_path = str(self.bag_dir.parent / f".{self.bag_dir.name}.storage.yaml")
-            Path(cfg_path).write_text(_yaml_from(cfg), encoding="utf-8")
+            # ONE constant sidecar per log dir and profile (its content never changes), not one
+            # hidden file per run — those accumulated in runlogs/ forever.
+            cfg_path = str(self.bag_dir.parent / f".mcap-storage-{self.profile}.yaml")
+            text = _yaml_from(cfg)
+            try:
+                if Path(cfg_path).read_text(encoding="utf-8") != text:
+                    raise FileNotFoundError
+            except (FileNotFoundError, OSError):
+                Path(cfg_path).write_text(text, encoding="utf-8")
         so = rosbag2_py.StorageOptions(uri=str(self.bag_dir), storage_id="mcap", max_cache_size=cache,
                                        storage_preset_profile=preset, storage_config_uri=cfg_path)
+        if self.max_bag_bytes > 0:
+            so.max_bagfile_size = self.max_bag_bytes
         co = rosbag2_py.ConverterOptions(input_serialization_format="cdr", output_serialization_format="cdr")
         with self._lock:
             self._pending = []

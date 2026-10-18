@@ -160,13 +160,16 @@ def reindex(mcap_path: str | os.PathLike, keep_original: bool = False, compressi
         tmp.unlink(missing_ok=True)
         res["error"] = f"verification failed: per-topic counts {got} vs {want}"
         return res
+    # Replace ATOMICALLY (os.replace: rename(2) / MoveFileEx on the same filesystem). A kill
+    # between an unlink and a rename used to leave a bag directory with metadata.yaml and no
+    # .mcap at all — for the record of truth that is the one unacceptable state. With
+    # `recover` / `keep_original` the source is moved aside first, so at every instant either
+    # the original or the verified rewrite is in place under a name a reader will find.
     if recover:
         src.rename(src.with_name(src.name + ".torn.bak"))  # never a `.mcap` name: no reader must find it
     elif keep_original:
         src.rename(src.with_name(src.stem + ".unindexed.mcap"))
-    else:
-        src.unlink()
-    tmp.rename(src)
+    os.replace(tmp, src)
     return res
 
 
