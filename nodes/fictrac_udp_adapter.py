@@ -43,6 +43,7 @@ from rclpy.node import Node
 from std_msgs.msg import String
 
 from _common import RELIABLE_QOS, mono_ns, probe_interfaces, raise_timer_resolution, spin, wall_ms, wrap_line
+from _rows import parse_fictrac_line  # ONE parser for the adapter, the bridge node and the converter
 
 _IFACES = probe_interfaces()  # import + serialize; None → String only
 HAVE_IFACES = _IFACES is not None
@@ -51,22 +52,6 @@ FicTracFrame = _IFACES[1] if _IFACES else None  # type: ignore[assignment]
 TOPIC = "/fictrac/raw"
 TYPED_TOPIC = "/fictrac/frame"
 RAW_QOS = RELIABLE_QOS
-
-
-def parse_fictrac_line(raw: str) -> tuple[str, list[float]]:
-    """(tag, fields) the way bridge.py's Pipeline parses: a leading FT* token is the tag
-    ('' when absent, as in offline .dat lines and the simulator); fields = the floats after
-    it, or [] when the line is not numeric (a bad frame has no usable data)."""
-    parts = raw.strip().split(",")
-    tag = ""
-    if parts and parts[0].strip()[:2].upper() == "FT":
-        tag = parts[0].strip()
-        parts = parts[1:]
-    try:
-        return tag, [float(p) for p in parts]
-    except ValueError:
-        return tag, []
-
 
 
 class FicTracUdpAdapter(Node):

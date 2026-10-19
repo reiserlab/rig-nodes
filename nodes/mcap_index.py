@@ -66,13 +66,41 @@ def _scan(src: Path, recover: bool):
     return torn, error
 
 
+ZSTD_LEVEL = 19  # the final layout's compression level (docs/development/fictrac-columns-in-the-bag.md §3)
+
+
+class _zstd_level:
+    """The `mcap` writer calls `zstandard.compress(data)` — level 3, no knob. Swap the module
+    function for the duration of one rewrite (the same trick as sizing/compare.py); restored in
+    __exit__ even on an exception. Process-wide, so never nest two rewrites concurrently."""
+
+    def __init__(self, level: int) -> None:
+        self.level = level
+
+    def __enter__(self):
+        import zstandard
+
+        self._mod = zstandard
+        self._saved = zstandard.compress
+        lvl = self.level
+        zstandard.compress = lambda data, _l=lvl: zstandard.ZstdCompressor(level=_l).compress(data)
+        return self
+
+    def __exit__(self, *exc) -> None:
+        self._mod.compress = self._saved
+
+
 def reindex(mcap_path: str | os.PathLike, keep_original: bool = False, compression: str = "zstd",
-            recover: bool = False, marker: dict | None = None) -> dict:
+            recover: bool = False, marker: dict | None = None, level: int = ZSTD_LEVEL) -> dict:
     """Rewrite one MCAP indexed + compressed. `recover=True` tolerates a torn tail (the records
     read up to it are kept), appends the `recovered` session marker (`marker` adds fields) and
-    keeps the original as `<name>.torn.bak`. Returns a report; `verified` False = nothing replaced."""
+    keeps the original as `<name>.torn.bak`. Returns a report; `verified` False = nothing replaced.
+
+    The final layout (2026-10-18): a CHUNK index only — no per-message index, which costs more
+    than the messages of a 50 Hz stream compress to — and zstd at `level` (19; the mcap writer's
+    own 3 is a streaming default). Readers seek by chunk; Foxglove and `ros2 bag` are unaffected."""
     from mcap.records import Attachment, Channel, Header, Message, Metadata, Schema
-    from mcap.writer import CompressionType, Writer
+    from mcap.writer import CompressionType, IndexType, Writer
 
     src = Path(mcap_path)
     tmp = src.with_suffix(".indexed.tmp")
@@ -85,8 +113,8 @@ def reindex(mcap_path: str | os.PathLike, keep_original: bool = False, compressi
     n = 0
     torn, error = False, None
     marker_written = False
-    with open(tmp, "wb") as fout:
-        w = Writer(fout, compression=comp)
+    with open(tmp, "wb") as fout, _zstd_level(level if compression == "zstd" else 3):
+        w = Writer(fout, compression=comp, index_types=IndexType.ALL & ~IndexType.MESSAGE)
         started = False
         gen = _scan(src, recover)
         while True:
@@ -152,7 +180,8 @@ def reindex(mcap_path: str | os.PathLike, keep_original: bool = False, compressi
             got[chn.topic] = got.get(chn.topic, 0) + 1
     ok = got == want and summ is not None and bool(summ.chunk_indexes)
     res = {"file": str(src), "messages": n, "bytes_before": src.stat().st_size, "bytes_after": tmp.stat().st_size,
-           "chunks": len(summ.chunk_indexes) if summ else 0, "compression": compression, "verified": ok,
+           "chunks": len(summ.chunk_indexes) if summ else 0, "compression": compression,
+           "level": level if compression == "zstd" else None, "message_index": False, "verified": ok,
            "seconds": round(time.perf_counter() - t0, 2)}
     if recover:
         res.update({"recovered": True, "torn": torn, "torn_error": error, "marker": marker_written})
