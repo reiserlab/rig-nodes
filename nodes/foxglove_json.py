@@ -59,7 +59,7 @@ def wrap_to_pi(r: float) -> float:
 
 
 class FrameDeriver:
-    """bridge_node.FrameDeriver, verbatim math (ros2-poc/nodes/bridge_node.py)."""
+    """bridge_node.FrameDeriver, verbatim math (rig/nodes/bridge_node.py)."""
 
     def __init__(self, ball_mm: float) -> None:
         self.radius_mm = ball_mm / 2.0
@@ -232,7 +232,7 @@ def convert(src: Path, dst: Path, ball_mm: float, keep_raw: bool = False) -> dic
     dst.parent.mkdir(parents=True, exist_ok=True)
     with open(dst, "wb") as f:
         w = Writer(f, compression=CompressionType.ZSTD)
-        w.start(profile="", library="ros2-poc foxglove_json.py")
+        w.start(profile="", library="rig foxglove_json.py")
         chan = {}
         for topic in sorted(schemas):
             sc = finish_schema(schemas[topic]) or {"type": "object"}

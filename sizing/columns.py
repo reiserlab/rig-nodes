@@ -66,7 +66,7 @@ def load(path: Path) -> list[tuple]:
 
 
 def fictrac_fields(sn: str | None, msg: dict) -> list[float] | None:
-    if sn == "arena_interfaces/msg/FicTracFrame":
+    if sn == "rig_interfaces/msg/FicTracFrame":
         return list(msg["fields"])
     try:
         env = json.loads(msg["data"])
@@ -83,7 +83,7 @@ def fictrac_fields(sn: str | None, msg: dict) -> list[float] | None:
 
 def arena_fields(sn: str | None, msg: dict) -> dict:
     """The /arena/frame record as a flat dict, from the typed message or the String-path JSON."""
-    if sn == "arena_interfaces/msg/ArenaFrame":
+    if sn == "rig_interfaces/msg/ArenaFrame":
         return dict(msg)
     o = json.loads(msg["data"])
     return {"t_ms": o["t"], "ms": o["ms"], "fc": o["fc"], "idx": o["idx"], "has_ft": o.get("ft") is not None,
