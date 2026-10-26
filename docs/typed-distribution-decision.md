@@ -1,6 +1,6 @@
 # Typed interfaces on Windows rigs — distribution decision (LAB-303, 2026-10-16)
 
-**Decision: build `arena_interfaces` in CI and ship it as a conda channel; rigs never compile it.**
+**Decision: build `rig_interfaces` in CI and ship it as a conda channel; rigs never compile it.**
 The default environment stays String-only and unchanged. The per-PC MSVC build remains available
 for whoever edits a `.msg` (it is the same `pixi install -e typed` as today).
 
@@ -17,7 +17,7 @@ Measurements: `typed-windows.md` (ww18, 2026-10-15/16). This page is the decisio
 | upstream exposure | the `..`-in-manifest bug needs our CMakeLists workaround until pixi#7226 / rattler-build#2875 ship; `version = "*"` on the backend floats, so two rigs can build with different backends | the workaround runs once, in CI; the lock pins the package by sha256 on every machine |
 | type-hash agreement (rmw_zenoh keys typed topics by the hash of the `.msg` text) | guaranteed only if every machine built the same source | guaranteed: one build per version, same bytes everywhere |
 | who can be surprised | every new rig PC, every VS update, every student who clones to a long path | the maintainer who forgets to rebuild after a `.msg` change (the version bump below is the guard) |
-| cost to run | 0 infrastructure, N × 5 min of setup and a compiler per PC | one workflow (`.github/workflows/arena-interfaces.yml`), three runners × 2–4 min per `.msg` change, one channel to own |
+| cost to run | 0 infrastructure, N × 5 min of setup and a compiler per PC | one workflow (`.github/workflows/rig-interfaces.yml`), three runners × 2–4 min per `.msg` change, one channel to own |
 
 The per-PC route works now (T2/T3) and is the right **developer** path. It is the wrong **rig**
 path: the whole point of the two-environment split was that a rig PC always installs; a route
@@ -28,16 +28,16 @@ re-introduces exactly the install friction the decision procedure scored against
 
 Three options were measured or sketched (`typed-windows.md` §5). In order of preference:
 
-1. **In-repo channel, read over raw.githubusercontent.com** (T6: committed `ros2-poc/channel/`,
+1. **In-repo channel, read over raw.githubusercontent.com** (T6: committed `rig/channel/`,
    5 s install on ww18). No account, no secret, no new host beyond GitHub, works today. Cost: the
    repo grows by ~300 KiB per release (three platforms), and the channel URL must name an
    immutable ref. **Use a tag, not a commit sha:** the commit that adds the packages also edits
-   `pixi.toml` to point at `arena-interfaces-vX.Y.Z`, and the tag is placed on that commit — one
+   `pixi.toml` to point at `rig-interfaces-vX.Y.Z`, and the tag is placed on that commit — one
    commit, consistent, and the lock still pins each package's sha256.
 2. **prefix.dev lab channel** with trusted publishing. No repo growth, OIDC instead of a token,
    but someone has to own the channel and rigs gain `prefix.dev` in their allowlist (the source
    build already needs it for the backend). The workflow's last step uploads there as soon as the
-   repository variable `ARENA_INTERFACES_CHANNEL` and the secret `PREFIX_API_KEY` exist; nothing
+   repository variable `RIG_INTERFACES_CHANNEL` and the secret `PREFIX_API_KEY` exist; nothing
    else changes.
 3. anaconda.org org channel: one host for everything, but an API-token secret to rotate. Not
    chosen.
@@ -46,22 +46,22 @@ Start with 1; move to 2 when the lab decides to own a channel. The workflow serv
 
 ## What is implemented (this commit)
 
-`.github/workflows/arena-interfaces.yml`:
+`.github/workflows/rig-interfaces.yml`:
 
 - `build (win-64 | osx-arm64 | linux-64)` — `windows-2022` (VS 2022 → v143 found by conda-forge's
   activation, no W2-1), `macos-14`, `ubuntu-24.04`; pixi `v0.80.0` (the ww18 pair; the backend is
   not in the lock, so the version is pinned on purpose); on Windows
   `pixi config set --local detached-environments C:\px` first (W2-2); then
-  `pixi build --path interfaces/arena_interfaces/pixi.toml --output-dir ../dist`, the archive
-  checked for its two inner tarballs, uploaded as `arena_interfaces-<subdir>`.
+  `pixi build --path interfaces/rig_interfaces/pixi.toml --output-dir ../dist`, the archive
+  checked for its two inner tarballs, uploaded as `rig_interfaces-<subdir>`.
 - `channel` — downloads the three, lays them out as `channel/<subdir>/`, runs
   `rattler-index fs channel` (the same indexer `pixi publish` used for the ww18 channel), prints
-  each package's sha256 and `ros2-distro-mutex` pin, uploads **`arena-interfaces-channel`**
-  (90 days). On an `arena-interfaces-v*` tag with the prefix.dev variable set it also uploads to
+  each package's sha256 and `ros2-distro-mutex` pin, uploads **`rig-interfaces-channel`**
+  (90 days). On a `rig-interfaces-v*` tag with the prefix.dev variable set it also uploads to
   the hosted channel.
-- Triggers: `pull_request` on `ros2-poc/interfaces/**` or the workflow file (build-only; the first
+- Triggers: `pull_request` on `rig/interfaces/**` or the workflow file (build-only; the first
   run is the push of this commit on PR #254 — the Windows job is the one to watch), tags
-  `arena-interfaces-v*`, `workflow_dispatch`.
+  `rig-interfaces-v*`, `workflow_dispatch`.
 
 All three platforms are built because the workspace locks them together: a channel with only
 win-64 cannot be re-locked (T5's first attempt). Nothing in `pixi.toml` changed: the default
@@ -75,24 +75,24 @@ Mac before this commit (`pixi build` 17 s → `arena_interfaces-0.1.0-h60d57d3_0
 After any `.msg` change, or when re-locking onto a newer RoboStack (the package pins
 `ros2-distro-mutex`):
 
-1. Bump the version in `interfaces/arena_interfaces/package.xml` **and**
-   `interfaces/arena_interfaces/pixi.toml` (same number).
+1. Bump the version in `interfaces/rig_interfaces/package.xml` **and**
+   `interfaces/rig_interfaces/pixi.toml` (same number).
 2. Push; the PR run builds the three packages. Download the channel:
-   `gh run download <run-id> -n arena-interfaces-channel -D ros2-poc/channel` (replace the
-   directory; `git rm -r ros2-poc/channel` first).
-3. Point the prebuilt environment at the new tag and version (`ros2-poc/pixi.toml`):
+   `gh run download <run-id> -n rig-interfaces-channel -D rig/channel` (replace the
+   directory; `git rm -r rig/channel` first).
+3. Point the prebuilt environment at the new tag and version (`rig/pixi.toml`):
 
    ```toml
    [feature.typed-prebuilt]
    platforms = ["win-64", "osx-arm64", "linux-64"]          # all three are in the channel now
-   channels = ["https://raw.githubusercontent.com/reiserlab/webDisplayTools/arena-interfaces-v0.2.0/ros2-poc/channel"]
+   channels = ["https://raw.githubusercontent.com/reiserlab/webDisplayTools/rig-interfaces-v0.2.0/rig/channel"]
 
    [feature.typed-prebuilt.dependencies]
-   arena_interfaces = { version = "==0.2.0", channel = "https://raw.githubusercontent.com/reiserlab/webDisplayTools/arena-interfaces-v0.2.0/ros2-poc/channel" }
+   rig_interfaces = { version = "==0.2.0", channel = "https://raw.githubusercontent.com/reiserlab/webDisplayTools/rig-interfaces-v0.2.0/rig/channel" }
    ```
 
    `pixi lock` (or `pixi install -e typed-prebuilt`), commit packages + manifest + lock in ONE
-   commit, then `git tag arena-interfaces-v0.2.0 && git push --tags` on that commit. The tag push
+   commit, then `git tag rig-interfaces-v0.2.0 && git push --tags` on that commit. The tag push
    runs the workflow once more (and uploads to prefix.dev when configured).
 4. Rigs: `git pull && pixi install --locked -e typed-prebuilt`.
 

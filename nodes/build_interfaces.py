@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""build_interfaces.py — build interfaces/arena_interfaces inside this pixi env, and time it.
+"""build_interfaces.py — build interfaces/rig_interfaces inside this pixi env, and time it.
 
     pixi run build-interfaces            # colcon build → interfaces/install, result JSON printed + saved
     pixi run build-interfaces -- --clean # wipe build/ + install/ first (a cold build; the number to report)
@@ -31,7 +31,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 POC = HERE.parent
 IFACES = POC / "interfaces"
-PKG = IFACES / "arena_interfaces"
+PKG = IFACES / "rig_interfaces"
 BUILD = IFACES / "build"
 INSTALL = IFACES / "install"
 RESULT = IFACES / "build-result.json"
@@ -44,7 +44,7 @@ def check() -> dict:
     out = {"install_prefix": str(INSTALL), "built": INSTALL.exists(), "usable": probe_interfaces() is not None}
     setup_interfaces()
     try:
-        from arena_interfaces.msg import ArenaFrame, ConnectorReply, FicTracFrame  # noqa: F401
+        from rig_interfaces.msg import ArenaFrame, ConnectorReply, FicTracFrame  # noqa: F401
 
         out["importable"] = True
         out["msgs"] = ["FicTracFrame", "ArenaFrame", "ConnectorReply"]
@@ -80,7 +80,7 @@ def build(clean: bool) -> dict:
         "--cmake-args", "-GNinja", "-DCMAKE_BUILD_TYPE=Release",
         f"-DPython3_EXECUTABLE={sys.executable}", f"-DPython_EXECUTABLE={sys.executable}",
         # RoboStack's toolchain sets the install rpath to the ENV's lib only; the generated
-        # Python extension then cannot find libarena_interfaces__*.dylib next to itself, and
+        # Python extension then cannot find librig_interfaces__*.dylib next to itself, and
         # macOS SIP strips DYLD_LIBRARY_PATH on the way through pixi's shell (first build on
         # the Mac: `UnsupportedTypeSupport: Could not import 'rosidl_typesupport_c'`). Add
         # the package's own lib dir to the rpath.
@@ -104,7 +104,7 @@ def build(clean: bool) -> dict:
         res["check"] = chk
         res["steps"].append({"step": "import + serialize", "s": round(time.monotonic() - t1, 2), "ok": chk.get("serializes", False)})
         res["ok"] = bool(chk.get("serializes"))
-        libs = sorted(p.name for p in (INSTALL / "lib").glob("libarena_interfaces__*")) if (INSTALL / "lib").exists() else []
+        libs = sorted(p.name for p in (INSTALL / "lib").glob("librig_interfaces__*")) if (INSTALL / "lib").exists() else []
         res["typesupport_libs"] = libs
     return res
 

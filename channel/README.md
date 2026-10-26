@@ -1,5 +1,7 @@
 # ros2-poc/channel — a prebuilt arena_interfaces (LAB-303 Plan B test, win-64 only)
 
+*Paths in this record predate the 2026-10-26 rename `ros2-poc/` → `rig/`, `arena_interfaces` → `rig_interfaces`.*
+
 > **2026-10-18:** the package payload (`win-64/*.conda`, repodata) was removed from the tree —
 > a binary in git history is enough for the pinned URL the `typed-prebuilt` environment reads
 > (commit `30512581`, see `../pixi.toml`), and the CI-built channel replaces it. This README stays

@@ -1,5 +1,7 @@
 # Typed messages on Windows — W2 follow-up (ww18, 2026-10-15)
 
+*Paths in this record predate the 2026-10-26 rename `ros2-poc/` → `rig/`, `arena_interfaces` → `rig_interfaces`.*
+
 LAB-303 Plan B. Follow-up to finding **W2** in `../windows-results-ww18-2026-10-15.md`: the `typed`
 environment compiled and linked on ww18, then failed while packaging with
 ``paths in archives must not have `..` when setting path for Library``.
