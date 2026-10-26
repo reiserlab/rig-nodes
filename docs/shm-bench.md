@@ -1,3 +1,5 @@
+> Moved to reiserlab/rig-nodes from webDisplayTools on 2026-10-26 (record §3.3). Paths below (`rig/…`, `ros2-poc/…`, `interfaces/rig_interfaces`) are the ones at the time of the measurement; today the package is `src/rig_interfaces` here and the workflow is `.github/workflows/package-set.yml`.
+
 # Shared-memory and MCAP recording benchmarks (LAB-303)
 
 Three scripts in `rig/` measure rmw_zenoh with shared memory off vs on for image-sized

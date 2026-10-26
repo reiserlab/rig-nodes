@@ -1,22 +1,23 @@
-"""recorder.py — one MCAP bag per run, written with rosbag2_py (LAB-303 Plan B).
+"""recorder.py — one MCAP bag per run, written with rosbag2_py.
 
-The bridge node records EVERY topic it touches into `<log-dir>/<run>.bag/` while a run's log
-is open (log_control enabled → off / log_export / shutdown), so the bag — not the live NDJSON —
-is the record of truth. mcap_convert.py derives the behavior_v2 run log from it.
+A writer library, not a lifecycle: the application that owns a run (the arena gateway's
+RecordingLogWriter in webDisplayTools today; rig-software-repos-and-runners.md §7.4 moves that
+ownership into an API) opens a Recorder when its run starts, writes while it lasts, closes it when
+it ends. The bag — not any derived text file — is the record of truth.
 
 Two kinds of records go in:
-  * device topics as received (raw CDR bytes from the subscriptions — `/fictrac/raw` or
-    `/fictrac/frame`, `/kinefly/raw`, `/bias/cmd`, `/bias/reply`, `/bias/status`), stamped
-    with the bridge's receive time (MCAP log_time);
-  * bridge-authored records, serialized here (`/arena/browser` = every browser message,
-    `/arena/event`, `/arena/frame`, `/arena/session`), each carrying the writer's emission
-    sequence number `seq`, so the converter can reproduce the live writer's line order.
+  * device topics as received (raw CDR bytes from the subscriptions — `/<src>/raw`, `/<src>/cmd`,
+    `/<src>/reply`, `/<src>/status`, or a typed topic), stamped with the recorder's receive time
+    (MCAP log_time) and, when the producer stamped it, its own time (publish_time);
+  * application-authored records, serialized here from JSON (`write_json`) or a typed message
+    (`write_msg`), each carrying the writer's emission sequence number `seq` when the application
+    needs to reproduce its live order offline.
 
 Profiles (`--bag-profile`): `default` = rosbag2's MCAP defaults (768 KiB chunks — a chunk is
 only flushed when full or at close, so a short run is ONE chunk written at close — plus the
 writer's 100 MiB message cache); `crashsafe` = no chunking, no cache — every message reaches
 the file as it is written, so a SIGKILL loses at most the record in progress (both measured in
-tests/test_ros2_poc.py's crash phase). Thread-safe: subscriptions write from the executor
+the arena harness's crash phase). Thread-safe: subscriptions write from the executor
 thread, the asyncio side from the loop thread. Records that arrive while the bag is still
 opening (rosbag2 takes ~150 ms to open one) are buffered and written first.
 
@@ -36,7 +37,7 @@ import rosbag2_py
 from rclpy.serialization import serialize_message
 from std_msgs.msg import String
 
-from _common import wall_ns  # the precise wall clock on Windows (time.time_ns elsewhere)
+from rig_nodes._common import wall_ns  # the precise wall clock on Windows (time.time_ns elsewhere)
 
 STRING_TYPE = "std_msgs/msg/String"
 
@@ -160,7 +161,7 @@ class Recorder:
             # The run closed cleanly: trade the crash-safe layout for an indexed, compressed one
             # (same records; Foxglove and every seeking reader then open it without a scan).
             try:
-                from mcap_index import reindex as _reindex
+                from rig_nodes.mcap_index import reindex as _reindex
 
                 indexed = [_reindex(f) for f in files]
             except Exception as exc:  # never let a post-close rewrite lose the run

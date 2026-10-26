@@ -1,6 +1,6 @@
 """columns.py — size a bridge-node bag vs its jsonl.gz under the FicTrac-record layouts.
 
-    pixi run size-columns -- runlogs/<run>.bag [runlogs/<run>.jsonl] [--all]
+    pixi run size-columns -- runlogs/<run>.bag [runlogs/<run>.jsonl] [--all]     # (rig-nodes checkout; needs the arena gateway's bag)
 
 The study behind docs/development/fictrac-columns-in-the-bag.md (decided 2026-10-18): ONE record per
 FicTrac frame on /arena/frame carrying 10 of the 25 FicTrac columns, float64, one MCAP message per
@@ -35,9 +35,8 @@ import zstandard
 from mcap.reader import make_reader
 from mcap.writer import CompressionType, IndexType, Writer
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "nodes"))
-from mcap_convert import decode_cdr  # noqa: E402  (the converter's CDR decoder; reads the schema text in the bag)
-from mcap_index import ZSTD_LEVEL, _zstd_level  # noqa: E402
+from rig_nodes.cdr import decode_cdr  # the one CDR decoder; reads the schema text in the bag
+from rig_nodes.mcap_index import ZSTD_LEVEL, _zstd_level
 
 TOPIC_FRAME = "/arena/frame"
 FICTRAC_TOPICS = ("/fictrac/frame", "/fictrac/raw")

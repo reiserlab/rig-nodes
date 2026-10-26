@@ -1,3 +1,5 @@
+> Moved to reiserlab/rig-nodes from webDisplayTools on 2026-10-26 (record §3.3). Paths below (`rig/…`, `ros2-poc/…`, `interfaces/rig_interfaces`) are the ones at the time of the measurement; today the package is `src/rig_interfaces` here and the workflow is `.github/workflows/package-set.yml`.
+
 # Typed messages on Windows — W2 follow-up (ww18, 2026-10-15)
 
 *Paths in this record predate the 2026-10-26 rename `ros2-poc/` → `rig/`, `arena_interfaces` → `rig_interfaces`.*

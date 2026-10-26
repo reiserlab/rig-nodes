@@ -36,6 +36,8 @@ import sys
 import time
 from pathlib import Path
 
+# The topic the recovery marker is appended to. The default is the arena gateway's session
+# topic; another application passes its own (`recover_bag(..., session_topic=…)`).
 SESSION_TOPIC = "/arena/session"
 STRING_SCHEMA = ("std_msgs/msg/String", "ros2msg", b"string data")
 RECOVERED_SEQ = 1 << 40  # sorts after every real emission seq (the converter orders by seq)

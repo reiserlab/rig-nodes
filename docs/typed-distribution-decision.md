@@ -1,3 +1,5 @@
+> Moved to reiserlab/rig-nodes from webDisplayTools on 2026-10-26 (record §3.3). Paths below (`rig/…`, `ros2-poc/…`, `interfaces/rig_interfaces`) are the ones at the time of the measurement; today the package is `src/rig_interfaces` here and the workflow is `.github/workflows/package-set.yml`.
+
 # Typed interfaces on Windows rigs — distribution decision (LAB-303, 2026-10-16)
 
 **Decision: build `rig_interfaces` in CI and ship it as a conda channel; rigs never compile it.**

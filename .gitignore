@@ -1,0 +1,18 @@
+# pixi
+.pixi/
+pixi.lock.bak
+# pixi build outputs + colcon prefixes (src/install is the .msg author's local build)
+dist/
+src/build/
+src/install/
+src/build-result.json
+src/build.log
+# channel payloads are committed only on a tagged release commit (channel/README.md)
+channel/*/
+# runtime leftovers of the device simulators and benches
+bias-videos/
+runlogs/
+*.bag/
+__pycache__/
+*.pyc
+.DS_Store

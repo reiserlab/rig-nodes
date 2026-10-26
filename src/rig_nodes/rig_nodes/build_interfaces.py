@@ -1,9 +1,16 @@
 #!/usr/bin/env python3
-"""build_interfaces.py — build interfaces/rig_interfaces inside this pixi env, and time it.
+"""build_interfaces.py — build the rig_interfaces source package with colcon inside this pixi env, and time it.
 
-    pixi run build-interfaces            # colcon build → interfaces/install, result JSON printed + saved
-    pixi run build-interfaces -- --clean # wipe build/ + install/ first (a cold build; the number to report)
-    pixi run build-interfaces -- --check # just report: built? importable? which typesupports?
+    python -m rig_nodes.build_interfaces --check            # report: importable? serializes? which build?
+    python -m rig_nodes.build_interfaces                    # colcon build --src <pkg> → <prefix>, result JSON printed + saved
+    python -m rig_nodes.build_interfaces --clean            # wipe the build + install prefix first (a cold build)
+
+`--check` is what every consumer runs (the arena harness, a rig's preflight): it asks
+`rig_nodes._common.probe_interfaces` whether the typed package imports AND serializes — the
+installed conda package first, a colcon prefix named by RIG_INTERFACES_INSTALL second. The build
+mode is the .msg author's path (rig-nodes checkout, `pixi run build-interfaces`): `--src` defaults
+to ./src/rig_interfaces and `--prefix` to ./src/install under the current directory, or to the
+RIG_INTERFACES_SRC / RIG_INTERFACES_INSTALL environment variables.
 
 LAB-303 Plan B, item 3: typed messages mean an ament_cmake interfaces package, and rosidl
 generates C typesupport + a Python C extension — so a C/C++ compiler is needed on every machine
@@ -28,21 +35,20 @@ import sys
 import time
 from pathlib import Path
 
-HERE = Path(__file__).resolve().parent
-POC = HERE.parent
-IFACES = POC / "interfaces"
-PKG = IFACES / "rig_interfaces"
-BUILD = IFACES / "build"
-INSTALL = IFACES / "install"
-RESULT = IFACES / "build-result.json"
+from rig_nodes._common import INTERFACES_INSTALL_ENV, probe_interfaces, setup_interfaces
 
-sys.path.insert(0, str(HERE))
-from _common import probe_interfaces, setup_interfaces  # noqa: E402
+# Resolved in main() from --src/--prefix, the environment, or the current directory.
+PKG = Path(os.environ.get("RIG_INTERFACES_SRC", "src/rig_interfaces")).resolve()
+INSTALL = Path(os.environ.get(INTERFACES_INSTALL_ENV, "src/install")).resolve()
+BUILD = INSTALL.parent / "build"
+RESULT = INSTALL.parent / "build-result.json"
 
 
 def check() -> dict:
-    out = {"install_prefix": str(INSTALL), "built": INSTALL.exists(), "usable": probe_interfaces() is not None}
-    setup_interfaces()
+    out = {"install_prefix": str(INSTALL) if INSTALL.exists() else None, "built": INSTALL.exists(),
+           "usable": probe_interfaces() is not None}
+    if INSTALL.exists():
+        setup_interfaces(str(INSTALL))
     try:
         from rig_interfaces.msg import ArenaFrame, ConnectorReply, FicTracFrame  # noqa: F401
 
@@ -72,7 +78,7 @@ def build(clean: bool) -> dict:
     res["tools"]["cxx"] = cxx
     cmd = [
         "colcon", "build",
-        "--base-paths", str(IFACES),
+        "--base-paths", str(PKG),
         "--build-base", str(BUILD),
         "--install-base", str(INSTALL),
         "--merge-install",
@@ -91,12 +97,12 @@ def build(clean: bool) -> dict:
     t0 = time.monotonic()
     env = os.environ.copy()
     env.setdefault("PYTHONUTF8", "1")
-    p = subprocess.run(cmd, cwd=str(IFACES), capture_output=True, text=True, env=env)
+    p = subprocess.run(cmd, cwd=str(PKG.parent), capture_output=True, text=True, env=env)
     res["wall_s"] = round(time.monotonic() - t0, 1)
     res["returncode"] = p.returncode
     tail = (p.stdout + p.stderr).strip().splitlines()
     res["log_tail"] = tail[-25:]
-    (IFACES / "build.log").write_text(p.stdout + "\n--- stderr ---\n" + p.stderr, encoding="utf-8")
+    (INSTALL.parent / "build.log").write_text(p.stdout + "\n--- stderr ---\n" + p.stderr, encoding="utf-8")
     res["steps"].append({"step": "colcon build", "s": res["wall_s"], "rc": p.returncode})
     if p.returncode == 0:
         t1 = time.monotonic()
@@ -110,15 +116,28 @@ def build(clean: bool) -> dict:
 
 
 def main(argv=None) -> int:
+    global PKG, INSTALL, BUILD, RESULT
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--clean", action="store_true", help="remove interfaces/build + install first")
+    ap.add_argument("--clean", action="store_true", help="remove the build + install prefix first")
     ap.add_argument("--check", action="store_true", help="only report whether the package imports")
+    ap.add_argument("--src", default=None, help=f"the rig_interfaces source package (default: $RIG_INTERFACES_SRC or {PKG})")
+    ap.add_argument("--prefix", default=None, help=f"colcon install prefix (default: ${INTERFACES_INSTALL_ENV} or {INSTALL})")
     a = ap.parse_args(argv)
+    if a.src:
+        PKG = Path(a.src).resolve()
+    if a.prefix:
+        INSTALL = Path(a.prefix).resolve()
+        BUILD = INSTALL.parent / "build"
+        RESULT = INSTALL.parent / "build-result.json"
     if a.check:
         r = check()
         print(json.dumps(r, indent=1))
         return 0 if r.get("usable") else 1
+    if not PKG.is_dir():
+        print(f"no interfaces package at {PKG} (pass --src or set RIG_INTERFACES_SRC)", file=sys.stderr)
+        return 2
     r = build(a.clean)
+    RESULT.parent.mkdir(parents=True, exist_ok=True)
     RESULT.write_text(json.dumps(r, indent=1) + "\n", encoding="utf-8")
     print(json.dumps({k: v for k, v in r.items() if k != "log_tail"}, indent=1))
     if not r["ok"]:

@@ -1,0 +1,40 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "rig_nodes"
+version = "0.2.1"
+description = "Reiser Lab rig infrastructure: ROS 2 device adapters and simulators, MCAP recording and supervision primitives"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.12"
+authors = [{ name = "Michael Reiser", email = "reiserm@janelia.hhmi.org" }]
+# ROS 2 (rclpy, std_msgs, rosbag2_py, the MCAP storage plugin) and `mcap` come from conda
+# (pixi.toml run-dependencies), never from PyPI; nothing is listed here so a wheel build on a
+# machine without ROS still succeeds. `websockets` is needed only by the model fly.
+dependencies = []
+
+[project.scripts]
+# middleware
+rig-router = "rig_nodes.zenoh:main"
+# device adapters + command tools
+rig-fictrac-adapter = "rig_nodes.fictrac_udp_adapter:main"
+rig-kinefly-adapter = "rig_nodes.kinefly_udp_adapter:main"
+rig-bias-node = "rig_nodes.bias_node:main"
+rig-bias-cmd = "rig_nodes.bias_cmd:main"
+rig-scanimage-node = "rig_nodes.scanimage_node:main"
+rig-scanimage-cmd = "rig_nodes.scanimage_cmd:main"
+# simulators
+rig-fictrac-sim = "rig_nodes.sims.fictrac_sim:main"
+rig-kinefly-sim = "rig_nodes.sims.kinefly_sim:main"
+rig-bias-sim = "rig_nodes.sims.bias_sim:main"
+rig-si-mock = "rig_nodes.sims.si_json_mock:main"
+# recording + graph tools
+rig-reindex = "rig_nodes.mcap_index:main"
+rig-fox-json = "rig_nodes.foxglove_json:main"
+rig-graph = "rig_nodes.graph_dump:main"
+rig-build-interfaces = "rig_nodes.build_interfaces:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["rig_nodes"]

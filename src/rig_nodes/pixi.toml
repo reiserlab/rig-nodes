@@ -1,0 +1,29 @@
+# rig_nodes as a pixi source package: `pixi build --path src/rig_nodes/pixi.toml` makes the conda
+# package CI publishes to the channel (.github/workflows/package-set.yml); the workspace manifest
+# at the repository root depends on it by path, so `pixi install` there builds it in place.
+# Pure Python (hatchling wheel via the pixi-build-python backend); the ROS 2 dependencies are
+# conda packages, declared below, never pip.
+[package]
+name = "rig_nodes"
+version = "0.2.1"
+
+[package.build]
+backend = { name = "pixi-build-python", version = "*", channels = ["https://prefix.dev/pixi-build-backends", "https://prefix.dev/conda-forge"] }
+
+[package.host-dependencies]
+python = "3.12.*"
+hatchling = "*"
+
+[package.run-dependencies]
+python = ">=3.12"
+# rclpy + std_msgs for the nodes; rosbag2_py + the MCAP storage plugin for the recorder;
+# rosidl_runtime_py for graph_dump's type lookup. All from robostack-jazzy, pinned to one
+# RoboStack set by the mutex (the same pin the workspace and rig_interfaces use).
+ros-jazzy-rclpy = "*"
+ros-jazzy-std-msgs = "*"
+ros-jazzy-rosbag2-py = "*"
+ros-jazzy-rosbag2-storage-mcap = "*"
+ros-jazzy-rosidl-runtime-py = "*"
+ros2-distro-mutex = "0.19.*"
+mcap = ">=1.2"
+websockets = ">=12"

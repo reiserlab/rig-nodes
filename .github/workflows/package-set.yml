@@ -1,36 +1,35 @@
-# Build rig/interfaces/rig_interfaces (the typed ROS 2 messages of the arena bridge graph,
-# LAB-303) ONCE per platform in CI and publish the result as a conda channel, so a rig PC installs
-# typed messages as a download — no MSVC, no build backend, no MAX_PATH workaround. Decision and
-# the consumer-side manifest edits: rig/docs/typed-distribution-decision.md; the measurements
-# behind it: rig/docs/typed-windows.md.
+# Build the rig-nodes package set — rig_interfaces (ament_cmake messages, pixi-build-ros) and
+# rig_nodes (pure Python, pixi-build-python) — ONCE per platform, lay the result out as a conda
+# channel, check the pins, and prove the channel installs and works in a clean directory on every
+# platform (the release gate of rig-software-repos-and-runners.md §7.6). Ported from
+# webDisplayTools' rig-interfaces.yml (2026-10-26).
 #
-# Runs: build-only on a PR that touches the package or this file (proves the three platforms still
-# build); the `rig-interfaces-channel` artifact on every run; the hosted-channel upload only on an
-# `rig-interfaces-v*` tag AND only when the repository variable RIG_INTERFACES_CHANNEL names a
-# prefix.dev channel (with the PREFIX_API_KEY secret). Until the lab owns one, the channel artifact
-# is committed into rig/channel/ by hand (the decision note has the recipe).
-name: rig-interfaces
+# Runs: every pull request and every push to main (build + channel + acceptance); tags `v*`
+# additionally upload to the hosted prefix.dev channel when the repository variable
+# RIG_NODES_CHANNEL names one (with the PREFIX_API_KEY secret). Until the lab owns a hosted
+# channel, the `rig-nodes-channel` artifact is committed into channel/ by hand on the release
+# commit (README "Releasing a package set").
+name: package-set
 
 on:
     pull_request:
-        paths:
-            - 'rig/interfaces/**'
-            - '.github/workflows/rig-interfaces.yml'
     push:
-        tags: ['rig-interfaces-v*']
+        branches: [main]
+        tags: ['v*']
     workflow_dispatch:
 
 permissions:
     contents: read
 
 concurrency:
-    group: rig-interfaces-${{ github.event.pull_request.number || github.ref }}
+    group: package-set-${{ github.event.pull_request.number || github.ref }}
     cancel-in-progress: true
 
 env:
-    # The pixi + pixi-build-ros pair the package was last built and tested with (ww18 2026-10-16,
-    # docs/typed-windows.md). Bump deliberately: the backend is NOT in pixi.lock.
+    # The pixi + pixi-build backend pair the packages were last built and tested with. Bump
+    # deliberately: the backends are NOT in pixi.lock.
     PIXI_VERSION: v0.80.0
+    PACKAGE_SET_VERSION: 0.2.1
 
 jobs:
     build:
@@ -40,15 +39,14 @@ jobs:
             matrix:
                 include:
                     # windows-2022 carries VS 2022 → conda-forge's vs2022 activation finds the v143
-                    # toolset without the Build-Tools-2026 detour of docs/typed-windows.md W2.
-                    - { os: windows-2022, subdir: win-64 }
-                    - { os: macos-14, subdir: osx-arm64 }
-                    - { os: ubuntu-24.04, subdir: linux-64 }
+                    # toolset without the Build-Tools detour of docs/typed-windows.md W2.
+                    - { os: windows-2022, subdir: win-64, mutex: '0.19' }
+                    - { os: macos-14, subdir: osx-arm64, mutex: '0.19' }
+                    - { os: ubuntu-24.04, subdir: linux-64, mutex: '0.19' }
         runs-on: ${{ matrix.os }}
         defaults:
             run:
                 shell: bash
-                working-directory: rig
         steps:
             - uses: actions/checkout@v7
               with:
@@ -57,35 +55,57 @@ jobs:
               with:
                   pixi-version: ${{ env.PIXI_VERSION }}
                   run-install: false
-            # MAX_PATH: the runner's checkout (D:\a\webDisplayTools\webDisplayTools\rig, 40
-            # chars) plus the ~211 chars the rosidl build adds crosses 260. detached-environments
-            # moves .pixi (build workspace included) to a 4-char root — the ww18 recipe.
+            # MAX_PATH: the runner's checkout plus the ~211 chars the rosidl build adds crosses 260.
+            # detached-environments moves .pixi (build workspace included) to a 4-char root.
             - name: Windows build root
               if: runner.os == 'Windows'
               run: pixi config set --local detached-environments 'C:\px'
-            - name: pixi build rig_interfaces
+            - name: pixi build rig_interfaces + rig_nodes
               run: |
-                  rm -rf ../dist
-                  pixi build --path interfaces/rig_interfaces/pixi.toml --output-dir ../dist
-                  mkdir -p ../dist/${{ matrix.subdir }}
-                  mv ../dist/*.conda ../dist/${{ matrix.subdir }}/
-                  ls -la ../dist/${{ matrix.subdir }}
-            # The archive must be a well-formed .conda for the subdir it claims; `..` in a packaged
-            # path (the Windows bug the CMakeLists workaround covers) would already have failed above.
-            - name: inspect the package
+                  rm -rf dist
+                  pixi build --path src/rig_interfaces/pixi.toml --output-dir dist
+                  pixi build --path src/rig_nodes/pixi.toml --output-dir dist
+                  ls -la dist
+            # Each archive must be a well-formed .conda; its subdir comes from its own metadata
+            # (rig_nodes may come out noarch), and its RoboStack pins must be THE pinned set.
+            - name: inspect the packages (pins)
               run: |
-                  f=$(ls ../dist/${{ matrix.subdir }}/*.conda)
-                  python3 - "$f" <<'EOF'
-                  import sys, zipfile
-                  path = sys.argv[1]
-                  names = zipfile.ZipFile(path).namelist()  # a .conda = zip{pkg-*.tar.zst, info-*.tar.zst, metadata.json}
-                  assert any(n.startswith("pkg-") for n in names) and any(n.startswith("info-") for n in names), names
-                  print(path, names)
+                  pixi exec --spec python --spec zstandard -- python - dist "${{ matrix.subdir }}" "${{ matrix.mutex }}" <<'EOF'
+                  import glob, io, json, os, shutil, sys, tarfile, zipfile
+                  import zstandard
+                  dist, subdir, mutex = sys.argv[1:4]
+                  ok = True
+                  for path in sorted(glob.glob(os.path.join(dist, "*.conda"))):
+                      z = zipfile.ZipFile(path)
+                      names = z.namelist()  # a .conda = zip{pkg-*.tar.zst, info-*.tar.zst, metadata.json}
+                      assert any(n.startswith("pkg-") for n in names) and any(n.startswith("info-") for n in names), names
+                      info = next(n for n in names if n.startswith("info-"))
+                      raw = zstandard.ZstdDecompressor().stream_reader(io.BytesIO(z.read(info))).read()
+                      with tarfile.open(fileobj=io.BytesIO(raw)) as t:
+                          index = json.load(t.extractfile("info/index.json"))
+                      depends = index.get("depends", [])
+                      pkg_subdir = index.get("subdir")
+                      mx = [d for d in depends if d.startswith("ros2-distro-mutex")]
+                      py = [d for d in depends if d.split()[0] == "python"]
+                      print(os.path.basename(path), pkg_subdir, index["version"], mx, py)
+                      if index["version"] != os.environ["PACKAGE_SET_VERSION"]:
+                          print(f"  !! version {index['version']} != package set {os.environ['PACKAGE_SET_VERSION']}"); ok = False
+                      if not mx or not all(f">={mutex}" in m for m in mx):
+                          print(f"  !! ros2-distro-mutex pin {mx} is not {mutex}.*"); ok = False
+                      if pkg_subdir not in (subdir, "noarch"):
+                          print(f"  !! subdir {pkg_subdir} is neither {subdir} nor noarch"); ok = False
+                      if not any(">=3.12" in p for p in py) and pkg_subdir != "noarch":
+                          print(f"  !! python pin {py} is not 3.12"); ok = False
+                      out = os.path.join(dist, pkg_subdir)
+                      os.makedirs(out, exist_ok=True)
+                      shutil.move(path, os.path.join(out, os.path.basename(path)))
+                  sys.exit(0 if ok else 1)
                   EOF
+                  find dist -type f | sort
             - uses: actions/upload-artifact@v5
               with:
-                  name: rig_interfaces-${{ matrix.subdir }}
-                  path: dist/${{ matrix.subdir }}/*.conda
+                  name: packages-${{ matrix.subdir }}
+                  path: dist/**/*.conda
                   if-no-files-found: error
                   retention-days: 30
 
@@ -98,19 +118,17 @@ jobs:
               with:
                   pixi-version: ${{ env.PIXI_VERSION }}
                   run-install: false
-            # One artifact per subdir → channel/<subdir>/<pkg>.conda (upload paths are relative to
-            # dist/<subdir>, so the subdir is restored here from the artifact name).
+            # One artifact per build platform → channel/<pkg subdir>/<pkg>.conda (the subdir
+            # directories were created by the inspect step from each package's own metadata).
             - uses: actions/download-artifact@v5
               with:
-                  pattern: rig_interfaces-*
+                  pattern: packages-*
                   path: artifacts
             - name: assemble + index the channel
               run: |
                   mkdir -p channel
-                  for d in artifacts/rig_interfaces-*; do
-                      subdir=${d#artifacts/rig_interfaces-}
-                      mkdir -p "channel/$subdir"
-                      cp "$d"/*.conda "channel/$subdir/"
+                  for d in artifacts/packages-*; do
+                      cp -r "$d"/. channel/
                   done
                   pixi exec rattler-index fs channel
                   find channel -type f | sort
@@ -119,22 +137,91 @@ jobs:
                   for rd in sorted(pathlib.Path("channel").glob("*/repodata.json")):
                       pk = json.load(open(rd))["packages.conda"]
                       for name, rec in pk.items():
-                          print(rd.parent.name, name, rec["sha256"], [d for d in rec["depends"] if d.startswith("ros2-distro-mutex")])
+                          print(rd.parent.name, name, rec["sha256"], [d for d in rec["depends"] if d.startswith(("ros2-distro-mutex", "python"))])
                   EOF
-            # The deliverable: a complete three-platform channel. Commit it into rig/channel/
-            # (decision note §"Releasing a new build") or let the step below upload it.
             - uses: actions/upload-artifact@v5
               with:
-                  name: rig-interfaces-channel
+                  name: rig-nodes-channel
                   path: channel
                   if-no-files-found: error
                   retention-days: 90
-            # Hosted channel (prefix.dev), only when the lab has one: set the repository variable
-            # RIG_INTERFACES_CHANNEL to its name and the secret PREFIX_API_KEY. Tags only, so a
-            # PR build can never publish.
             - name: upload to the hosted channel
-              if: startsWith(github.ref, 'refs/tags/rig-interfaces-v') && vars.RIG_INTERFACES_CHANNEL != ''
+              if: startsWith(github.ref, 'refs/tags/v') && vars.RIG_NODES_CHANNEL != ''
               env:
                   PREFIX_API_KEY: ${{ secrets.PREFIX_API_KEY }}
-                  RIG_INTERFACES_CHANNEL: ${{ vars.RIG_INTERFACES_CHANNEL }}
-              run: pixi exec rattler-build upload prefix --channel "$RIG_INTERFACES_CHANNEL" channel/*/*.conda
+                  RIG_NODES_CHANNEL: ${{ vars.RIG_NODES_CHANNEL }}
+              run: pixi exec rattler-build upload prefix --channel "$RIG_NODES_CHANNEL" channel/*/*.conda
+
+    accept:
+        # The release gate: a clean directory with ONLY a consumer manifest, the channel just built
+        # and RoboStack; `pixi install` must resolve both packages, and the repository's tests must
+        # pass against the INSTALLED packages (the tests are copied in; the source tree is not).
+        name: accept (${{ matrix.subdir }})
+        needs: channel
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - { os: windows-2022, subdir: win-64, mutex: '0.19' }
+                    - { os: macos-14, subdir: osx-arm64, mutex: '0.19' }
+                    - { os: ubuntu-24.04, subdir: linux-64, mutex: '0.19' }
+        runs-on: ${{ matrix.os }}
+        defaults:
+            run:
+                shell: bash
+        steps:
+            - uses: actions/checkout@v7
+              with:
+                  persist-credentials: false
+                  path: src-tree
+            - uses: prefix-dev/setup-pixi@v0.10.2
+              with:
+                  pixi-version: ${{ env.PIXI_VERSION }}
+                  run-install: false
+            - uses: actions/download-artifact@v5
+              with:
+                  name: rig-nodes-channel
+                  path: channel
+            - name: consumer manifest in a clean directory
+              run: |
+                  mkdir -p accept/tests
+                  cp src-tree/tests/*.py accept/tests/
+                  CHAN="$(pwd)/channel"
+                  case "$RUNNER_OS" in Windows) CHAN="$(cygpath -m "$CHAN")";; esac
+                  cat > accept/pixi.toml <<EOF
+                  [workspace]
+                  name = "rig-nodes-accept"
+                  channels = ["conda-forge", "robostack-jazzy", "file://$CHAN"]
+                  platforms = ["${{ matrix.subdir }}"]
+
+                  [system-requirements]
+                  macos = "14.0"
+
+                  [activation.env]
+                  RMW_IMPLEMENTATION = "rmw_zenoh_cpp"
+                  ZENOH_ROUTER_CHECK_ATTEMPTS = "0"
+                  PYTHONUTF8 = "1"
+
+                  [dependencies]
+                  ros2-distro-mutex = "${{ matrix.mutex }}.*"
+                  python = "3.12.*"
+                  ros-jazzy-ros-base = "*"
+                  ros-jazzy-rmw-zenoh-cpp = "*"
+                  rig_nodes = "==${{ env.PACKAGE_SET_VERSION }}"
+                  rig_interfaces = "==${{ env.PACKAGE_SET_VERSION }}"
+                  EOF
+                  cat accept/pixi.toml
+            - name: pixi install from the channel
+              working-directory: accept
+              run: |
+                  pixi install
+                  pixi list | grep -E "^(rig_|ros2-distro-mutex|python |ros-jazzy-rclpy)" || pixi list | grep -iE "rig_|mutex|^python"
+            - name: typed interfaces import + serialize (installed package)
+              working-directory: accept
+              run: pixi run python -m rig_nodes.build_interfaces --check
+            - name: pure tests against the installed package
+              working-directory: accept
+              run: pixi run python tests/test_pure.py
+            - name: device-node conformance against the installed package
+              working-directory: accept
+              run: pixi run python tests/test_device_nodes.py --timeout-scale 2

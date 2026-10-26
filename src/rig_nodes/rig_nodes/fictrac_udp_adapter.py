@@ -42,8 +42,8 @@ import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String
 
-from _common import RELIABLE_QOS, mono_ns, probe_interfaces, raise_timer_resolution, spin, wall_ms, wrap_line
-from _rows import parse_fictrac_line  # ONE parser for the adapter, the bridge node and the converter
+from rig_nodes._common import RELIABLE_QOS, mono_ns, probe_interfaces, raise_timer_resolution, spin, wall_ms, wrap_line
+from rig_nodes.fictrac import parse_fictrac_line  # ONE parser for the adapter and every consumer of the typed topic
 
 _IFACES = probe_interfaces()  # import + serialize; None → String only
 HAVE_IFACES = _IFACES is not None

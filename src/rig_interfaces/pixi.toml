@@ -1,11 +1,12 @@
-# rig_interfaces as a pixi source package (LAB-303 Plan B item 3). The rig workspace
-# depends on it by path (`rig_interfaces = { path = "interfaces/rig_interfaces" }`), so
-# `pixi install` builds it with the RoboStack pixi-build-ros backend — a conda package made from
-# this package.xml/CMakeLists.txt, with no colcon step and nothing to source. Preview feature:
-# `preview = ["pixi-build"]` in the workspace manifest. Measured on the Mac: README "Plan B spike".
+# rig_interfaces as a pixi source package. The workspace manifest at the repository root depends
+# on it by path (`rig_interfaces = { path = "src/rig_interfaces" }`), so `pixi install` builds it
+# with the RoboStack pixi-build-ros backend — a conda package made from this package.xml /
+# CMakeLists.txt, with no colcon step and nothing to source. CI builds the same package on
+# win-64 / osx-arm64 / linux-64 and publishes it to the channel (.github/workflows/package-set.yml),
+# so a rig installs it as a download (docs/typed-distribution-decision.md).
 [package]
 name = "rig_interfaces"
-version = "0.2.0"
+version = "0.2.1"
 
 [package.build]
 backend = { name = "pixi-build-ros", version = "*", channels = ["https://prefix.dev/pixi-build-backends", "https://prefix.dev/conda-forge", "https://prefix.dev/robostack-jazzy"] }
@@ -13,9 +14,18 @@ backend = { name = "pixi-build-ros", version = "*", channels = ["https://prefix.
 [package.build.config]
 distro = "jazzy"
 
+# THE pin (2026-10-26): the 0.2.0 build let each CI runner resolve whatever RoboStack Jazzy was
+# current (ros2-distro-mutex 0.20 + Python 3.14 on win-64/linux-64, 0.16 + 3.12 on osx-arm64), so
+# a rig running its default environment plus the typed package carried two RoboStack sets. The
+# host environment is now pinned to the set the rigs run — mutex 0.19 and Python 3.12, the arena
+# workspace lock on win-64 / linux-64 (osx-arm64 reaches the same set with macOS ≥ 14, the
+# workspace's system requirement) — and the backend's run_exports pin the package's run
+# dependencies to the same.
 [package.host-dependencies]
 ros-jazzy-ament-cmake = "*"
 ros-jazzy-rosidl-default-generators = "*"
+ros2-distro-mutex = "0.19.*"
+python = "3.12.*"
 
 [package.run-dependencies]
 ros-jazzy-rosidl-default-runtime = "*"

@@ -35,7 +35,7 @@ import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String
 
-from _common import RELIABLE_QOS, mono_ns, raise_timer_resolution, spin, wall_ms, wrap_line
+from rig_nodes._common import RELIABLE_QOS, mono_ns, raise_timer_resolution, spin, wall_ms, wrap_line
 
 TOPIC = "/kinefly/raw"
 DEFAULT_PORT = 60001

@@ -60,7 +60,7 @@ import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String
 
-from _common import RELIABLE_QOS, raise_timer_resolution, spin, wall_ms
+from rig_nodes._common import RELIABLE_QOS, raise_timer_resolution, spin, wall_ms
 
 CMD_TOPIC = "/scanimage/cmd"
 REPLY_TOPIC = "/scanimage/reply"

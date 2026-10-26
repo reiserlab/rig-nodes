@@ -1,27 +1,35 @@
-"""_common.py — the few things every PoC node shares (kept tiny on purpose).
+"""_common.py — the few things every node shares (kept tiny on purpose).
 
-* `wrap_line`  — THE adapter envelope the bridge node parses. One definition, so a field
+* `wrap_line`  — THE adapter envelope (CONTRACT.md "Envelope"). One definition, so a field
                  added for one source cannot silently differ for another.
-* `RELIABLE_QOS` — reliable / keep-last 200: the run log must hold every frame.
+* `RELIABLE_QOS` — reliable / keep-last 200: a run record must hold every frame.
 * `spin`       — rclpy.spin + the Jazzy shutdown boilerplate (Ctrl-C raises
                  ExternalShutdownException from spin, and rclpy's own handler may already
                  have shut the context down, so try_shutdown can raise too).
-* `wait_port`  — poll a TCP port (the Zenoh router on 127.0.0.1:7447).
 * `wall_ns` / `wall_ms` / `mono_ns` / `raise_timer_resolution` — sub-ms clocks on Windows too.
+* `probe_interfaces` / `setup_interfaces` — is the typed `rig_interfaces` package usable here?
+* the Zenoh loopback configuration is applied to the environment at import (`rig_nodes.zenoh`).
+* the process helpers (`SIGKILL`, `popen_group`, `signal_group`, `wait_port`) are re-exported
+  from `rig_nodes.supervise`, their home since 2026-10-26, for the callers that import them here.
 """
 
 from __future__ import annotations
 
 import json
 import os
-import signal
-import socket
-import subprocess
 import time
 
 import rclpy
 from rclpy.executors import ExternalShutdownException
 from rclpy.qos import QoSDurabilityPolicy, QoSHistoryPolicy, QoSProfile, QoSReliabilityPolicy
+
+from rig_nodes.supervise import SIGKILL, popen_group, signal_group, wait_port  # noqa: F401  (re-exported)
+from rig_nodes.zenoh import apply_env_defaults
+
+# Every node that imports this module runs with the package's loopback Zenoh configuration
+# unless the environment already names one (rig_nodes/zenoh.py) — so an installed consumer
+# needs no checkout to find the json5 files. Done at import, before any rclpy.init().
+apply_env_defaults()
 
 # ── clocks ───────────────────────────────────────────────────────────────────────────────
 # Python 3.12 on Windows (RoboStack Jazzy pins it): time.time() is GetSystemTimeAsFileTime,
@@ -55,7 +63,7 @@ else:
 
 
 def wall_ms() -> int:
-    """Wall-clock ms since the epoch, like bridge.py's now_ms() but precise on Windows."""
+    """Wall-clock ms since the epoch, precise on Windows."""
     return wall_ns() // 1_000_000
 
 
@@ -112,55 +120,12 @@ def spin(node) -> None:
             pass
 
 
-# Windows' signal module has no SIGKILL; every "kill it" site uses this constant so the
-# escalation paths (rig.py, the test harness, signal_group) do not raise AttributeError there.
-SIGKILL = getattr(signal, "SIGKILL", 9)
-
-
-def popen_group(argv: list, **kwargs) -> subprocess.Popen:
-    """Popen with the child in its OWN process group, on every platform, so a stop signal
-    reaches wrappers and what they spawn (`ros2 run … rmw_zenohd` does not forward SIGINT
-    to the router binary). POSIX: setsid; Windows: CREATE_NEW_PROCESS_GROUP, which is also
-    what makes CTRL_BREAK_EVENT deliverable to that child."""
-    if os.name == "nt":
-        kwargs.setdefault("creationflags", subprocess.CREATE_NEW_PROCESS_GROUP)
-    else:
-        kwargs.setdefault("start_new_session", True)
-    return subprocess.Popen(argv, **kwargs)
-
-
-def signal_group(proc: subprocess.Popen, sig: int) -> None:
-    """Send SIGINT / SIGTERM / SIGKILL to the child's whole group, portably.
-    Windows has no SIGINT for other processes (send_signal raises ValueError): SIGINT maps to
-    CTRL_BREAK_EVENT on the child's group, SIGTERM and SIGKILL to TerminateProcess."""
-    if os.name == "nt":
-        if sig == signal.SIGINT:
-            try:
-                proc.send_signal(signal.CTRL_BREAK_EVENT)  # type: ignore[attr-defined]
-                return
-            except (ValueError, OSError):
-                pass
-        proc.kill() if sig == SIGKILL else proc.terminate()
-        return
-    try:
-        os.killpg(proc.pid, sig)
-    except (ProcessLookupError, PermissionError):
-        proc.send_signal(sig)
-
-
-def wait_port(host: str, port: int, timeout_s: float) -> bool:
-    end = time.monotonic() + timeout_s
-    while time.monotonic() < end:
-        try:
-            with socket.create_connection((host, port), timeout=0.5):
-                return True
-        except OSError:
-            time.sleep(0.2)
-    return False
-
-
-# ── typed interfaces (LAB-303 Plan B item 3) ──────────────────────────────────────────
-INTERFACES_INSTALL = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "interfaces", "install")
+# ── typed interfaces ─────────────────────────────────────────────────────────────────────
+# The installed `rig_interfaces` conda package is the normal case. A colcon-built install prefix
+# (`rig_nodes.build_interfaces`, the .msg author's path) is consulted only when named by the
+# RIG_INTERFACES_INSTALL environment variable or passed to setup_interfaces() explicitly — the
+# module no longer guesses a prefix from its own location, since it lives in site-packages.
+INTERFACES_INSTALL_ENV = "RIG_INTERFACES_INSTALL"
 
 
 def _prepend_env(name: str, value: str) -> None:
@@ -171,13 +136,13 @@ def _prepend_env(name: str, value: str) -> None:
 
 
 def setup_interfaces(prefix: str | None = None) -> bool:
-    """Make a colcon-built `interfaces/install` visible to THIS process and its children —
-    the equivalent of sourcing install/setup.sh, done in Python so Windows needs no shell
-    script. Returns True when the prefix exists. Call it BEFORE importing rig_interfaces."""
+    """Make a colcon-built install prefix visible to THIS process and its children — the
+    equivalent of sourcing install/setup.sh, done in Python so Windows needs no shell script.
+    Returns True when the prefix exists. Call it BEFORE importing rig_interfaces."""
     import sys as _sys
 
-    prefix = prefix or INTERFACES_INSTALL
-    if not os.path.isdir(prefix):
+    prefix = prefix or os.environ.get(INTERFACES_INSTALL_ENV)
+    if not prefix or not os.path.isdir(prefix):
         return False
     _prepend_env("AMENT_PREFIX_PATH", prefix)
     libdir = os.path.join(prefix, "lib")
@@ -214,12 +179,12 @@ def probe_interfaces():
     fastrtps_c.dylib`) would otherwise make a node pick typed topics and die at its first
     message. One serialize_message() is the test.
 
-    The ENVIRONMENT's package (pixi-build, `pixi install -e typed`) is tried FIRST and a colcon
-    `interfaces/install` is consulted only when nothing imports without it. Prepending a stale
-    colcon prefix on top of the env mixed two builds (2026-10-14, after ArenaFrame gained two
-    fields): the old Python class + C struct from the prefix, the new typesupport library from
-    the env — rclpy serialized 16 bytes PAST the struct, and every recorded frame carried
-    garbage in the new fields while the harness stayed green. One build per process, always."""
+    The ENVIRONMENT's package (the installed conda package) is tried FIRST and a colcon prefix
+    (RIG_INTERFACES_INSTALL) only when nothing imports without it. Prepending a stale colcon
+    prefix on top of the env mixed two builds (2026-10-14, after ArenaFrame gained two fields):
+    the old Python class + C struct from the prefix, the new typesupport library from the env —
+    rclpy serialized 16 bytes PAST the struct, and every recorded frame carried garbage in the
+    new fields while the harness stayed green. One build per process, always."""
     found = _try_interfaces()
     if found is not None:
         return found

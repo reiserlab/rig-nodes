@@ -1,28 +1,23 @@
 #!/usr/bin/env python3
-"""foxglove_json.py — a String-topic arena bag → a Foxglove-plottable MCAP (JSON messages + JSON Schema).
+"""foxglove_json.py — a String-topic bag → a Foxglove-plottable MCAP (JSON messages + JSON Schema).
 
-    python foxglove_json.py <bag dir or .mcap> <out.mcap> [--ball-mm 9]
+    python -m rig_nodes.foxglove_json <bag dir or .mcap> <out.mcap>
 
-The default (String) environment records every topic as std_msgs/String holding JSON text, so
+A rig's default (String) environment records every topic as std_msgs/String holding JSON text, so
 Foxglove shows each message as one string and cannot plot a field. This rewrites the same
 messages, same topics, same log/publish times, as MCAP `json` messages with a `jsonschema`
-schema per topic, so `/arena/frame.idx`, `/bias/status.framesPerSec`, … plot directly and
-`docs/foxglove-arena-layout.json` works unchanged. Per topic:
+schema per topic (inferred from the messages), so any field plots directly. Per topic the JSON
+object is written as recorded (a non-object payload becomes {"value": …}); a payload that carries
+the adapter envelope (CONTRACT.md) with a JSON `raw` gets `msg` = the parsed `raw`.
 
-- every topic: the JSON object as recorded (a non-object payload becomes {"value": …});
-- /arena/frame: plus `bias_deg` (= `bias`, 0 when absent) and `turning_dps` / `forward_mms`,
-  derived exactly as bridge_node.FrameDeriver does for the typed ArenaFrame (two-point
-  differences on the FicTrac camera clock `ft`, else the bridge clock `t`; null where the
-  typed message has NaN). These three are the only fields the original does not carry;
-- /fictrac/raw: `cols`, FicTrac's 25 output columns by name, parsed from `raw`;
-- /arena/browser: `msg`, the browser message parsed from `raw` (when it is JSON).
-
-Slim by default: where `raw` was parsed into `cols` / `msg`, the `raw` text is dropped (it is the
-same data twice); `--keep-raw` keeps it. The original bag stays the record of truth.
+This module is the GENERIC rewriter. An application adds its own per-topic derivations through the
+`enrich(topic, obj) -> obj | None` hook of `convert()` (return None to drop the message): the arena
+gateway's copy in webDisplayTools (`rig/nodes/foxglove_json.py`) derives the closed-loop channels
+on `/arena/frame` and names FicTrac's columns on `/fictrac/raw` that way.
 
 The source is read record by record, so a crash-torn bag (no metadata.yaml, no index) converts
 too; the output is chunked, zstd-compressed and indexed. A metadata record `foxglove_json`
-names the source file and its sha256.
+names the source file and its sha256. The original bag stays the record of truth.
 """
 
 from __future__ import annotations
@@ -34,61 +29,9 @@ import math
 import struct
 import sys
 from pathlib import Path
+from typing import Callable, Optional
 
-FICTRAC_COLS = [
-    "frame",                                    # 1  frame counter
-    "dr_cam_x", "dr_cam_y", "dr_cam_z",         # 2-4  delta rotation vector, camera frame (rad)
-    "dr_err",                                   # 5  delta rotation error score
-    "dr_lab_x", "dr_lab_y", "dr_lab_z",         # 6-8  delta rotation vector, lab frame (rad)
-    "r_cam_x", "r_cam_y", "r_cam_z",            # 9-11 absolute rotation vector, camera frame
-    "r_lab_x", "r_lab_y", "r_lab_z",            # 12-14 absolute rotation vector, lab frame
-    "x", "y",                                   # 15-16 integrated x/y position, lab (rad)
-    "heading",                                  # 17 integrated animal heading, lab (rad)
-    "direction",                                # 18 animal movement direction, lab (rad)
-    "speed",                                    # 19 animal movement speed (rad/frame)
-    "forward", "side",                          # 20-21 integrated forward / side motion (rad)
-    "timestamp",                                # 22 frame timestamp (ms)
-    "seq",                                      # 23 sequence counter
-    "dt",                                       # 24 delta timestamp (ms)
-    "alt_timestamp",                            # 25 alternative timestamp (ms)
-]
-
-
-def wrap_to_pi(r: float) -> float:
-    return (r + math.pi) % (2 * math.pi) - math.pi
-
-
-class FrameDeriver:
-    """bridge_node.FrameDeriver, verbatim math (rig/nodes/bridge_node.py)."""
-
-    def __init__(self, ball_mm: float) -> None:
-        self.radius_mm = ball_mm / 2.0
-        self._prev = None
-
-    def step(self, msg: dict):
-        try:
-            src, clock = ("ft", float(msg["ft"])) if msg.get("ft") is not None else ("t", float(msg["t"]))
-            cur = (int(msg["fc"]), src, clock, float(msg["x"]), float(msg["y"]), float(msg["hd"]))
-        except (KeyError, TypeError, ValueError):
-            self._prev = None
-            return None, None
-        prev, self._prev = self._prev, cur
-        if prev is None or prev[1] != src or cur[0] < prev[0]:
-            return None, None
-        dt_s = (clock - prev[2]) / 1000.0
-        if not dt_s > 0:
-            return None, None
-        d_hd = wrap_to_pi(cur[5] - prev[5])
-        h_mid = prev[5] + d_hd / 2.0
-        dx, dy = cur[3] - prev[3], cur[4] - prev[4]
-        return math.degrees(d_hd) / dt_s, (dx * math.cos(h_mid) + dy * math.sin(h_mid)) / dt_s * self.radius_mm
-
-
-def cdr_string(data: bytes) -> str:
-    """std_msgs/String in CDR: 4-byte encapsulation header, uint32 length (incl. NUL), bytes."""
-    little = data[1] == 1
-    (n,) = struct.unpack_from("<I" if little else ">I", data, 4)
-    return data[8:8 + n].rstrip(b"\x00").decode("utf-8")
+from rig_nodes.cdr import STRING_TYPE, cdr_string
 
 
 def finite(v):
@@ -185,16 +128,36 @@ def read_messages(path: Path):
     return out, torn
 
 
-def convert(src: Path, dst: Path, ball_mm: float, keep_raw: bool = False) -> dict:
+def parse_envelope_raw(obj: dict, keep_raw: bool = False) -> dict:
+    """Generic enrichment: an envelope whose `raw` is JSON text gets `msg` = the parsed object
+    (the `raw` text is dropped unless keep_raw — it is the same data twice)."""
+    raw = obj.get("raw")
+    if isinstance(raw, str) and raw[:1] in "{[":
+        try:
+            obj["msg"] = json.loads(raw)
+            if not keep_raw:
+                del obj["raw"]
+        except ValueError:
+            pass
+    return obj
+
+
+Enrich = Callable[[str, dict], Optional[dict]]
+
+
+def convert(src: Path, dst: Path, enrich: Enrich | None = None, keep_raw: bool = False,
+            library: str = "rig_nodes foxglove_json", metadata: dict | None = None) -> dict:
+    """Rewrite `src` (a bag directory or one .mcap) as `dst`. `enrich(topic, obj)` may add
+    derived fields or return None to drop the message; it runs after the generic envelope
+    parsing. `metadata` adds key/values to the `foxglove_json` metadata record."""
     from mcap.writer import CompressionType, Writer
 
     if src.is_dir():
         src = next(p for p in sorted(src.glob("*.mcap")))
     msgs, torn = read_messages(src)
-    deriver = FrameDeriver(ball_mm)
     rows, schemas, skipped = [], {}, 0
     for topic, sname, log_t, pub_t, seq, data in msgs:
-        if sname != "std_msgs/msg/String":
+        if sname != STRING_TYPE:
             skipped += 1
             continue
         try:
@@ -204,26 +167,12 @@ def convert(src: Path, dst: Path, ball_mm: float, keep_raw: bool = False) -> dic
             continue
         if not isinstance(obj, dict):
             obj = {"value": obj}
-        if topic == "/arena/frame" and obj.get("type", "frame") == "frame":
-            obj["bias_deg"] = float(obj.get("bias", 0.0) or 0.0)
-            obj["turning_dps"], obj["forward_mms"] = deriver.step(obj)
-        elif topic == "/fictrac/raw" and isinstance(obj.get("raw"), str):
-            parts = [p.strip() for p in obj["raw"].split(",")]
-            if parts and parts[0] == "FT":
-                parts = parts[1:]
-            try:
-                obj["cols"] = {k: float(v) for k, v in zip(FICTRAC_COLS, parts)}
-                if not keep_raw:
-                    del obj["raw"]
-            except ValueError:
-                pass
-        elif topic == "/arena/browser" and isinstance(obj.get("raw"), str):
-            try:
-                obj["msg"] = json.loads(obj["raw"])
-                if not keep_raw:
-                    del obj["raw"]
-            except ValueError:
-                pass
+        obj = parse_envelope_raw(obj, keep_raw)
+        if enrich is not None:
+            obj = enrich(topic, obj)
+            if obj is None:
+                skipped += 1
+                continue
         obj = finite(obj)
         schemas[topic] = merge_schema(schemas.get(topic, {}), obj)
         rows.append((topic, log_t, pub_t, seq, json.dumps(obj, separators=(",", ":")).encode()))
@@ -232,7 +181,7 @@ def convert(src: Path, dst: Path, ball_mm: float, keep_raw: bool = False) -> dic
     dst.parent.mkdir(parents=True, exist_ok=True)
     with open(dst, "wb") as f:
         w = Writer(f, compression=CompressionType.ZSTD)
-        w.start(profile="", library="rig foxglove_json.py")
+        w.start(profile="", library=library)
         chan = {}
         for topic in sorted(schemas):
             sc = finish_schema(schemas[topic]) or {"type": "object"}
@@ -242,8 +191,10 @@ def convert(src: Path, dst: Path, ball_mm: float, keep_raw: bool = False) -> dic
             chan[topic] = w.register_channel(topic=topic, message_encoding="json", schema_id=sid)
         for topic, log_t, pub_t, seq, data in sorted(rows, key=lambda r: r[1]):
             w.add_message(channel_id=chan[topic], log_time=log_t, publish_time=pub_t, sequence=seq, data=data)
-        w.add_metadata("foxglove_json", {"source": src.name, "source_sha256": sha, "ball_mm": f"{ball_mm:g}",
-                                         "raw_kept": "yes" if keep_raw else "no", "torn_source": torn or "no"})
+        meta = {"source": src.name, "source_sha256": sha, "raw_kept": "yes" if keep_raw else "no",
+                "torn_source": torn or "no"}
+        meta.update({k: str(v) for k, v in (metadata or {}).items()})
+        w.add_metadata("foxglove_json", meta)
         w.finish()
     counts = {}
     for r in rows:
@@ -256,10 +207,9 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("src", type=Path)
     ap.add_argument("dst", type=Path)
-    ap.add_argument("--ball-mm", type=float, default=9.0, help="ball diameter for forward_mms (default 9, as the bridge)")
-    ap.add_argument("--keep-raw", action="store_true", help="keep the `raw` text beside the parsed `cols` / `msg`")
+    ap.add_argument("--keep-raw", action="store_true", help="keep the `raw` text beside the parsed `msg`")
     a = ap.parse_args(argv)
-    print(json.dumps(convert(a.src, a.dst, a.ball_mm, a.keep_raw)))
+    print(json.dumps(convert(a.src, a.dst, keep_raw=a.keep_raw)))
     return 0
 
 

@@ -1,0 +1,128 @@
+# rig-nodes — shared ROS 2 infrastructure for the Reiser Lab rigs (decision record:
+# webDisplayTools/docs/development/rig-software-repos-and-runners.md, 2026-10-26).
+#
+# This is the SOURCE workspace: `pixi install` builds the two packages under src/ in place
+# (pixi-build, preview) and gives a developer every node, simulator and test. Rigs do not use it:
+# they install the packages CI publishes to the channel (channel/README.md) from their own
+# workspace (the arena rig's is webDisplayTools/rig/pixi.toml).
+#
+#   pixi install            # RoboStack Jazzy (ros-base) + rmw_zenoh + rosbag2/MCAP + src/rig_nodes + src/rig_interfaces
+#   pixi run test           # device-node conformance: sims → nodes → topics → loss accounting (≈ 40 s)
+#   pixi run test-pure      # the pure modules (envelope, FicTrac parser, CDR decoder, Foxglove schema, supervision)
+#   pixi run router         # a Zenoh router on 127.0.0.1:7447 (one per host)
+#
+# Channels: RoboStack publishes ROS 2 as conda packages; conda-forge first so the non-ROS stack
+# resolves from there. Bare channel names resolve through pixi's default channel alias.
+[workspace]
+name = "rig-nodes"
+version = "0.2.1"
+channels = ["conda-forge", "robostack-jazzy"]
+platforms = ["osx-arm64", "win-64", "linux-64"]
+preview = ["pixi-build"]
+
+[activation.env]
+# Every ROS 2 process in this workspace uses the Zenoh middleware. rmw_zenoh needs ONE router
+# per host (`pixi run router`); nodes keep retrying until it is up.
+RMW_IMPLEMENTATION = "rmw_zenoh_cpp"
+ZENOH_ROUTER_CHECK_ATTEMPTS = "0"
+# Loopback-only Zenoh (rig_nodes/zenoh.py): the stock rmw_zenoh configs listen on `tcp/[::]:7447`
+# (fails on a host without IPv6) and connect to `tcp/localhost:7447`. Ours bind/connect 127.0.0.1 —
+# a rig PC's graph is not reachable from the lab network. The files ship INSIDE the rig_nodes
+# package (importing rig_nodes._common applies them as defaults); these two lines only make
+# `ros2 topic echo` and friends in this workspace use them too.
+ZENOH_ROUTER_CONFIG_URI = "$PIXI_PROJECT_ROOT/src/rig_nodes/rig_nodes/config/zenoh-router.json5"
+ZENOH_SESSION_CONFIG_URI = "$PIXI_PROJECT_ROOT/src/rig_nodes/rig_nodes/config/zenoh-session.json5"
+# The adapters print non-ASCII to stderr and Python on Windows would pick cp1252 when stdio is a pipe.
+PYTHONUTF8 = "1"
+
+# Windows: pixi builds the activation as a cmd.exe script, so `$PIXI_PROJECT_ROOT` above stays
+# literal there while `%PIXI_PROJECT_ROOT%` expands under `pixi run` (ww18 2026-10-15).
+[target.win-64.activation.env]
+ZENOH_ROUTER_CONFIG_URI = '%PIXI_PROJECT_ROOT%\src\rig_nodes\rig_nodes\config\zenoh-router.json5'
+ZENOH_SESSION_CONFIG_URI = '%PIXI_PROJECT_ROOT%\src\rig_nodes\rig_nodes\config\zenoh-session.json5'
+
+[dependencies]
+# ── ONE RoboStack set, pinned (2026-10-26) ──────────────────────────────────────────────────
+# The mutex decides which RoboStack Jazzy rebuild every ros-jazzy-* package comes from; the
+# packages built from src/ pin the same, so a rig that installs them next to its own ROS packages
+# gets one set, not two. 0.19 + Python 3.12 is what the rigs run (the arena workspace lock on
+# win-64 / linux-64; its osx-arm64 lock sat on 0.16 only because rmw_zenoh ≥ 0.2.11 needs macOS 14,
+# declared below as the system requirement).
+ros2-distro-mutex = "0.19.*"
+python = "3.12.*"
+ros-jazzy-ros-base = "*"
+ros-jazzy-rmw-zenoh-cpp = "*"
+ros-jazzy-rosbag2-py = "*"
+ros-jazzy-rosbag2-storage-mcap = "*"
+mcap = ">=1.2"
+websockets = ">=12"
+# ── the two packages, built from source here ────────────────────────────────────────────────
+rig_nodes = { path = "src/rig_nodes" }
+rig_interfaces = { path = "src/rig_interfaces" }
+# rosidl generates C typesupport + a Python C extension, so building rig_interfaces needs the
+# ament/rosidl toolchain and a C/C++ compiler on this machine (Windows: the MSVC v143 toolset,
+# which pixi cannot install, plus a short build path — docs/typed-windows.md). colcon is here for
+# the .msg author's alternative route (`pixi run build-interfaces`).
+ros-jazzy-ament-cmake = "*"
+ros-jazzy-rosidl-default-generators = "*"
+ros-jazzy-rosidl-default-runtime = "*"
+ros-jazzy-ros-environment = "*"
+colcon-common-extensions = "*"
+cmake = "*"
+ninja = "*"
+cxx-compiler = "*"
+
+# rmw_zenoh 0.2.11 (the 0.19 set) is built for macOS ≥ 14; without this floor the osx-arm64 solve
+# falls back to the 0.16 set and the platforms drift apart.
+[system-requirements]
+macos = "14.0"
+
+# ── benchmarks (bench/): shared-memory and MCAP recording studies; zstandard/lz4 for the sizing study ──
+[feature.bench.dependencies]
+zstandard = "*"
+lz4 = "*"
+
+# ── seeing a graph: rqt + foxglove_bridge (Qt + the bridge add ~0.3 GB a rig does not need) ──
+[feature.viz.dependencies]
+ros-jazzy-rqt-graph = "*"
+ros-jazzy-rqt-topic = "*"
+ros-jazzy-foxglove-bridge = "*"
+
+[environments]
+default = { solve-group = "main" }
+bench = { features = ["bench"], solve-group = "main" }
+viz = { features = ["viz"], solve-group = "main" }
+
+[tasks]
+# ── middleware ─────────────────────────────────────────────────────────────────────────────
+router = "rig-router"
+# ── device adapters + command tools (console scripts of src/rig_nodes) ─────────────────────
+fictrac-adapter = "rig-fictrac-adapter"
+kinefly-adapter = "rig-kinefly-adapter"
+bias-node = "rig-bias-node"
+bias-cmd = "rig-bias-cmd"
+scanimage-node = "rig-scanimage-node"
+scanimage-cmd = "rig-scanimage-cmd"
+# ── simulators ─────────────────────────────────────────────────────────────────────────────
+fictrac-sim = "rig-fictrac-sim"
+kinefly-sim = "rig-kinefly-sim"
+bias-sim = "rig-bias-sim"
+si-mock = "rig-si-mock"
+# ── recording + graph tools ────────────────────────────────────────────────────────────────
+reindex = "rig-reindex"
+fox-json = "rig-fox-json"
+graph = "rig-graph"
+# colcon build of src/rig_interfaces into src/install (the .msg author's measured route;
+# `-- --check` reports whether the typed package imports and serializes in this env)
+build-interfaces = "python -m rig_nodes.build_interfaces --src src/rig_interfaces --prefix src/install"
+# ── tests ──────────────────────────────────────────────────────────────────────────────────
+test = "python tests/test_device_nodes.py"
+test-pure = "python tests/test_pure.py"
+# ── benches (`pixi run -e bench …`) ────────────────────────────────────────────────────────
+shm-bench = "python bench/shm_bench.py"
+shm-bench-qpc = "python bench/shm_bench_qpc.py"
+mcap-bench = "python bench/mcap_bench.py"
+size-columns = "python bench/sizing/columns.py"
+# ── `viz` environment only ─────────────────────────────────────────────────────────────────
+rqt-graph = "rqt_graph"
+foxglove-bridge = "ros2 run foxglove_bridge foxglove_bridge --ros-args -p port:=8766 -p address:=127.0.0.1"

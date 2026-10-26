@@ -1,42 +1,32 @@
-# rig/channel — the CI-built `rig_interfaces` conda channel
+# channel/ — the published `rig-nodes` conda channel
 
-A conda channel with one package, `rig_interfaces` (the typed ROS 2 messages of the rig graph:
-`FicTracFrame`, `ArenaFrame`, `ConnectorReply`), read by the opt-in `typed-prebuilt` environment in
-`../pixi.toml` over raw.githubusercontent.com, pinned to the commit that holds the payload, so a
-rig PC **without a compiler** installs typed messages as a download. Built by
-`.github/workflows/rig-interfaces.yml` (decision: `../docs/typed-distribution-decision.md`); the
-recipe for the next rebuild is in that note under "Releasing a new build".
+The conda channel a rig installs the package set from: `rig_interfaces` (the typed ROS 2
+messages: `FicTracFrame`, `ArenaFrame`, `ConnectorReply`) and `rig_nodes` (the Python package),
+built by `.github/workflows/package-set.yml` on win-64, osx-arm64 and linux-64 and indexed with
+`rattler-index`. Consumers read it over raw.githubusercontent.com pinned to a release tag
+(`https://raw.githubusercontent.com/reiserlab/rig-nodes/vX.Y.Z/channel`), so a rig PC **without
+a compiler** installs typed messages as a download (decision: `../docs/typed-distribution-decision.md`).
 
-**The package payload is not in the tree.** Like the 2026-10-18 removal of the first (win-64)
-payload, the `<subdir>/` directories are committed ONCE (the "payload commit" the `typed-prebuilt`
-URL in `../pixi.toml` pins) and removed again in the next commit; git history serves the pinned
-URL. This README stays as the record of what was built.
+**The package payload is not in the tree between releases.** The `<subdir>/` directories are
+committed ONCE, on the tagged release commit (README "Releasing a package set"), and removed again
+in the next commit; git history serves the pinned URL. This README stays as the record of what was
+built. Every package pins `ros2-distro-mutex` to the RoboStack set the rigs run (0.19) and Python 3.12 —
+one set on every platform, never two (the 0.2.0 lesson below).
 
-## rig_interfaces 0.2.0 (2026-10-26)
+## Releases
 
-Built by the `rig-interfaces` workflow run
-[40401906061](https://github.com/reiserlab/webDisplayTools/actions/runs/40401906061) from commit
-`eb2bf01` (the rename `ros2-poc/` → `rig/`, `arena_interfaces` → `rig_interfaces`; PR
-[#270](https://github.com/reiserlab/webDisplayTools/pull/270)) with pixi 0.80.0 and the RoboStack
-`pixi-build-ros` backend, indexed with `rattler-index`; three platforms plus an empty `noarch/`:
-
-| subdir | file | sha256 | `ros2-distro-mutex` pin | Python |
+| package set | tag | built from | pins | notes |
 |---|---|---|---|---|
-| `win-64` | `rig_interfaces-0.2.0-ha41a7fa_0.conda` | `5104b3d9b166fae11d9b0f27baf70cb71afcea6514f0e56943387e7d75a6ed22` | `>=0.20.0,<0.21.0a0` | 3.14 |
-| `osx-arm64` | `rig_interfaces-0.2.0-h60d57d3_0.conda` | `c5321504efbf9c53bc2460b3d716ec393b88b9b4202d19e91eca91989eb5c57d` | `>=0.16.0,<0.17.0a0` | 3.12 |
-| `linux-64` | `rig_interfaces-0.2.0-hb0f4dca_0.conda` | `0d7489d26092ec4577b4bfff037381f4af4afa6fce7048eee8c265686c35d2b8` | `>=0.20.0,<0.21.0a0` | 3.14 |
+| 0.2.1 | `v0.2.1` (pending) | — | mutex 0.19, Python 3.12 | first set from this repository; rig_interfaces 0.2.1 = the 0.2.0 messages, rebuilt with the pins; rig_nodes 0.2.1 = the moved nodes |
 
-The mutex pins are whatever RoboStack Jazzy the build backend resolved on each runner that day
-(the `prefix.dev/robostack-jazzy` mirror), NOT the `ros2-distro-mutex 0.19` the `poc` solve group
-locks. `typed-prebuilt` is its own solve group, so it resolves its own RoboStack set per platform
-around these pins. The tag `rig-interfaces-v0.2.0` is pending.
+## History (webDisplayTools, before the move)
 
-## History
-
-- `arena_interfaces 0.1.0`, win-64 only (`arena_interfaces-0.1.0-ha41a7fa_0.conda`, sha256
-  `5501edc89c10f6ee7acca21273f26f716edf2b7686e7109fed54335a3d39c883`): built 2026-10-16 on ww18
-  from commit 4632674 with pixi 0.80.0 and pixi-build-ros 0.7.6.20261014.1408.4ef64dd
-  (`pixi publish --path interfaces\arena_interfaces\pixi.toml --target-channel C:\chan`), depends on
-  `ros2-distro-mutex >=0.19,<0.20` and Python 3.12. Payload at commit `30512581`
-  (`ros2-poc/channel`), removed from the tree 2026-10-18. The OLD package name: nothing that
+- `rig_interfaces 0.2.0` (2026-10-26, webDisplayTools run 40401906061, commit `eb2bf01`, PR #270):
+  win-64 `rig_interfaces-0.2.0-ha41a7fa_0.conda` (mutex `>=0.20.0,<0.21.0a0`, Python 3.14),
+  osx-arm64 `h60d57d3_0` (mutex `>=0.16.0,<0.17.0a0`, Python 3.12), linux-64 `hb0f4dca_0`
+  (mutex `>=0.20.0,<0.21.0a0`, Python 3.14). The pins were whatever each runner resolved that
+  day, not the `0.19` the arena workspace locks — a rig running its default environment plus
+  `typed-prebuilt` carried two RoboStack sets. Never tagged; superseded by 0.2.1.
+- `arena_interfaces 0.1.0`, win-64 only (2026-10-16, built on ww18 with pixi 0.80.0 and
+  pixi-build-ros 0.7.6; mutex `>=0.19,<0.20`, Python 3.12). The OLD package name: nothing that
   imports `rig_interfaces` may install it.
