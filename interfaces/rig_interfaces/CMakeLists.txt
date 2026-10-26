@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(arena_interfaces)
+project(rig_interfaces)
 
 # Windows + pixi-build-ros (<= 0.7.6, 2026-10-14): the backend passes PYTHON_INSTALL_DIR as
 # ../Lib/site-packages (relative to %LIBRARY_PREFIX%), CMake records that spelling in

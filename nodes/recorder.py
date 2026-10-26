@@ -42,7 +42,12 @@ STRING_TYPE = "std_msgs/msg/String"
 
 PROFILES = {
     # name: (storage_preset_profile, storage_config (dict → YAML), max_cache_size bytes)
-    "default": ("", None, 100 * 1024 * 1024),
+    # `default` = rosbag2's chunked writer (768 KiB chunks + a 100 MiB message cache, flushed when
+    # full or at close) with the final layout's options (2026-10-18, docs/development/
+    # fictrac-columns-in-the-bag.md §4): zstd at the plugin's slowest level, no per-message index.
+    # `crashsafe` writes every record at once, uncompressed; Recorder.close() rewrites it into
+    # the same final layout (mcap_index.reindex) once the run has closed cleanly.
+    "default": ("", {"compression": "Zstd", "compressionLevel": "Slowest", "noMessageIndex": True}, 100 * 1024 * 1024),
     "crashsafe": ("", {"noChunking": True, "noChunkCRC": True, "compression": "None"}, 0),
 }
 
@@ -57,8 +62,7 @@ class Recorder:
                  max_bag_bytes: int = 0) -> None:
         """`topics`: topic name → ROS type name (e.g. 'std_msgs/msg/String'). `max_bag_bytes` > 0
         asks rosbag2 to split the bag into `<run>_0.mcap`, `_1.mcap`, … at about that size (a
-        threshold rosbag2 checks after each write, not a hard cap; off by default — bags are
-        archived on a share, not pushed to GitHub, so size limits are the exception)."""
+        threshold rosbag2 checks after each write, not a hard cap; off by default, plan §3)."""
         self.bag_dir = Path(bag_dir)
         self.topics = dict(topics)
         self.profile = profile

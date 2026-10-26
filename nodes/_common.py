@@ -173,7 +173,7 @@ def _prepend_env(name: str, value: str) -> None:
 def setup_interfaces(prefix: str | None = None) -> bool:
     """Make a colcon-built `interfaces/install` visible to THIS process and its children —
     the equivalent of sourcing install/setup.sh, done in Python so Windows needs no shell
-    script. Returns True when the prefix exists. Call it BEFORE importing arena_interfaces."""
+    script. Returns True when the prefix exists. Call it BEFORE importing rig_interfaces."""
     import sys as _sys
 
     prefix = prefix or INTERFACES_INSTALL
@@ -207,10 +207,10 @@ def setup_interfaces(prefix: str | None = None) -> bool:
 
 
 def probe_interfaces():
-    """(ArenaFrame, FicTracFrame) when arena_interfaces imports AND its typesupport actually
+    """(ArenaFrame, FicTracFrame) when rig_interfaces imports AND its typesupport actually
     loads — else None. An import alone is not enough: a package that is importable but whose
     typesupport library cannot be dlopen'ed (seen with a colcon install visible from the
-    default env: `RMWError: … Could not load library libarena_interfaces__rosidl_typesupport_
+    default env: `RMWError: … Could not load library librig_interfaces__rosidl_typesupport_
     fastrtps_c.dylib`) would otherwise make a node pick typed topics and die at its first
     message. One serialize_message() is the test.
 
@@ -230,7 +230,7 @@ def probe_interfaces():
 
 def _try_interfaces():
     try:
-        from arena_interfaces.msg import ArenaFrame, FicTracFrame
+        from rig_interfaces.msg import ArenaFrame, FicTracFrame
         from rclpy.serialization import serialize_message
 
         serialize_message(ArenaFrame())
@@ -241,5 +241,5 @@ def _try_interfaces():
 
 
 def interfaces_available() -> bool:
-    """True when arena_interfaces imports and serializes (after setup_interfaces)."""
+    """True when rig_interfaces imports and serializes (after setup_interfaces)."""
     return probe_interfaces() is not None

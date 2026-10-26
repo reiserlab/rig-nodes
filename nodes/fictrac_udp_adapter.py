@@ -21,8 +21,8 @@ separately, as before. ~50-100 Hz × ~250 B is nothing for Zenoh on loopback.
     pixi run fictrac-adapter -- --port 60000
     pixi run sim -- --proto udp --rate 50            # the unmodified simulator feeds it
 
-PLAN B (LAB-303, typed topic): with `--typed` (default `auto` = when arena_interfaces imports)
-the adapter ALSO publishes `/fictrac/frame` as arena_interfaces/FicTracFrame — the parsed
+PLAN B (LAB-303, typed topic): with `--typed` (default `auto` = when rig_interfaces imports)
+the adapter ALSO publishes `/fictrac/frame` as rig_interfaces/FicTracFrame — the parsed
 columns, the FT tag, the receive stamps AND the verbatim line — so the closed-loop node can
 subscribe to a typed topic while the mapping math still parses exactly the bytes FicTrac sent.
 `/fictrac/raw` keeps being published (`--typed only` drops it) so `ros2 topic echo` and older
@@ -43,6 +43,7 @@ from rclpy.node import Node
 from std_msgs.msg import String
 
 from _common import RELIABLE_QOS, mono_ns, probe_interfaces, raise_timer_resolution, spin, wall_ms, wrap_line
+from _rows import parse_fictrac_line  # ONE parser for the adapter, the bridge node and the converter
 
 _IFACES = probe_interfaces()  # import + serialize; None → String only
 HAVE_IFACES = _IFACES is not None
@@ -53,28 +54,12 @@ TYPED_TOPIC = "/fictrac/frame"
 RAW_QOS = RELIABLE_QOS
 
 
-def parse_fictrac_line(raw: str) -> tuple[str, list[float]]:
-    """(tag, fields) the way bridge.py's Pipeline parses: a leading FT* token is the tag
-    ('' when absent, as in offline .dat lines and the simulator); fields = the floats after
-    it, or [] when the line is not numeric (a bad frame has no usable data)."""
-    parts = raw.strip().split(",")
-    tag = ""
-    if parts and parts[0].strip()[:2].upper() == "FT":
-        tag = parts[0].strip()
-        parts = parts[1:]
-    try:
-        return tag, [float(p) for p in parts]
-    except ValueError:
-        return tag, []
-
-
-
 class FicTracUdpAdapter(Node):
     def __init__(self, host: str, port: int, status_every_s: float, typed: str = "auto") -> None:
         super().__init__("fictrac_udp_adapter")
         want_typed = HAVE_IFACES if typed == "auto" else typed in ("on", "only")
         if typed in ("on", "only") and not HAVE_IFACES:
-            raise SystemExit("--typed on/only, but arena_interfaces is not importable (pixi install builds it)")
+            raise SystemExit("--typed on/only, but rig_interfaces is not importable (pixi install builds it)")
         self.typed_pub = self.create_publisher(FicTracFrame, TYPED_TOPIC, RAW_QOS) if want_typed else None
         self.pub = None if typed == "only" else self.create_publisher(String, TOPIC, RAW_QOS)
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -88,7 +73,7 @@ class FicTracUdpAdapter(Node):
         self._buf = b""
         self._thread = threading.Thread(target=self._recv_loop, name="udp-recv", daemon=True)
         self._thread.start()
-        self.get_logger().info(f"UDP {host}:{port} → {TOPIC if self.pub else '-'}" + (f" + {TYPED_TOPIC} (arena_interfaces/FicTracFrame)" if self.typed_pub else " (std_msgs/String JSON, reliable)"))
+        self.get_logger().info(f"UDP {host}:{port} → {TOPIC if self.pub else '-'}" + (f" + {TYPED_TOPIC} (rig_interfaces/FicTracFrame)" if self.typed_pub else " (std_msgs/String JSON, reliable)"))
         if status_every_s > 0:
             self._last = (0, time.monotonic())
             self.create_timer(status_every_s, self._status)
@@ -148,7 +133,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--port", type=int, default=60000, help="UDP bind port — FicTrac's sock_port (default: 60000)")
     p.add_argument("--status-every", type=float, default=5.0, help="stderr rate line interval in s; 0 = off (default: 5)")
     p.add_argument("--typed", choices=("auto", "on", "off", "only"), default="auto",
-                   help="also publish /fictrac/frame as arena_interfaces/FicTracFrame (auto: when the package imports; only: drop /fictrac/raw)")
+                   help="also publish /fictrac/frame as rig_interfaces/FicTracFrame (auto: when the package imports; only: drop /fictrac/raw)")
     # ros2 run / launch pass --ros-args; keep them for rclpy.
     args, ros_args = p.parse_known_args(argv)
     raise_timer_resolution()  # Windows: 1 ms system timer for this process (_common "clocks")

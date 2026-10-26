@@ -1,6 +1,6 @@
 # Shared-memory and MCAP recording benchmarks (LAB-303)
 
-Three scripts in `ros2-poc/` measure rmw_zenoh with shared memory off vs on for image-sized
+Three scripts in `rig/` measure rmw_zenoh with shared memory off vs on for image-sized
 `sensor_msgs/Image` messages. None needs hardware. Each starts its own Zenoh router on
 `127.0.0.1:7457` with `ROS_DOMAIN_ID` 42, so it never joins a rig graph on 7447 — but it loads the
 CPU for a few minutes, so **never run it while an experiment is running on the PC** (Studio run,
@@ -21,9 +21,9 @@ the system monotonic clock, so the copy is fine there too). Publish pacing still
 ## Running it on another Windows PC
 
 1. Nothing rig-related running; port free: `netstat -ano | findstr ":7457"` prints nothing.
-2. The default pixi environment is installed (`ros2-poc\.pixi\envs\default`); if not, see
+2. The default pixi environment is installed (`rig\.pixi\envs\default`); if not, see
    `WINDOWS-TEST.md` step 1a (`pixi install --locked`).
-3. PowerShell in `ros2-poc`, with `<host>` = this PC's name (about 7 minutes in all):
+3. PowerShell in `rig`, with `<host>` = this PC's name (about 7 minutes in all):
 
 ```powershell
 pixi run python shm_bench_qpc.py run --out <host>_shm_qpc.json
