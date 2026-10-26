@@ -116,8 +116,13 @@ def run_capture(argv: list[str], timeout: float = 60.0) -> subprocess.CompletedP
 
 
 def cmd_json(r: subprocess.CompletedProcess) -> dict:
+    """The reply JSON a command tool printed with --json (indented; rclpy may print lines before it)."""
+    out = r.stdout or ""
+    i = out.find("{")
+    if i < 0:
+        return {}
     try:
-        return json.loads(r.stdout) if r.stdout.strip().startswith("{") else {}
+        return json.loads(out[i:])
     except json.JSONDecodeError:
         return {}
 
