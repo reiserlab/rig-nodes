@@ -15,6 +15,8 @@ on the packages built here. A package lives here only when it carries no arena s
 code (message contracts may) and a second consumer confirms the abstraction; anything doubtful
 stays with its application until a consumer asks.
 
+**Setting up a machine** (install recipe, host table, per-host quirks for the Mac, ww18, the Bergamo PC and ww14): [`SETUP.md`](SETUP.md). Every install or QC pass updates its host's row there.
+
 ## Layout
 
 ```
