@@ -17,7 +17,17 @@ one set on every platform, never two (the 0.2.0 lesson below).
 
 | package set | tag | built from | pins | notes |
 |---|---|---|---|---|
-| 0.2.1 | `v0.2.1` (pending) | — | mutex 0.19, Python 3.12 | first set from this repository; rig_interfaces 0.2.1 = the 0.2.0 messages, rebuilt with the pins; rig_nodes 0.2.1 = the moved nodes |
+| 0.2.1 | `v0.2.1` | [run 40427967719](https://github.com/reiserlab/rig-nodes/actions/runs/40427967719) from `451bd37`, pixi 0.80.0, pixi-build-ros + pixi-build-python | mutex 0.19, Python 3.12 | first set from this repository; rig_interfaces 0.2.1 = the 0.2.0 messages, rebuilt with the pins; rig_nodes 0.2.1 (noarch) = the moved nodes; acceptance (clean-directory install + tests) passed on win-64 / osx-arm64 / linux-64 |
+
+### v0.2.1 files
+
+| subdir | file | sha256 | pins |
+|---|---|---|---|
+| `linux-64` | `rig_interfaces-0.2.1-hb0f4dca_0.conda` | `9eb49568b01263b22a193915e0102e9dc1a0597a5f4d3f6267f400c77700a3be` | `ros2-distro-mutex`, `ros2-distro-mutex >=0.19.0,<0.20.0a0`, `python_abi 3.12.* *_cp312` |
+| `noarch` | `rig_nodes-0.2.1-pyh4616a5c_0.conda` | `e002109fbeb72c36489c850ddce0176df13e0e032b422b64ccf854465d5394a7` | `python >=3.12`, `python *`, `ros2-distro-mutex 0.19.*` |
+| `osx-arm64` | `rig_interfaces-0.2.1-h60d57d3_0.conda` | `76339c539d4eaae37bb81d7efd84c5e6dfff438a89b722a6c57252b09ba9d32d` | `ros2-distro-mutex`, `ros2-distro-mutex >=0.19.0,<0.20.0a0`, `python_abi 3.12.* *_cp312` |
+| `win-64` | `rig_interfaces-0.2.1-ha41a7fa_0.conda` | `dfef21559ce477fd9d4ca7bbd4f9f24943b52405f82b79d075d2874202cb0d4f` | `ros2-distro-mutex`, `ros2-distro-mutex >=0.19.0,<0.20.0a0`, `python_abi 3.12.* *_cp312` |
+
 
 ## History (webDisplayTools, before the move)
 
