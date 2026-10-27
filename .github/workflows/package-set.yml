@@ -76,13 +76,23 @@ jobs:
                   dist, subdir, mutex = sys.argv[1:4]
                   ok = True
                   for path in sorted(glob.glob(os.path.join(dist, "*.conda"))):
-                      z = zipfile.ZipFile(path)
-                      names = z.namelist()  # a .conda = zip{pkg-*.tar.zst, info-*.tar.zst, metadata.json}
-                      assert any(n.startswith("pkg-") for n in names) and any(n.startswith("info-") for n in names), names
-                      info = next(n for n in names if n.startswith("info-"))
-                      raw = zstandard.ZstdDecompressor().stream_reader(io.BytesIO(z.read(info))).read()
+                      with zipfile.ZipFile(path) as z:  # closed before the move below (Windows: WinError 32 otherwise)
+                          names = z.namelist()  # a .conda = zip{pkg-*.tar.zst, info-*.tar.zst, metadata.json}
+                          assert any(n.startswith("pkg-") for n in names) and any(n.startswith("info-") for n in names), names
+                          info = next(n for n in names if n.startswith("info-"))
+                          raw = zstandard.ZstdDecompressor().stream_reader(io.BytesIO(z.read(info))).read()
+                          pkg = next(n for n in names if n.startswith("pkg-"))
+                          payload = zstandard.ZstdDecompressor().stream_reader(io.BytesIO(z.read(pkg))).read()
                       with tarfile.open(fileobj=io.BytesIO(raw)) as t:
                           index = json.load(t.extractfile("info/index.json"))
+                      files = tarfile.open(fileobj=io.BytesIO(payload)).getnames()
+                      if index["name"] == "rig_nodes":
+                          # the real package, not an editable stub: every module + the Zenoh configs inside
+                          need = ["rig_nodes/__init__.py", "rig_nodes/_common.py", "rig_nodes/supervise.py", "rig_nodes/zenoh.py",
+                                  "rig_nodes/config/zenoh-router.json5", "rig_nodes/config/zenoh-session.json5", "rig_nodes/sims/fictrac_sim.py"]
+                          missing = [n for n in need if not any(f.endswith(n) for f in files)]
+                          if missing:
+                              print(f"  !! rig_nodes package is missing {missing} ({len(files)} files)"); ok = False
                       depends = index.get("depends", [])
                       pkg_subdir = index.get("subdir")
                       mx = [d for d in depends if d.startswith("ros2-distro-mutex")]
