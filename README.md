@@ -30,7 +30,7 @@ src/rig_nodes/            Python package (pixi-build-python, hatchling); console
   rig_nodes/recorder.py        one MCAP bag per run (rosbag2_py), a writer library — the lifecycle belongs to the application
   rig_nodes/mcap_index.py      reindex a finished bag; recover a torn one
   rig_nodes/cdr.py             decode CDR from the ros2msg schema text in a bag (no ROS process)
-  rig_nodes/foxglove_json.py   String-topic bag → Foxglove-plottable JSON MCAP (generic; applications add an `enrich` hook)
+  rig_nodes/foxglove_json.py   String-topic bag → Foxglove-plottable JSON MCAP (generic; applications add `enrich` / `derive` hooks)
   rig_nodes/graph_dump.py      the live graph as Mermaid / DOT / a rate table
   rig_nodes/build_interfaces.py   colcon build of src/rig_interfaces (the .msg author's route) + `--check`
   rig_nodes/sims/              fictrac_sim, kinefly_sim, bias_sim, si_json_mock — the device programs, stood in

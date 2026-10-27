@@ -8,7 +8,7 @@ CONTRACT.md at the repository root.
 
 Importing this package pulls in nothing: each module imports what it needs (`rclpy` only in the
 nodes and in `_common`; the pure modules `fictrac`, `cdr`, `supervise`, `mcap_index`,
-`foxglove_json` run without a ROS process).
+`foxglove_json`, `bias_health` run without a ROS process).
 """
 
 __version__ = "0.2.1"
