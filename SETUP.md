@@ -38,7 +38,13 @@ system ROS). RoboStack Jazzy and `rmw_zenoh` come from conda-forge/robostack thr
    ```
 
 2. `pixi install --locked` (first install: about 1 GB, 25–45 s on a warm cache, several minutes
-   cold). With `rig_interfaces` pinned nothing is compiled: the typed package is CI-built per
+   cold). pixi resolves **every** environment's source dependencies before it installs any of
+   them, so a `path = …` dependency in any feature (a developer environment pointing at a sibling
+   checkout) makes the plain install fail on a machine without that path; use `git = …` source
+   dependencies for developer environments instead (webDisplayTools `rig/pixi.toml` `dev`,
+   fixed 2026-10-27). pixi ≥ 0.80 warns that `[system-requirements]` is deprecated in favor of
+   virtual packages on `platforms`; the table still works, the warning is noise until the
+   workspace manifests are converted. With `rig_interfaces` pinned nothing is compiled: the typed package is CI-built per
    platform and installed like any other conda package (9 s on ww18). Building the interfaces
    from source is the **developer path only** (see Windows below).
 3. Check: `python -m rig_nodes.build_interfaces --check` (typed package importable and
@@ -93,7 +99,7 @@ every push; no lab rig runs Linux yet.
 | Host | Role | OS / hardware | Installs | Last verified | Record |
 |---|---|---|---|---|---|
 | Michael's Mac (osx-arm64) | development, bench G6 2×10 controller when attached | macOS 14+, Chrome | webDisplayTools `rig/` default + typed from the v0.2.1 channel | 2026-10-27, PR #274 `ad98b2a`: harness 59/59 + 62/62, live FicTrac (sample video) → emulator runs, real Studio connected 20 Hz | webDisplayTools PR #274 comment (2026-10-27); `rig/README.md` → Mac results (2026-10-14) |
-| ww18 (`rig5-mr`) | arena rig: G6 2×10, real FicTrac, BIAS on an Atlas10 camera | Windows, pixi-built `fictrac.exe` | webDisplayTools `rig/` (String; typed from the CI channel) | 2026-10-15/16, PoC branch: harness 47/47, typed 48/48 from a file channel; **v0.2.1 channel install pending (QC 2026-10-27)** | webDisplayTools `rig/windows-results-ww18-2026-10-15.md`; `docs/typed-windows.md` here |
+| ww18 (`rig5-mr`, `reiserlab-ww18`) | arena rig: G6 2×10 fly on ball, real FicTrac (FLIR USB3 camera, Spinnaker 4.4), BIAS on an Atlas10 camera | Windows 11 Enterprise 26200; Dell Pro Max Tower T2, Core Ultra 9 285K, 63 GB, RTX PRO 4500; pixi 0.80.0; FicTrac 2.1.2 pixi-built | webDisplayTools `rig/` default + typed from the v0.2.1 channel (rig_nodes 0.2.1, rig_interfaces 0.2.1, mutex 0.19.0, Python 3.12.16; 1.6 GB, 398 packages, 10 s warm) | 2026-10-27, PR #274 `ad98b2a`: install (sibling-clone workaround, fixed in `31011dd`), typed + `check-typed`, harness 59/59, graph, two Production Studio v0.98 arena runs on the FicTrac simulator, export identical to the live file; **real FicTrac not run (camera hardware, see notes)** | [webDisplayTools PR #274 comment (2026-10-27)](https://github.com/reiserlab/webDisplayTools/pull/274#issuecomment-6451162032); `rig/windows-results-ww18-2026-10-15.md`; `docs/typed-windows.md` here |
 | Bergamo PC (`reiserlab-bergamo1`) | 2P rig: ScanImage 2026.0.0 (simulated vDAQ), G6 controller at times | Windows, MATLAB R2025b | webDisplayTools `rig/` default + ScanImage connector | 2026-10-16 (connector day) and 2026-10-22 (ZMQ frames wrapper, PR #261); **released `main` 2026-10-26 pending (QC 2026-10-27)** | webDisplayTools `rig/scanimage-day-2026-10-16.md`, `rig/SCANIMAGE-DAY.md` |
 | ww14 (okey-cokey PC) | behavior rig: BIAS v0.73.1 (Spinnaker) on a FLIR BFS-U3-51S5M, G6 controller on COM3, no FicTrac | Windows | webDisplayTools `rig/` default + viz | 2026-10-21/22 (PR #269 branch); **released `main` 2026-10-26 pending (QC 2026-10-27)** | webDisplayTools PR #269: `rig/okey-cokey-pc-2026-10-21.md`, `rig/okey-cokey-pc-results-2026-10-21.md` |
 | Robot station (Isabel) | Mecademic robot + two BIAS cameras | — | not yet (LAB-245; shared pieces to come from here) | — | Linear LAB-245 / LAB-248 / LAB-251 |
@@ -115,8 +121,28 @@ every push; no lab rig runs Linux yet.
   controller the Studio connects to the bridge and shows frames; nothing is applied.
 
 ### ww18 (`rig5-mr`)
-- `fictrac.exe` run directly exits `0xC0000135` (DLL not found): it is pixi-built; start it
-  through `build\Release\fictrac.bat`, which puts its environment and Spinnaker on `PATH`.
+- `fictrac.exe` run directly exits `0xC0000135` (DLL not found); from Git Bash the message is
+  `error while loading shared libraries: api-ms-win-crt-locale-l1-1-0.dll: cannot open shared
+  object file` (rc 127). It is pixi-built: start it through `build\Release\fictrac.bat
+  config.txt` from the config's directory, which puts its environment's `Library\bin` and
+  `C:\Program Files\Teledyne\Spinnaker\bin64\vs2015` on `PATH`.
+- **FicTrac camera down since 2026-10-27** (FLIR USB3 Vision, `USB\VID_1E10&PID_4000\21205235`,
+  driver Teledyne 2.8.3.16). The camera opened but delivered no frames: `Error grabbing frame!
+  Error was: Spinnaker: Failed waiting for EventData on NEW_BUFFER_DATA event. (GenTL error code:
+  -1011) [-1011]`, then FicTrac exits `0xC0000409`; SpinView showed no frames either. After a
+  replug it enumerated for 16 s and dropped off the bus; on another port and cable it never
+  enumerates (`Error! Could not find any connected PGR cameras!`, PnP `Present = False`), rear
+  LED blinking. Not a software issue (the PC had been up since 2026-10-13 with three Windows
+  updates installed since that boot). Next: reboot, power the camera down for ≥ 30 s (USB and
+  GPIO), then SpinView on another PC to split camera from PC. Until then the graph runs on the
+  simulator (`pixi run rig -- --sim --sim-args "--proto udp --model fly --kp 2 --seed 1 --rate 50"`).
+- No system Python on `PATH`: `python` opens the Microsoft Store alias (`Python was not found;
+  run without arguments to install…`). Use `pixi run python …` inside a workspace; nothing in
+  the rig flow needs a system Python.
+- 2026-10-27: a plain `pixi install` in `rig\` failed with `failed to solve requirements of
+  environment 'dev' for platform 'win-64'` (the `dev` path dependencies, see the recipe). Fixed in
+  webDisplayTools `31011dd`; the `C:\Lab\GitHub\rig-nodes` v0.2.1 shallow clone left on the PC as
+  the workaround is no longer needed.
 - BIAS on the Atlas10: `connect` takes about 2.2 s, past a 2 s per-call timeout, so a successful
   connect can come back `outcome: unknown`; `stop-capture` takes ~3 s on short recordings. Check
   the status afterwards instead of retrying blindly.
