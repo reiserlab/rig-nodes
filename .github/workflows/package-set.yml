@@ -90,11 +90,16 @@ jobs:
                       print(os.path.basename(path), pkg_subdir, index["version"], mx, py)
                       if index["version"] != os.environ["PACKAGE_SET_VERSION"]:
                           print(f"  !! version {index['version']} != package set {os.environ['PACKAGE_SET_VERSION']}"); ok = False
-                      if not mx or not all(f">={mutex}" in m for m in mx):
-                          print(f"  !! ros2-distro-mutex pin {mx} is not {mutex}.*"); ok = False
+                      # The backend may add a bare `ros2-distro-mutex` beside the pinned one; the pin itself is
+                      # spelled `>=0.19.0,<0.20.0a0` (run_exports, rig_interfaces) or `0.19.*` (rig_nodes).
+                      pinned = [m for m in mx if f">={mutex}" in m or f"{mutex}.*" in m]
+                      if not pinned:
+                          print(f"  !! ros2-distro-mutex pin {mx} is not {mutex}"); ok = False
                       if pkg_subdir not in (subdir, "noarch"):
                           print(f"  !! subdir {pkg_subdir} is neither {subdir} nor noarch"); ok = False
-                      if not any(">=3.12" in p for p in py) and pkg_subdir != "noarch":
+                      # rig_nodes (noarch) pins python >=3.12; rig_interfaces carries no python entry of its own
+                      # (its extension lives under lib/python3.12/site-packages — the host python decides that path).
+                      if py and not any("3.12" in p for p in py):
                           print(f"  !! python pin {py} is not 3.12"); ok = False
                       out = os.path.join(dist, pkg_subdir)
                       os.makedirs(out, exist_ok=True)
