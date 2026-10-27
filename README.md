@@ -48,6 +48,7 @@ foxglove/                 generic Foxglove layouts (none yet; the arena layouts 
 ```bash
 pixi install          # solves RoboStack Jazzy and BUILDS src/rig_interfaces + src/rig_nodes in place (pixi-build)
 pixi run test-pure    # the pure modules, no router needed
+pixi run test-sim     # the FicTrac simulator (record packing, replay, model fly)
 pixi run test         # the device-node conformance run (starts its own Zenoh router on 127.0.0.1:7447)
 pixi run router       # a router for manual runs; then e.g. `pixi run fictrac-sim` + `pixi run fictrac-adapter`
 pixi run graph        # the live graph as Mermaid
