@@ -1,7 +1,7 @@
 # channel/ — the published `rig-nodes` conda channel
 
 The conda channel a rig installs the package set from: `rig_interfaces` (the typed ROS 2
-messages: `FicTracFrame`, `ArenaFrame`, `ConnectorReply`) and `rig_nodes` (the Python package),
+messages: `FicTracFrame`, `ArenaFrame`, `ConnectorReply`, `HostStats` + its four record types) and `rig_nodes` (the Python package),
 built by `.github/workflows/package-set.yml` on win-64, osx-arm64 and linux-64 and indexed with
 `rattler-index`. Consumers read it over raw.githubusercontent.com pinned to a release tag
 (`https://raw.githubusercontent.com/reiserlab/rig-nodes/vX.Y.Z/channel`), so a rig PC **without
@@ -17,7 +17,17 @@ one set on every platform, never two (the 0.2.0 lesson below).
 
 | package set | tag | built from | pins | notes |
 |---|---|---|---|---|
+| 0.3.0 | `v0.3.0` | [run 40775301367](https://github.com/reiserlab/rig-nodes/actions/runs/40775301367) from `b5aebf7`, pixi 0.80.0, pixi-build-ros + pixi-build-python | mutex 0.19, Python 3.12 | rig_interfaces 0.3.0 = the 0.2.1 messages + `HostStats` with `DiskStats` / `NetStats` / `GpuStats` / `ProcStats` (the host monitor's `/rig/host` sample); rig_nodes 0.3.0 (noarch) = + `host_monitor` / `host_sampler`, `bias_health`, the `foxglove_json` derive hook, Zenoh configs without the deprecated routing keys; psutil run-dependency; acceptance (clean-directory install + tests) passed on win-64 / osx-arm64 / linux-64 |
 | 0.2.1 | `v0.2.1` | [run 40427967719](https://github.com/reiserlab/rig-nodes/actions/runs/40427967719) from `451bd37`, pixi 0.80.0, pixi-build-ros + pixi-build-python | mutex 0.19, Python 3.12 | first set from this repository; rig_interfaces 0.2.1 = the 0.2.0 messages, rebuilt with the pins; rig_nodes 0.2.1 (noarch) = the moved nodes; acceptance (clean-directory install + tests) passed on win-64 / osx-arm64 / linux-64 |
+
+### v0.3.0 files
+
+| subdir | file | sha256 | pins |
+|---|---|---|---|
+| `linux-64` | `rig_interfaces-0.3.0-hb0f4dca_0.conda` | `47aceda59b9b620865ebc5e265651dee277d5b8e1c75086f5f4d693b1e29564d` | `ros2-distro-mutex`, `ros2-distro-mutex >=0.19.0,<0.20.0a0`, `python_abi 3.12.* *_cp312` |
+| `noarch` | `rig_nodes-0.3.0-pyh4616a5c_0.conda` | `21e25cc26f888a92631c9699f17e0c7b03787e3ba91ae04de6a56694cb3fbfa5` | `python >=3.12`, `python *`, `ros2-distro-mutex 0.19.*` |
+| `osx-arm64` | `rig_interfaces-0.3.0-h60d57d3_0.conda` | `330681b4e0fd635442a8e53a73f066fa3dce3492f145cd58d810503028f5ef65` | `ros2-distro-mutex`, `ros2-distro-mutex >=0.19.0,<0.20.0a0`, `python_abi 3.12.* *_cp312` |
+| `win-64` | `rig_interfaces-0.3.0-ha41a7fa_0.conda` | `2af2122abbec43ada5a471c9b42f7d3f41d45b6078afb4f14cdde057b7369c41` | `ros2-distro-mutex`, `ros2-distro-mutex >=0.19.0,<0.20.0a0`, `python_abi 3.12.* *_cp312` |
 
 ### v0.2.1 files
 
