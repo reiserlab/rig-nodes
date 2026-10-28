@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import os
+import signal
 import time
 
 import rclpy
@@ -108,6 +109,11 @@ def wrap_line(src: str, seq: int, raw: str, rx_epoch_ms: int, rx_mono_ns: int) -
 
 def spin(node) -> None:
     """rclpy.spin(node) until Ctrl-C / external shutdown, then destroy + shut down quietly."""
+    if hasattr(signal, "SIGBREAK"):
+        # Windows: rig.py and the harnesses stop children with CTRL_BREAK_EVENT (signal_group),
+        # whose default action ends the process at once (rc 0xC000013A, no clean shutdown;
+        # Bergamo 2026-10-20). Treat it as Ctrl-C, as bridge_node.py does.
+        signal.signal(signal.SIGBREAK, signal.default_int_handler)
     try:
         rclpy.spin(node)
     except (KeyboardInterrupt, ExternalShutdownException):

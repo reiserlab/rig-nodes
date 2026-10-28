@@ -15,7 +15,7 @@
 # resolves from there. Bare channel names resolve through pixi's default channel alias.
 [workspace]
 name = "rig-nodes"
-version = "0.2.1"
+version = "0.3.0"
 channels = ["conda-forge", "robostack-jazzy"]
 platforms = ["osx-arm64", "win-64", "linux-64"]
 preview = ["pixi-build"]
@@ -46,7 +46,7 @@ ZENOH_SESSION_CONFIG_URI = '%PIXI_PROJECT_ROOT%\src\rig_nodes\rig_nodes\config\z
 # The mutex decides which RoboStack Jazzy rebuild every ros-jazzy-* package comes from; the
 # packages built from src/ pin the same, so a rig that installs them next to its own ROS packages
 # gets one set, not two. 0.19 + Python 3.12 is what the rigs run (the arena workspace lock on
-# win-64 / linux-64; its osx-arm64 lock sat on 0.16 only because rmw_zenoh ≥ 0.2.11 needs macOS 14,
+# win-64 / linux-64; its osx-arm64 lock sat on 0.16 only because rmw_zenoh ≥ 0.3.01 needs macOS 14,
 # declared below as the system requirement).
 ros2-distro-mutex = "0.19.*"
 python = "3.12.*"
@@ -56,6 +56,8 @@ ros-jazzy-rosbag2-py = "*"
 ros-jazzy-rosbag2-storage-mcap = "*"
 mcap = ">=1.2"
 websockets = ">=12"
+pyzmq = "*"
+numpy = "*"
 # ── the two packages, built from source here ────────────────────────────────────────────────
 rig_nodes = { path = "src/rig_nodes" }
 rig_interfaces = { path = "src/rig_interfaces" }
@@ -72,7 +74,7 @@ cmake = "*"
 ninja = "*"
 cxx-compiler = "*"
 
-# rmw_zenoh 0.2.11 (the 0.19 set) is built for macOS ≥ 14; without this floor the osx-arm64 solve
+# rmw_zenoh 0.3.01 (the 0.19 set) is built for macOS ≥ 14; without this floor the osx-arm64 solve
 # falls back to the 0.16 set and the platforms drift apart.
 [system-requirements]
 macos = "14.0"
@@ -103,15 +105,23 @@ bias-node = "rig-bias-node"
 bias-cmd = "rig-bias-cmd"
 scanimage-node = "rig-scanimage-node"
 scanimage-cmd = "rig-scanimage-cmd"
+scanimage-frames = "rig-scanimage-frames"
+# the read-only Thorlabs SiPM controller (EXPERIMENTAL, LAB-319): node, one-shot command, the driver's own CLI
+sipm-node = "rig-sipm-node"
+sipm-cmd = "rig-sipm-cmd"
+sipm = "rig-sipm"
 # ── simulators ─────────────────────────────────────────────────────────────────────────────
 fictrac-sim = "rig-fictrac-sim"
 kinefly-sim = "rig-kinefly-sim"
 bias-sim = "rig-bias-sim"
 si-mock = "rig-si-mock"
+zmq-frames-mock = "rig-zmq-frames-mock"
 # ── recording + graph tools ────────────────────────────────────────────────────────────────
 reindex = "rig-reindex"
 fox-json = "rig-fox-json"
 graph = "rig-graph"
+# latency / gaps / queue-depth report of the ScanImage frame stream, from a bag or the node's --dump JSONL
+zmq-latency = "rig-zmq-latency"
 # colcon build of src/rig_interfaces into src/install (the .msg author's measured route;
 # `-- --check` reports whether the typed package imports and serializes in this env)
 build-interfaces = "python -m rig_nodes.build_interfaces --src src/rig_interfaces --prefix src/install"
@@ -119,6 +129,8 @@ build-interfaces = "python -m rig_nodes.build_interfaces --src src/rig_interface
 test = "python tests/test_device_nodes.py"
 test-pure = "python tests/test_pure.py"
 test-sim = "python tests/test_fictrac_sim.py"
+test-frames = "python tests/test_scanimage_frames.py"
+test-sipm = "python tests/test_sipm.py"
 # ── benches (`pixi run -e bench …`) ────────────────────────────────────────────────────────
 shm-bench = "python bench/shm_bench.py"
 shm-bench-qpc = "python bench/shm_bench_qpc.py"

@@ -21,7 +21,7 @@ stays with its application until a consumer asks.
 
 ```
 pixi.toml                 the SOURCE workspace (RoboStack Jazzy + rmw_zenoh + the two packages built from src/)
-src/rig_interfaces/       ament_cmake message package: FicTracFrame, ArenaFrame, ConnectorReply  (pixi-build-ros)
+src/rig_interfaces/       ament_cmake message package: FicTracFrame, ArenaFrame, ConnectorReply, HostStats (+ DiskStats, NetStats, GpuStats, ProcStats; 0.3.0)  (pixi-build-ros)
 src/rig_nodes/            Python package (pixi-build-python, hatchling); console scripts rig-*
   rig_nodes/_common.py        clocks (precise on Windows), QoS, the adapter envelope, spin, typed-interfaces probe
   rig_nodes/supervise.py      process groups, portable signals, port preflight, Child supervision  (ex rig.py)
@@ -29,16 +29,18 @@ src/rig_nodes/            Python package (pixi-build-python, hatchling); console
   rig_nodes/fictrac_udp_adapter.py, kinefly_udp_adapter.py          stream adapters → /<src>/raw (+ /fictrac/frame typed)
   rig_nodes/bias_node.py, bias_cmd.py, bias_health.py               BIAS camera: /bias/cmd|reply|status|frames
   rig_nodes/scanimage_node.py, scanimage_cmd.py                     ScanImage JSON server: /scanimage/cmd|reply|status
+  rig_nodes/scanimage_frames_node.py, zmq_latency_report.py         ScanImage 2026's ZeroMQ frame stream: /scanimage/frame_meta|frame_stats|preview/*; its latency/gaps report (0.3.0, ex webDisplayTools #261)
+  rig_nodes/sipm_node.py, sipm_cmd.py, thorsipm.py                  Thorlabs SiPM controller, read-only: /sipm/cmd|reply|status (0.3.0, EXPERIMENTAL, ex #266; never bench-tested)
   rig_nodes/recorder.py        one MCAP bag per run (rosbag2_py), a writer library — the lifecycle belongs to the application
   rig_nodes/mcap_index.py      reindex a finished bag; recover a torn one
   rig_nodes/cdr.py             decode CDR from the ros2msg schema text in a bag (no ROS process)
   rig_nodes/foxglove_json.py   String-topic bag → Foxglove-plottable JSON MCAP (generic; applications add `enrich` / `derive` hooks)
   rig_nodes/graph_dump.py      the live graph as Mermaid / DOT / a rate table
   rig_nodes/build_interfaces.py   colcon build of src/rig_interfaces (the .msg author's route) + `--check`
-  rig_nodes/sims/              fictrac_sim, kinefly_sim, bias_sim, si_json_mock — the device programs, stood in
+  rig_nodes/sims/              fictrac_sim, kinefly_sim, bias_sim, si_json_mock, zmq_frames_mock — the device programs, stood in
   rig_nodes/zenoh.py + config/ the loopback-only Zenoh configs, shipped in the package; `rig-router` starts rmw_zenohd with them
 channel/                  the published conda channel: README always; payloads only on a tagged release commit
-tests/                    test_pure.py (no graph), test_device_nodes.py (sims → nodes → topics → loss accounting)
+tests/                    test_pure.py (no graph), test_device_nodes.py (sims → nodes → topics → loss accounting), test_scanimage_frames.py, test_sipm.py
 bench/                    shm_bench.py, shm_bench_qpc.py, mcap_bench.py, sizing/ (measurements behind docs/)
 docs/                     shm-bench.md, typed-distribution-decision.md, typed-windows.md
 foxglove/                 generic Foxglove layouts (none yet; the arena layouts stay in webDisplayTools)
@@ -52,6 +54,8 @@ pixi install          # solves RoboStack Jazzy and BUILDS src/rig_interfaces + s
 pixi run test-pure    # the pure modules, no router needed
 pixi run test-sim     # the FicTrac simulator (record packing, replay, model fly)
 pixi run test         # the device-node conformance run (starts its own Zenoh router on 127.0.0.1:7447)
+pixi run test-frames  # the ScanImage frame-stream node against the ZMQ publisher stand-in (own router, ≈ 40 s)
+pixi run test-sipm    # the SiPM node against thorsipm.FakeBackend (own router, ≈ 30 s)
 pixi run router       # a router for manual runs; then e.g. `pixi run fictrac-sim` + `pixi run fictrac-adapter`
 pixi run graph        # the live graph as Mermaid
 ```
@@ -71,12 +75,12 @@ A consumer's `pixi.toml` adds the channel and pins the package set:
 
 ```toml
 [workspace]
-channels = ["conda-forge", "robostack-jazzy", "https://raw.githubusercontent.com/reiserlab/rig-nodes/v0.2.1/channel"]
+channels = ["conda-forge", "robostack-jazzy", "https://raw.githubusercontent.com/reiserlab/rig-nodes/v0.3.0/channel"]
 
 [dependencies]
 ros2-distro-mutex = "0.19.*"          # the RoboStack set the packages were built against (macOS ≥ 14 for osx-arm64)
-rig_nodes = "==0.2.1"
-rig_interfaces = "==0.2.1"            # optional: without it the nodes publish String JSON (`--typed auto`)
+rig_nodes = "==0.3.0"
+rig_interfaces = "==0.3.0"            # optional: without it the nodes publish String JSON (`--typed auto`)
 ```
 
 and starts nodes with their console scripts (`rig-fictrac-adapter`, `rig-bias-node`, …) or

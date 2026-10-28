@@ -8,7 +8,7 @@ item 1(b) of the cross-repository checklist in webDisplayTools'
 `telemetry-logging-reference.md` plays for the arena run-log rows. The message definitions
 themselves are `src/rig_interfaces/msg/*.msg`; the envelope is `rig_nodes._common.wrap_line`;
 the FicTrac line grammar is `rig_nodes.fictrac`. Where this file and the code disagree, the code
-is a bug and this file is the authority. Version: package set 0.2.1 (2026-10-26).
+is a bug and this file is the authority. Version: package set 0.3.0 (2026-10-28).
 
 ## 1. Middleware
 
@@ -25,7 +25,7 @@ is a bug and this file is the authority. Version: package set 0.2.1 (2026-10-26)
 ## 2. Topics
 
 Names are absolute and fixed. `<src>` is a short lowercase device identity (`fictrac`,
-`kinefly`, `bias`, `scanimage`), the same string the envelope carries in `src`.
+`kinefly`, `bias`, `scanimage`, `sipm`), the same string the envelope carries in `src`.
 
 | topic | type | QoS | producer | notes |
 |---|---|---|---|---|
@@ -35,6 +35,9 @@ Names are absolute and fixed. `<src>` is a short lowercase device identity (`fic
 | `/<src>/reply` | `std_msgs/String` (JSON, §4) | RELIABLE, KEEP_LAST 200, VOLATILE | the device node | exactly one reply per command |
 | `/<src>/status` | `std_msgs/String` (JSON, §4) | RELIABLE, KEEP_LAST 200, VOLATILE | the device node, every `--status-every` s | reachability + the device's own snapshot |
 | `/bias/frames` | `std_msgs/String` (JSON) | RELIABLE, KEEP_LAST 200, VOLATILE | BIAS node after `stopRecording` | every frame's camera timestamp from BIAS's stamp log, chunked |
+| `/scanimage/frame_meta`, `/scanimage/frame_stats`, `/scanimage/preview/meta` | `std_msgs/String` (JSON) | RELIABLE, KEEP_LAST 200, VOLATILE | `rig_nodes.scanimage_frames_node` (0.3.0) | ScanImage 2026's ZeroMQ frame stream: one `frame_meta` per frame (`seq`, `segment`, `frameNumber`, `frameTimestamp_s`, `dims`, `nchan`, `bytes`, `gap_before`, `rx_epoch_ms`, `rx_mono_ns`, `pub_mono_ns`, `queue_depth`), `frame_stats` every `--stats-every` s (loss accounting: `received == published + dropped_by_queue + queue_depth`), one `preview/meta` per preview image. STREAMS: recorded as received, never derived into a run-log line |
+| `/scanimage/preview/ch1` … `ch4` | `sensor_msgs/CompressedImage` (PNG) | RELIABLE, KEEP_LAST 200, VOLATILE | `rig_nodes.scanimage_frames_node` | bounded preview (`--preview-hz` per channel, 0 = off; `--preview-size`²); live imaging is not v1 |
+| `/rig/host` | `rig_interfaces/HostStats`, or `std_msgs/String` JSON with the same field names | RELIABLE, KEEP_LAST 10, VOLATILE | `rig_nodes.host_monitor` (default 1 Hz; the node is in webDisplayTools `rig/nodes/host_monitor.py` until measured on ww18, the messages ship in 0.3.0) | one host-pressure sample per window (§5a); recorded by the arena gateway; absent values NaN (float) / 0 (int) |
 | `/arena/frame` | `rig_interfaces/ArenaFrame`, or `std_msgs/String` JSON with the same field names | BEST_EFFORT, KEEP_LAST 1, VOLATILE | the arena gateway (webDisplayTools `rig/nodes/bridge_node.py`) | one closed-loop evaluation per FicTrac frame (§5); live viewing only, the recorder writes its own copy |
 | `/arena/browser`, `/arena/event`, `/arena/session` | `std_msgs/String` JSON | recorded only (never published) | the arena gateway | gateway records in the bag; format authority: webDisplayTools `telemetry-logging-reference.md` |
 
@@ -70,7 +73,8 @@ device's record into another's fields.
 minted by the sender and echoed verbatim; the node never interprets it. `command` is the node's
 own vocabulary (each device node owns it — BIAS: `connect`, `startRecording`, `stopRecording`,
 `startPreview`, `stopCapture`, `getTimestamp`, `disconnect`; ScanImage: `setFileStem`, `set`,
-`grab`, `waitIdle`, `abort`, `get`, `ping`, `status`). The protocol plugin registries in
+`grab`, `waitIdle`, `abort`, `get`, `ping`, `status`; SiPM (`rig_nodes.sipm_node`, EXPERIMENTAL in
+0.3.0, read-only, never bench-tested): `ping`, `status`, `get`, `info`, `scan`, `disconnect`, `reconnect`). The protocol plugin registries in
 webDisplayTools and MATLAB are clients of that vocabulary, not its source.
 
 **Reply** on `/<src>/reply`, exactly one per command:
@@ -102,7 +106,11 @@ executor policy, never node policy). Typed replies use `rig_interfaces/Connector
 "rtt_ms": …, …the device's own snapshot…}` or `{"reachable": false, "t_ms": …, "error": "…"}`.
 Device fields are passed through under the device's names (BIAS: `connected`, `capturing`,
 `logging`, `frameCount`, `framesPerSec`, `videoFile`; ScanImage: `acqState`, `lastFrameNumber`,
-`logFileCounter`, `logFileStem`, `logFilePath`, `loggingEnable`). A counter the device does not
+`logFileCounter`, `logFileStem`, `logFilePath`, `loggingEnable`, and since 0.3.0 `acq`: the vDAQ
+engine's `getAcqStatus` subset `frameNumberAcq`, `totalAcquiredFrames`, `acqNumber`,
+`numDroppedFramesDisplay`, `numDroppedFramesLogger`, `fifoOverflows`, `dcOvervoltage` with
+`--frame-counter acqstatus`, the default; SiPM: `connected`, `level`, `warnings`, `read_ms`,
+`connected_detectors`, `control_unit`, `detectors`, `extra`). A counter the device does not
 report is **absent**, never 0.
 
 ## 5. `/arena/frame`
@@ -126,6 +134,21 @@ FicTrac record in a run's bag (the raw FicTrac topics are recorded only on reque
 | `turning_dps`, `forward_mms` | float64 | derived live-viewing channels (two-point differences on `ft`, else on `t_ms`); **NaN in the bag** since 2026-10-18 (recomputable; 16 B/frame otherwise) |
 | `err`, `dr_lab_x/y/z`, `ft_seq`, `ft_ns` | float64 ×4, int64 ×2 | FicTrac cols 5, 6–8, 23, 22 as received (NaN / 0 when absent) |
 | `flags` | uint8 | bit 0: untracked frame (an `FT_BADFR` line): no columns, no run-log row, but the bag says "untracked", not "missing" |
+
+## 5a. `/rig/host`
+
+One host-pressure sample per window (`rig_interfaces/msg/HostStats.msg` is normative; the String form
+uses the same names): wall clock at the END of the window (`t_ms`), `window_s`, `sub_samples`,
+`hostname`; CPU as whole-PC busy cores and per logical CPU, each as the window MEAN and the busiest
+sub-window PEAK (`core_busy_mean`, `core_busy_peak`, 0..1), the P/E-core class per CPU (`core_class`,
+empty when unknown), the sampler's own lateness (`sampler_late_ms_max`), context switches / interrupts /
+DPCs per second; memory and page file in MB, hard page faults per second; the run-log volume and its
+free space; and four arrays of record types — `DiskStats[] disks`, `NetStats[] nets`, `GpuStats[] gpus`
+(NVML, incl. NVENC/NVDEC utilization), `ProcStats[] procs` (top N by CPU / memory / disk I/O plus
+pinned names, deduplicated; `reasons` bitmask 1 CPU, 2 memory, 4 disk I/O, 8 pinned) — and the
+monitor's own cost (`monitor_cpu_cores`). Absent values follow §6: NaN for a float, 0 for an integer,
+`null` in the String form. Request and field rationale: webDisplayTools `rig/docs/host-stats-request.md`
+(2026-10-28).
 
 ## 6. Semantic invariants
 

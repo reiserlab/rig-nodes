@@ -5,7 +5,7 @@
 # conda packages, declared below, never pip.
 [package]
 name = "rig_nodes"
-version = "0.2.1"
+version = "0.3.0"
 
 [package.build]
 backend = { name = "pixi-build-python", version = "*", channels = ["https://prefix.dev/pixi-build-backends", "https://prefix.dev/conda-forge"] }
@@ -27,3 +27,7 @@ ros-jazzy-rosidl-runtime-py = "*"
 ros2-distro-mutex = "0.19.*"
 mcap = ">=1.2"
 websockets = ">=12"
+# 0.3.0: the ScanImage frame-stream node + its stand-in publisher (pyzmq for the SUB socket, numpy for
+# the int16 planes and the PNG preview); numpy is accepted as a package-wide run dependency (move-review Q3).
+pyzmq = "*"
+numpy = "*"

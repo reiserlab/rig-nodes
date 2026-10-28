@@ -25,7 +25,7 @@ system ROS). RoboStack Jazzy and `rmw_zenoh` come from conda-forge/robostack thr
    ```toml
    [workspace]
    channels = ["conda-forge", "robostack-jazzy",
-               "https://raw.githubusercontent.com/reiserlab/rig-nodes/v0.2.1/channel"]
+               "https://raw.githubusercontent.com/reiserlab/rig-nodes/v0.3.0/channel"]
 
    [system-requirements]
    macos = "14.0"                       # osx-arm64 otherwise resolves the older 0.16 RoboStack set
@@ -33,8 +33,9 @@ system ROS). RoboStack Jazzy and `rmw_zenoh` come from conda-forge/robostack thr
    [dependencies]
    ros2-distro-mutex = "0.19.*"         # the RoboStack set the packages were built against
    python = "3.12.*"
-   rig_nodes = "==0.2.1"
-   rig_interfaces = "==0.2.1"           # optional: without it nodes publish String JSON
+   rig_nodes = "==0.3.0"
+   rig_interfaces = "==0.3.0"           # optional: without it nodes publish String JSON (the host
+                                        # monitor's typed /rig/host needs it: the `typed` environment, or the String fallback)
    ```
 
 2. `pixi install --locked` (first install: about 1 GB, 25–45 s on a warm cache, several minutes
