@@ -241,11 +241,10 @@
         // ]
       },
     },
-    /// The routing strategy to use in peers and it's configuration. The upstream file sets
-    /// `mode` and `linkstate` here and the router sets `peers_failover_brokering`; the Zenoh in the
-    /// RoboStack 0.19 set does not know those keys and warned about them on every node start
-    /// (rig-nodes 0.3.0 removed them; nothing on a single-host loopback graph used them).
-    peer: {},
+    /// No `peer:` block: the upstream file sets `routing.peer.mode` / `linkstate` (and the router
+    /// `peers_failover_brokering`), which the Zenoh in the RoboStack 0.19 set reports as deprecated with
+    /// no effect on every node start — even as an empty `peer: {}`. Removed in rig-nodes 0.3.0; nothing
+    /// on a single-host loopback graph used them.
     /// The interests-based routing configuration.
     /// This configuration applies regardless of the mode (router, peer or client).
     interests: {

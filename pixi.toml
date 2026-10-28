@@ -17,8 +17,14 @@
 name = "rig-nodes"
 version = "0.3.0"
 channels = ["conda-forge", "robostack-jazzy"]
-platforms = ["osx-arm64", "win-64", "linux-64"]
+# rmw_zenoh 0.2.11 (the 0.19 set) is built for macOS ≥ 14; without this floor the osx-arm64 solve falls
+# back to the 0.16 set and the platforms drift apart. Declared on the platform (pixi ≥ 0.80 virtual
+# packages; the older [system-requirements] table is deprecated and warned on every command).
+platforms = [{ name = "osx-arm64", platform = "osx-arm64", macos = "14.0" }, "win-64", "linux-64"]
 preview = ["pixi-build"]
+# pixi.lock is written by pixi ≥ 0.80; an older pixi must refuse rather than rewrite it in its own format
+# (webDisplayTools issue #280).
+requires-pixi = ">=0.80"
 
 [activation.env]
 # Every ROS 2 process in this workspace uses the Zenoh middleware. rmw_zenoh needs ONE router
@@ -46,7 +52,7 @@ ZENOH_SESSION_CONFIG_URI = '%PIXI_PROJECT_ROOT%\src\rig_nodes\rig_nodes\config\z
 # The mutex decides which RoboStack Jazzy rebuild every ros-jazzy-* package comes from; the
 # packages built from src/ pin the same, so a rig that installs them next to its own ROS packages
 # gets one set, not two. 0.19 + Python 3.12 is what the rigs run (the arena workspace lock on
-# win-64 / linux-64; its osx-arm64 lock sat on 0.16 only because rmw_zenoh ≥ 0.3.01 needs macOS 14,
+# win-64 / linux-64; its osx-arm64 lock sat on 0.16 only because rmw_zenoh ≥ 0.2.11 needs macOS 14,
 # declared below as the system requirement).
 ros2-distro-mutex = "0.19.*"
 python = "3.12.*"
@@ -74,10 +80,6 @@ cmake = "*"
 ninja = "*"
 cxx-compiler = "*"
 
-# rmw_zenoh 0.3.01 (the 0.19 set) is built for macOS ≥ 14; without this floor the osx-arm64 solve
-# falls back to the 0.16 set and the platforms drift apart.
-[system-requirements]
-macos = "14.0"
 
 # ── benchmarks (bench/): shared-memory and MCAP recording studies; zstandard/lz4 for the sizing study ──
 [feature.bench.dependencies]

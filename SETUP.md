@@ -27,8 +27,9 @@ system ROS). RoboStack Jazzy and `rmw_zenoh` come from conda-forge/robostack thr
    channels = ["conda-forge", "robostack-jazzy",
                "https://raw.githubusercontent.com/reiserlab/rig-nodes/v0.3.0/channel"]
 
-   [system-requirements]
-   macos = "14.0"                       # osx-arm64 otherwise resolves the older 0.16 RoboStack set
+   platforms = [{ name = "osx-arm64", platform = "osx-arm64", macos = "14.0" }, "win-64", "linux-64"]
+                                        # the macOS floor on the platform (pixi ≥ 0.80): osx-arm64 otherwise resolves the older 0.16 set
+   requires-pixi = ">=0.80"             # an older pixi refuses instead of rewriting pixi.lock in its own format
 
    [dependencies]
    ros2-distro-mutex = "0.19.*"         # the RoboStack set the packages were built against
@@ -48,10 +49,10 @@ system ROS). RoboStack Jazzy and `rmw_zenoh` come from conda-forge/robostack thr
    against a lock from 0.69.0: 1095 lines changed, `osx-arm64` renamed `osx-arm64-macos-14-0`,
    `virtual-packages:` blocks added, every `conda_source` hash recomputed) and leaves the
    checkout dirty, so the next `git checkout` refuses. `--locked` installs the committed lock
-   unchanged on both versions. pixi ≥ 0.80 also warns that `[system-requirements]` is deprecated
-   in favor of virtual packages on `platforms`; the fix for both is one re-lock from the newer
-   pixi plus `requires-pixi` in the workspace manifest (webDisplayTools issue, after the
-   2026-10-27 release). With `rig_interfaces` pinned nothing is compiled: the typed package is CI-built per
+   unchanged on both versions. pixi ≥ 0.80 also warned that `[system-requirements]` is deprecated
+   in favor of virtual packages on `platforms`; both fixed on 2026-10-28 (rig-nodes 0.3.0 and
+   webDisplayTools issue #280): the macOS floor sits on the platform entry, `requires-pixi = ">=0.80"`
+   makes an older pixi refuse, and the locks are written by pixi 0.83. With `rig_interfaces` pinned nothing is compiled: the typed package is CI-built per
    platform and installed like any other conda package (9 s on ww18). Building the interfaces
    from source is the **developer path only** (see Windows below).
 3. Check: `python -m rig_nodes.build_interfaces --check` (typed package importable and
@@ -92,9 +93,9 @@ system ROS). RoboStack Jazzy and `rmw_zenoh` come from conda-forge/robostack thr
   (`docs/typed-windows.md`). None of this applies when installing from the channel.
 
 **macOS** (developer machines)
-- `[system-requirements] macos = "14.0"` is required: `rmw_zenoh ≥ 0.2.11` needs `__osx >= 14`,
-  and without the floor osx-arm64 silently resolves the 0.16 RoboStack set with a different
-  Python.
+- the macOS floor (`macos = "14.0"` on the osx-arm64 platform entry; before 2026-10-28 the deprecated
+  `[system-requirements]` table) is required: `rmw_zenoh ≥ 0.2.11` needs `__osx >= 14`, and without the
+  floor osx-arm64 silently resolves the 0.16 RoboStack set with a different Python.
 - No `timeout` command; scripts that need one use Python.
 - `pixi run` from a repository root with its own `pixi.toml` provisions **that** workspace
   (300 MB) instead of the rig one: always `cd` into the rig workspace or pass
