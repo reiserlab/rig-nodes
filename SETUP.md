@@ -52,7 +52,10 @@ system ROS). RoboStack Jazzy and `rmw_zenoh` come from conda-forge/robostack thr
    unchanged on both versions. pixi ≥ 0.80 also warned that `[system-requirements]` is deprecated
    in favor of virtual packages on `platforms`; both fixed on 2026-10-28 (rig-nodes 0.3.0 and
    webDisplayTools issue #280): the macOS floor sits on the platform entry, `requires-pixi = ">=0.80"`
-   makes an older pixi refuse, and the locks are written by pixi 0.83. With `rig_interfaces` pinned nothing is compiled: the typed package is CI-built per
+   makes an older pixi refuse, and the locks are written by pixi 0.83. **So the pixi floor on every rig PC
+   is 0.83** (0.80 refuses that lock with `lock file not up-to-date`): `pixi self-update` first; it
+   replaces only the `~/.pixi/bin/pixi` binary and touches no environment (ww18 2026-10-28,
+   0.80.0 → 0.83.0, every env's conda-meta unchanged). With `rig_interfaces` pinned nothing is compiled: the typed package is CI-built per
    platform and installed like any other conda package (9 s on ww18). Building the interfaces
    from source is the **developer path only** (see Windows below).
 3. Check: `python -m rig_nodes.build_interfaces --check` (typed package importable and
