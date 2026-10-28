@@ -15,11 +15,13 @@ on the packages built here. A package lives here only when it carries no arena s
 code (message contracts may) and a second consumer confirms the abstraction; anything doubtful
 stays with its application until a consumer asks.
 
+**Setting up a machine** (install recipe, host table, per-host quirks for the Mac, ww18, the Bergamo PC and ww14): [`SETUP.md`](SETUP.md). Every install or QC pass updates its host's row there.
+
 ## Layout
 
 ```
 pixi.toml                 the SOURCE workspace (RoboStack Jazzy + rmw_zenoh + the two packages built from src/)
-src/rig_interfaces/       ament_cmake message package: FicTracFrame, ArenaFrame, ConnectorReply  (pixi-build-ros)
+src/rig_interfaces/       ament_cmake message package: FicTracFrame, ArenaFrame, ConnectorReply, HostStats (+ DiskStats, NetStats, GpuStats, ProcStats; 0.3.0)  (pixi-build-ros)
 src/rig_nodes/            Python package (pixi-build-python, hatchling); console scripts rig-*
   rig_nodes/_common.py        clocks (precise on Windows), QoS, the adapter envelope, spin, typed-interfaces probe
   rig_nodes/supervise.py      process groups, portable signals, port preflight, Child supervision  (ex rig.py)
@@ -27,18 +29,19 @@ src/rig_nodes/            Python package (pixi-build-python, hatchling); console
   rig_nodes/fictrac_udp_adapter.py, kinefly_udp_adapter.py          stream adapters → /<src>/raw (+ /fictrac/frame typed)
   rig_nodes/bias_node.py, bias_cmd.py, bias_health.py               BIAS camera: /bias/cmd|reply|status|frames
   rig_nodes/scanimage_node.py, scanimage_cmd.py                     ScanImage JSON server: /scanimage/cmd|reply|status
+  rig_nodes/host_monitor.py, host_sampler.py                        the PC's pressure (CPU per core mean+peak, memory, disks, network, NVIDIA GPUs, top processes) on /rig/host at 1 Hz (0.3.0)
   rig_nodes/recorder.py        one MCAP bag per run (rosbag2_py), a writer library — the lifecycle belongs to the application
   rig_nodes/mcap_index.py      reindex a finished bag; recover a torn one
   rig_nodes/cdr.py             decode CDR from the ros2msg schema text in a bag (no ROS process)
-  rig_nodes/foxglove_json.py   String-topic bag → Foxglove-plottable JSON MCAP (generic; applications add an `enrich` hook)
+  rig_nodes/foxglove_json.py   String-topic bag → Foxglove-plottable JSON MCAP (generic; applications add `enrich` / `derive` hooks)
   rig_nodes/graph_dump.py      the live graph as Mermaid / DOT / a rate table
   rig_nodes/build_interfaces.py   colcon build of src/rig_interfaces (the .msg author's route) + `--check`
   rig_nodes/sims/              fictrac_sim, kinefly_sim, bias_sim, si_json_mock — the device programs, stood in
   rig_nodes/zenoh.py + config/ the loopback-only Zenoh configs, shipped in the package; `rig-router` starts rmw_zenohd with them
 channel/                  the published conda channel: README always; payloads only on a tagged release commit
-tests/                    test_pure.py (no graph), test_device_nodes.py (sims → nodes → topics → loss accounting)
+tests/                    test_pure.py (no graph), test_host_sampler.py (no graph), test_device_nodes.py (sims → nodes → topics → loss accounting)
 bench/                    shm_bench.py, shm_bench_qpc.py, mcap_bench.py, sizing/ (measurements behind docs/)
-docs/                     shm-bench.md, typed-distribution-decision.md, typed-windows.md
+docs/                     shm-bench.md, typed-distribution-decision.md, typed-windows.md, host-monitor.md
 foxglove/                 generic Foxglove layouts (none yet; the arena layouts stay in webDisplayTools)
 .github/workflows/package-set.yml   build both packages on win-64 / osx-arm64 / linux-64, index the channel, install-test it
 ```
@@ -48,6 +51,7 @@ foxglove/                 generic Foxglove layouts (none yet; the arena layouts 
 ```bash
 pixi install          # solves RoboStack Jazzy and BUILDS src/rig_interfaces + src/rig_nodes in place (pixi-build)
 pixi run test-pure    # the pure modules, no router needed
+pixi run test-host    # the host sampler on a fake psutil, no router needed
 pixi run test-sim     # the FicTrac simulator (record packing, replay, model fly)
 pixi run test         # the device-node conformance run (starts its own Zenoh router on 127.0.0.1:7447)
 pixi run router       # a router for manual runs; then e.g. `pixi run fictrac-sim` + `pixi run fictrac-adapter`
@@ -69,12 +73,12 @@ A consumer's `pixi.toml` adds the channel and pins the package set:
 
 ```toml
 [workspace]
-channels = ["conda-forge", "robostack-jazzy", "https://raw.githubusercontent.com/reiserlab/rig-nodes/v0.2.1/channel"]
+channels = ["conda-forge", "robostack-jazzy", "https://raw.githubusercontent.com/reiserlab/rig-nodes/v0.3.0/channel"]
 
 [dependencies]
 ros2-distro-mutex = "0.19.*"          # the RoboStack set the packages were built against (macOS ≥ 14 for osx-arm64)
-rig_nodes = "==0.2.1"
-rig_interfaces = "==0.2.1"            # optional: without it the nodes publish String JSON (`--typed auto`)
+rig_nodes = "==0.3.0"
+rig_interfaces = "==0.3.0"            # optional: without it the nodes publish String JSON (`--typed auto`)
 ```
 
 and starts nodes with their console scripts (`rig-fictrac-adapter`, `rig-bias-node`, …) or
@@ -96,7 +100,9 @@ One version for both packages, one tag, one channel directory (record §7.6, §7
    the installed packages** (the release gate).
 3. Download the `rig-nodes-channel` artifact of that run into `channel/` (`gh run download <id>
    -n rig-nodes-channel -D channel`), update `channel/README.md` (files, sha256s, pins), commit
-   as `release: package set vX.Y.Z`, tag `vX.Y.Z` on that commit, push with the tag. The payload
+   as `release: package set vX.Y.Z` — **with `git add -f channel/*/`**: the payload directories are
+   gitignored, and a plain `git add` commits the README alone (the first v0.3.0 commit, 2026-10-28, did;
+   the tag had to be moved to the commit that carries the files), tag `vX.Y.Z` on that commit, push with the tag. The payload
    is committed **once**, on that commit, and removed again in the next commit; git history serves
    the pinned `raw.githubusercontent.com/…/vX.Y.Z/channel` URL. On the tag push the workflow also
    uploads to a prefix.dev channel when the repository variable `RIG_NODES_CHANNEL` and the

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "rig_nodes"
-version = "0.2.1"
+version = "0.3.0"
 description = "Reiser Lab rig infrastructure: ROS 2 device adapters and simulators, MCAP recording and supervision primitives"
 readme = "README.md"
 license = "MIT"
@@ -25,6 +25,8 @@ rig-bias-node = "rig_nodes.bias_node:main"
 rig-bias-cmd = "rig_nodes.bias_cmd:main"
 rig-scanimage-node = "rig_nodes.scanimage_node:main"
 rig-scanimage-cmd = "rig_nodes.scanimage_cmd:main"
+# host pressure (/rig/host; 0.3.0)
+rig-host-monitor = "rig_nodes.host_monitor:main"
 # simulators
 rig-fictrac-sim = "rig_nodes.sims.fictrac_sim:main"
 rig-kinefly-sim = "rig_nodes.sims.kinefly_sim:main"

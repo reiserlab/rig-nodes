@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """test_pure.py — the rig_nodes modules that need no graph: envelope, FicTrac grammar, CDR
-decoding, the Foxglove JSON rewriter, the MCAP indexer, the supervision primitives.
+decoding, the Foxglove JSON rewriter, the MCAP indexer, the supervision primitives, BIAS health.
 
     pixi run test-pure            # in the rig-nodes checkout
     python tests/test_pure.py     # in any environment where rig_nodes is installed
@@ -136,6 +136,32 @@ def test_foxglove_json(tmp: Path) -> None:
     check("foxglove: envelope raw parsed into msg, raw dropped", bodies["/k/raw"].get("msg", {}).get("sequence") == 9 and "raw" not in bodies["/k/raw"], bodies)
     check("foxglove: jsonschema per topic + metadata record", schemas["/x/status"]["properties"]["twice"]["type"] == "number" and any(m.name == "foxglove_json" for m in meta), list(schemas))
 
+    seen: dict = {}
+
+    def derive(records):
+        seen["records"] = records
+        for topic, t_ns, obj in records:  # one derived scalar per status message, plus one image
+            if topic == "/x/status":
+                yield ("/d/reachable", t_ns + 1, {"data": bool(obj.get("reachable"))}, None)
+        yield ("/d/image", 25, {"timestamp": {"sec": 0, "nsec": 25}, "frame_id": "d", "format": "png", "data": "AA=="}, "foxglove.CompressedImage")
+
+    rep = convert(src, tmp / "out2.mcap", enrich=lambda topic, obj: None if topic == "/drop" else obj, derive=derive)
+    check("foxglove: derive sees every kept record in log order", [r[0] for r in seen["records"]] == ["/k/raw", "/x/status", "/x/status"] and seen["records"][0][2].get("msg", {}).get("sequence") == 9, seen["records"])
+    check("foxglove: derived messages are written and counted", rep["derived"] == 3 and rep["messages"] == 6 and rep["topics"].get("/d/reachable") == 2 and rep["topics"].get("/d/image") == 1, rep)
+    with open(tmp / "out2.mcap", "rb") as f:
+        r = make_reader(f)
+        msgs = list(r.iter_messages())
+        names = {ch.topic: sc.name for sc, ch, _ in msgs}
+        order = [(m.log_time, ch.topic) for _, ch, m in msgs]
+        reach = [json.loads(m.data)["data"] for _, ch, m in msgs if ch.topic == "/d/reachable"]
+    check("foxglove: a derived topic gets an inferred schema, an image the well-known one", names.get("/d/reachable") == "d_reachable" and names.get("/d/image") == "foxglove.CompressedImage", names)
+    check("foxglove: derived messages interleave by time with the recorded ones", order == sorted(order) and reach == [True, False], order)
+    try:
+        convert(src, tmp / "out3.mcap", derive=lambda records: [("/d/x", 1, {"a": 1}, "not.a.schema")])
+        check("foxglove: an unknown well-known schema name is refused", False, "no error")
+    except ValueError as exc:
+        check("foxglove: an unknown well-known schema name is refused", "not.a.schema" in str(exc), exc)
+
 
 def test_mcap_index(tmp: Path) -> None:
     from mcap.reader import make_reader
@@ -164,6 +190,21 @@ def test_mcap_index(tmp: Path) -> None:
             topics[ch.topic] = topics.get(ch.topic, 0) + 1
     check("mcap_index: recover_bag salvages the records and appends ONE recovery marker",
           topics.get("/a/raw") == 20 and sum(v for k, v in topics.items() if k.endswith("/session")) == 1, (topics, rec))
+
+
+def test_bias_health() -> None:
+    from rig_nodes.bias_health import BIAS_DROP_KEYS, CountRate, bias_drops
+
+    cr = CountRate(2.0)
+    vals = [cr.add(t / 5.0, 30 * t / 5.0) for t in range(20)]
+    check("bias_health: 30 fps from a counter polled at 5 Hz", vals[-1] is not None and abs(vals[-1] - 30.0) < 1e-6, vals[-1])
+    check("bias_health: the first sample has no rate yet (window < 0.2 s)", vals[0] is None and vals[1] is None, vals[:3])
+    r1 = cr.add(4.2, 0)
+    r2 = cr.add(4.6, 12)
+    check("bias_health: a new recording (counter back to 0) restarts the window", r1 is None and r2 is not None and abs(r2 - 30.0) < 1e-6, (r1, r2))
+    check("bias_health: bias_drops None when BIAS reports no counters", bias_drops({"frameCount": 5}) is None)
+    check("bias_health: bias_drops sums the counters it reports (0 counts as reported)", bias_drops({"frameIdGaps": 2, "writerSkipped": 1, "cameraSkipped": 0}) == 3.0 and bias_drops({"cameraSkipped": 0}) == 0.0)
+    check("bias_health: the five Atlas10 loss counters", set(BIAS_DROP_KEYS) == {"frameIdGaps", "cameraSkipped", "incompleteFrames", "loggerSkipped", "writerSkipped"})
 
 
 def test_supervise() -> None:
@@ -209,7 +250,8 @@ def main() -> int:
     print(f"[test_pure] rig_nodes {rig_nodes.__version__} from {rig_nodes.__file__}", file=sys.stderr)
     tmp = Path(tempfile.mkdtemp(prefix="rig-nodes-pure-"))
     groups = [("envelope", test_envelope), ("fictrac", test_fictrac), ("cdr", test_cdr),
-              ("foxglove_json", lambda: test_foxglove_json(tmp)), ("mcap_index", lambda: test_mcap_index(tmp)), ("supervise", test_supervise)]
+              ("foxglove_json", lambda: test_foxglove_json(tmp)), ("mcap_index", lambda: test_mcap_index(tmp)),
+              ("bias_health", test_bias_health), ("supervise", test_supervise)]
     for name, fn in groups:
         try:
             fn()

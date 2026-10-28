@@ -21,6 +21,12 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/FicTracFrame.msg"
   "msg/ArenaFrame.msg"
   "msg/ConnectorReply.msg"
+  # host-pressure sample (rig_nodes.host_monitor, /rig/host; 0.3.0) — the four record types, then the sample that nests them
+  "msg/DiskStats.msg"
+  "msg/NetStats.msg"
+  "msg/GpuStats.msg"
+  "msg/ProcStats.msg"
+  "msg/HostStats.msg"
 )
 
 ament_export_dependencies(rosidl_default_runtime)

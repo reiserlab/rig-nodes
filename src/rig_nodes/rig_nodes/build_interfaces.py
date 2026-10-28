@@ -50,10 +50,12 @@ def check() -> dict:
     if INSTALL.exists():
         setup_interfaces(str(INSTALL))
     try:
-        from rig_interfaces.msg import ArenaFrame, ConnectorReply, FicTracFrame  # noqa: F401
+        import rig_interfaces.msg as _msgs
+        from rig_interfaces.msg import FicTracFrame
 
         out["importable"] = True
-        out["msgs"] = ["FicTracFrame", "ArenaFrame", "ConnectorReply"]
+        # every message type the installed package exports (0.3.0: + HostStats and its four record types)
+        out["msgs"] = sorted(n for n in dir(_msgs) if n[:1].isupper() and not n.startswith("_"))
         # Can rclpy serialize it (loads the C typesupport)?
         from rclpy.serialization import serialize_message
 

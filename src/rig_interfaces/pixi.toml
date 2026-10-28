@@ -6,7 +6,7 @@
 # so a rig installs it as a download (docs/typed-distribution-decision.md).
 [package]
 name = "rig_interfaces"
-version = "0.2.1"
+version = "0.3.0"
 
 [package.build]
 backend = { name = "pixi-build-ros", version = "*", channels = ["https://prefix.dev/pixi-build-backends", "https://prefix.dev/conda-forge", "https://prefix.dev/robostack-jazzy"] }

@@ -10,10 +10,14 @@ schema per topic (inferred from the messages), so any field plots directly. Per 
 object is written as recorded (a non-object payload becomes {"value": …}); a payload that carries
 the adapter envelope (CONTRACT.md) with a JSON `raw` gets `msg` = the parsed `raw`.
 
-This module is the GENERIC rewriter. An application adds its own per-topic derivations through the
-`enrich(topic, obj) -> obj | None` hook of `convert()` (return None to drop the message): the arena
-gateway's copy in webDisplayTools (`rig/nodes/foxglove_json.py`) derives the closed-loop channels
-on `/arena/frame` and names FicTrac's columns on `/fictrac/raw` that way.
+This module is the GENERIC rewriter. An application adds its own derivations through two hooks of
+`convert()`: `enrich(topic, obj) -> obj | None` runs per message (return None to drop it) — the
+arena gateway's wrapper in webDisplayTools (`rig/nodes/foxglove_json.py`) derives the closed-loop
+channels on `/arena/frame` and names FicTrac's columns on `/fictrac/raw` that way; `derive(records)`
+runs once over the whole (enriched, time-ordered) record stream and yields NEW messages — topics
+that were never recorded, rebuilt from the ones that were (the arena's expected-display images and
+health from the browser stream). A derived message may name a well-known Foxglove schema
+(`WELL_KNOWN_SCHEMAS`, e.g. `foxglove.CompressedImage` for an image) instead of an inferred one.
 
 The source is read record by record, so a crash-torn bag (no metadata.yaml, no index) converts
 too; the output is chunked, zstd-compressed and indexed. A metadata record `foxglove_json`
@@ -29,7 +33,7 @@ import math
 import struct
 import sys
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Callable, Iterable, Optional
 
 from rig_nodes.cdr import STRING_TYPE, cdr_string
 
@@ -143,19 +147,36 @@ def parse_envelope_raw(obj: dict, keep_raw: bool = False) -> dict:
 
 
 Enrich = Callable[[str, dict], Optional[dict]]
+# derive(records) with records = [(topic, log_time_ns, obj)] in log-time order (every message the
+# per-message pass kept, after enrich) → an iterable of (topic, time_ns, obj, schema_name | None):
+# new messages, written at time_ns as both log and publish time; schema_name None = inferred from
+# the messages like every recorded topic, else a WELL_KNOWN_SCHEMAS key.
+Derive = Callable[[list], Iterable[tuple]]
+
+# Foxglove's built-in schemas a derived topic may use by name, so the panels that need a specific
+# type (Image, …) accept it: https://docs.foxglove.dev/docs/visualization/message-schemas
+WELL_KNOWN_SCHEMAS: dict[str, dict] = {
+    "foxglove.CompressedImage": {
+        "title": "foxglove.CompressedImage", "type": "object", "properties": {
+            "timestamp": {"type": "object", "properties": {"sec": {"type": "integer"}, "nsec": {"type": "integer"}}},
+            "frame_id": {"type": "string"}, "data": {"type": "string", "contentEncoding": "base64"}, "format": {"type": "string"}}},
+}
 
 
 def convert(src: Path, dst: Path, enrich: Enrich | None = None, keep_raw: bool = False,
-            library: str = "rig_nodes foxglove_json", metadata: dict | None = None) -> dict:
+            library: str = "rig_nodes foxglove_json", metadata: dict | None = None,
+            derive: Derive | None = None) -> dict:
     """Rewrite `src` (a bag directory or one .mcap) as `dst`. `enrich(topic, obj)` may add
     derived fields or return None to drop the message; it runs after the generic envelope
-    parsing. `metadata` adds key/values to the `foxglove_json` metadata record."""
+    parsing. `derive(records)` then runs once over everything kept and adds new messages (see
+    `Derive`). `metadata` adds key/values to the `foxglove_json` metadata record."""
     from mcap.writer import CompressionType, Writer
 
     if src.is_dir():
         src = next(p for p in sorted(src.glob("*.mcap")))
     msgs, torn = read_messages(src)
     rows, schemas, skipped = [], {}, 0
+    records: list[tuple[str, int, dict]] = []  # for derive
     for topic, sname, log_t, pub_t, seq, data in msgs:
         if sname != STRING_TYPE:
             skipped += 1
@@ -176,6 +197,25 @@ def convert(src: Path, dst: Path, enrich: Enrich | None = None, keep_raw: bool =
         obj = finite(obj)
         schemas[topic] = merge_schema(schemas.get(topic, {}), obj)
         rows.append((topic, log_t, pub_t, seq, json.dumps(obj, separators=(",", ":")).encode()))
+        if derive is not None:
+            records.append((topic, log_t, obj))
+
+    fixed: dict[str, str] = {}  # derived topic → well-known schema name
+    derived = 0
+    if derive is not None:
+        records.sort(key=lambda r: r[1])
+        for topic, t_ns, obj, schema_name in derive(records):
+            obj = finite(obj)
+            if schema_name:
+                if schema_name not in WELL_KNOWN_SCHEMAS:
+                    raise ValueError(f"derive: unknown schema {schema_name!r} for {topic} (WELL_KNOWN_SCHEMAS)")
+                fixed[topic] = schema_name
+            else:
+                schemas[topic] = merge_schema(schemas.get(topic, {}), obj)
+            rows.append((topic, int(t_ns), int(t_ns), 0, json.dumps(obj, separators=(",", ":")).encode()))
+            derived += 1
+    for topic in fixed:  # a well-known schema wins over an inferred one for the same topic
+        schemas.pop(topic, None)
 
     sha = hashlib.sha256(src.read_bytes()).hexdigest()
     dst.parent.mkdir(parents=True, exist_ok=True)
@@ -183,6 +223,12 @@ def convert(src: Path, dst: Path, enrich: Enrich | None = None, keep_raw: bool =
         w = Writer(f, compression=CompressionType.ZSTD)
         w.start(profile="", library=library)
         chan = {}
+        sid_by_name = {}
+        for topic in sorted(fixed):
+            name = fixed[topic]
+            if name not in sid_by_name:
+                sid_by_name[name] = w.register_schema(name=name, encoding="jsonschema", data=json.dumps(WELL_KNOWN_SCHEMAS[name]).encode())
+            chan[topic] = w.register_channel(topic=topic, message_encoding="json", schema_id=sid_by_name[name])
         for topic in sorted(schemas):
             sc = finish_schema(schemas[topic]) or {"type": "object"}
             sc = {"$schema": "https://json-schema.org/draft/2020-12/schema", "title": topic, **sc}
@@ -199,8 +245,11 @@ def convert(src: Path, dst: Path, enrich: Enrich | None = None, keep_raw: bool =
     counts = {}
     for r in rows:
         counts[r[0]] = counts.get(r[0], 0) + 1
-    return {"source": src.name, "messages": len(rows), "skipped": skipped, "torn": torn, "topics": counts,
-            "bytes": dst.stat().st_size}
+    out = {"source": src.name, "messages": len(rows), "skipped": skipped, "torn": torn, "topics": counts,
+           "bytes": dst.stat().st_size}
+    if derive is not None:
+        out["derived"] = derived
+    return out
 
 
 def main(argv=None) -> int:

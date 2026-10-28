@@ -29,7 +29,7 @@ env:
     # The pixi + pixi-build backend pair the packages were last built and tested with. Bump
     # deliberately: the backends are NOT in pixi.lock.
     PIXI_VERSION: v0.80.0
-    PACKAGE_SET_VERSION: 0.2.1
+    PACKAGE_SET_VERSION: 0.3.0
 
 jobs:
     build:
@@ -89,7 +89,7 @@ jobs:
                       if index["name"] == "rig_nodes":
                           # the real package, not an editable stub: every module + the Zenoh configs inside
                           need = ["rig_nodes/__init__.py", "rig_nodes/_common.py", "rig_nodes/supervise.py", "rig_nodes/zenoh.py",
-                                  "rig_nodes/config/zenoh-router.json5", "rig_nodes/config/zenoh-session.json5", "rig_nodes/sims/fictrac_sim.py"]
+                                  "rig_nodes/config/zenoh-router.json5", "rig_nodes/config/zenoh-session.json5", "rig_nodes/sims/fictrac_sim.py", "rig_nodes/bias_health.py", "rig_nodes/host_monitor.py", "rig_nodes/host_sampler.py"]
                           missing = [n for n in need if not any(f.endswith(n) for f in files)]
                           if missing:
                               print(f"  !! rig_nodes package is missing {missing} ({len(files)} files)"); ok = False
@@ -207,10 +207,7 @@ jobs:
                   [workspace]
                   name = "rig-nodes-accept"
                   channels = ["conda-forge", "robostack-jazzy", "file://$CHAN"]
-                  platforms = ["${{ matrix.subdir }}"]
-
-                  [system-requirements]
-                  macos = "14.0"
+                  platforms = [${{ matrix.subdir == 'osx-arm64' && '{ name = "osx-arm64-macos-14-0", platform = "osx-arm64", macos = "14.0" }' || format('"{0}"', matrix.subdir) }}]
 
                   [activation.env]
                   RMW_IMPLEMENTATION = "rmw_zenoh_cpp"
@@ -237,6 +234,9 @@ jobs:
             - name: pure tests against the installed package
               working-directory: accept
               run: pixi run python tests/test_pure.py
+            - name: host sampler (no ROS, fake psutil) against the installed package + the installed .msg files
+              working-directory: accept
+              run: pixi run python tests/test_host_sampler.py
             - name: device-node conformance against the installed package
               working-directory: accept
               run: pixi run python tests/test_device_nodes.py --timeout-scale 2
