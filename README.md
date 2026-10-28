@@ -100,7 +100,9 @@ One version for both packages, one tag, one channel directory (record §7.6, §7
    the installed packages** (the release gate).
 3. Download the `rig-nodes-channel` artifact of that run into `channel/` (`gh run download <id>
    -n rig-nodes-channel -D channel`), update `channel/README.md` (files, sha256s, pins), commit
-   as `release: package set vX.Y.Z`, tag `vX.Y.Z` on that commit, push with the tag. The payload
+   as `release: package set vX.Y.Z` — **with `git add -f channel/*/`**: the payload directories are
+   gitignored, and a plain `git add` commits the README alone (the first v0.3.0 commit, 2026-10-28, did;
+   the tag had to be moved to the commit that carries the files), tag `vX.Y.Z` on that commit, push with the tag. The payload
    is committed **once**, on that commit, and removed again in the next commit; git history serves
    the pinned `raw.githubusercontent.com/…/vX.Y.Z/channel` URL. On the tag push the workflow also
    uploads to a prefix.dev channel when the repository variable `RIG_NODES_CHANNEL` and the
