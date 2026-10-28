@@ -398,7 +398,15 @@ def main(argv: list[str] | None = None) -> int:
                   seg4 and seg4["frames"] == n_d and seg4["gap_frames"] == 0 and seg4["missed_before_first"] == 0 and st["dropped_by_queue"] == 0, json.dumps(seg4))
             metas_d = [o for o in col.metas() if o["segment"] == 4]
             worst = max(((o["pub_mono_ns"] - o["rx_mono_ns"]) / 1e6 for o in metas_d), default=0)
-            check("D1: the backlog is visible: queue depth rose after the pause", metas_d and max(o["queue_depth"] for o in metas_d) >= 2, f"queue max {metas_d and max(o['queue_depth'] for o in metas_d)}, hop max {worst:.0f} ms")
+            # The backlog's signature depends on the machine: a node that drains slower than the burst shows
+            # queue depth ≥ 2; one that keeps up (CI's macOS runner, 2026-10-28) shows the burst itself — many
+            # frames received within a short span of rx_mono_ns, far above the 29 Hz pace (≈ 6 per 200 ms).
+            rx = sorted(o["rx_mono_ns"] for o in metas_d)
+            burst = max((sum(1 for t in rx[i:] if t - rx[i] <= 300_000_000) for i in range(len(rx))), default=0)
+            qmax = max((o["queue_depth"] for o in metas_d), default=0)
+            check("D1: the backlog is visible after the pause: queue depth ≥ 2, or a burst of ≥ 20 frames within 300 ms",
+                  metas_d and (qmax >= 2 or burst >= 20), f"queue max {qmax}, burst {burst} frames / 300 ms, hop max {worst:.0f} ms")
+            note(f"D1: queue max {qmax}, burst {burst} frames within 300 ms, in-node hop max {worst:.0f} ms")
             if bundled:
                 el, st, seg5 = paused_run("mock-d2", n_d, sndhwm=20)
                 check(f"D2: publisher (HWM 20) finished on time while the node was paused {a.pause_s:g} s", el < budget, f"{el:.2f} s vs budget {budget:.2f} s")
