@@ -27,7 +27,7 @@ system ROS). RoboStack Jazzy and `rmw_zenoh` come from conda-forge/robostack thr
    channels = ["conda-forge", "robostack-jazzy",
                "https://raw.githubusercontent.com/reiserlab/rig-nodes/v0.3.0/channel"]
 
-   platforms = [{ name = "osx-arm64", platform = "osx-arm64", macos = "14.0" }, "win-64", "linux-64"]
+   platforms = [{ name = "osx-arm64-macos-14-0", platform = "osx-arm64", macos = "14.0" }, "win-64", "linux-64"]
                                         # the macOS floor on the platform (pixi ≥ 0.80): osx-arm64 otherwise resolves the older 0.16 set
    requires-pixi = ">=0.80"             # an older pixi refuses instead of rewriting pixi.lock in its own format
 

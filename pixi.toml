@@ -19,8 +19,10 @@ version = "0.3.0"
 channels = ["conda-forge", "robostack-jazzy"]
 # rmw_zenoh 0.2.11 (the 0.19 set) is built for macOS ≥ 14; without this floor the osx-arm64 solve falls
 # back to the 0.16 set and the platforms drift apart. Declared on the platform (pixi ≥ 0.80 virtual
-# packages; the older [system-requirements] table is deprecated and warned on every command).
-platforms = [{ name = "osx-arm64", platform = "osx-arm64", macos = "14.0" }, "win-64", "linux-64"]
+# packages; the older [system-requirements] table is deprecated and warned on every command). pixi
+# requires an entry that carries virtual packages to have a `name` distinct from its subdir; the name is
+# the one pixi 0.80 itself wrote on ww18 when it rewrote the old lock.
+platforms = [{ name = "osx-arm64-macos-14-0", platform = "osx-arm64", macos = "14.0" }, "win-64", "linux-64"]
 preview = ["pixi-build"]
 # pixi.lock is written by pixi ≥ 0.80; an older pixi must refuse rather than rewrite it in its own format
 # (webDisplayTools issue #280).

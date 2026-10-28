@@ -209,7 +209,7 @@ jobs:
                   [workspace]
                   name = "rig-nodes-accept"
                   channels = ["conda-forge", "robostack-jazzy", "file://$CHAN"]
-                  platforms = ["${{ matrix.subdir }}"]
+                  platforms = [${{ matrix.subdir == 'osx-arm64' && '{ name = "osx-arm64-macos-14-0", platform = "osx-arm64", macos = "14.0" }' || format('"{0}"', matrix.subdir) }}]
 
                   [activation.env]
                   RMW_IMPLEMENTATION = "rmw_zenoh_cpp"
