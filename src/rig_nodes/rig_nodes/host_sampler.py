@@ -328,7 +328,7 @@ class Nvml:
 class HostSampler:
     def __init__(self, window_s: float = 1.0, sub_samples: int = 10, log_volume: str | os.PathLike = ".",
                  top_n: int = 3, pins: list[tuple[str, str]] | None = None, gpu: bool = True,
-                 py_roots: list[str | os.PathLike] | tuple = ()) -> None:
+                 py_roots: list[str | os.PathLike] | tuple = (), proc_rescan_s: float = 5.0) -> None:
         if psutil is None:
             raise RuntimeError("psutil is not installed")
         self.window_s = float(window_s)
@@ -336,6 +336,7 @@ class HostSampler:
         self.log_volume = str(Path(log_volume).resolve().anchor or log_volume) if WIN else str(log_volume)
         self._log_path = str(log_volume)
         self.top_n = int(top_n)
+        self.proc_rescan_s = float(proc_rescan_s)  # portable path: full process-table period (_ps_rows)
         self.pins = [(n, re.compile(rx, re.I)) for n, rx in (pins if pins is not None else DEFAULT_PINS)]
         self.py_roots = tuple(Path(r) for r in py_roots)  # script roots for py_group (a rig's own nodes)
         self.hostname = socket.gethostname()
@@ -355,6 +356,9 @@ class HostSampler:
             psutil.cpu_percent(None, percpu=True)
             self._procs = {}
             self._psproc: dict[int, "psutil.Process"] = {}
+            self._psname: dict[int, str] = {}
+            self._watch: set[int] = set()
+            self._ps_scan_t = -math.inf  # the first window reads the whole table
             self._self = psutil.Process()
             self._self_cpu = sum(self._self.cpu_times()[:2])
         self._t_procs = time.perf_counter()
@@ -544,27 +548,47 @@ class HostSampler:
             self_cores = (c - self._self_cyc) / (self.hz * dt)
             self._self_cyc = c
         else:
-            seen = set()
-            for p in psutil.process_iter(["name"]):
-                seen.add(p.pid)
-                q = self._psproc.setdefault(p.pid, p)
-                try:
-                    with q.oneshot():
-                        cpu = q.cpu_percent(None) / 100.0
-                        rss = q.memory_info().rss / MB
-                except Exception:
-                    continue
-                rows.append((p.pid, p.info.get("name") or "", cpu, rss, NAN, NAN))
-            for pid in list(self._psproc):
-                if pid not in seen:
-                    self._psproc.pop(pid, None)
+            rows = self._ps_rows(now)
             t = sum(self._self.cpu_times()[:2])
             self_cores = (t - self._self_cpu) / dt
             self._self_cpu = t
-        live = {r[0] for r in rows}
+        live = {r[0] for r in rows} if WIN else set(self._psproc)  # portable: the last full table
         for pid in [p for p in self._groups if p not in live]:
             self._groups.pop(pid, None)
-        return self._select(rows, me), hard, max(0.0, self_cores)
+        out = self._select(rows, me)
+        if not WIN:  # what the next in-between windows refresh: every pinned pid + this window's top-N
+            self._watch = ({r["pid"] for r in out if not r["group"]}
+                           | {pid for pid, hit in self._groups.items() if hit[1]} | {me})
+        return out, hard, max(0.0, self_cores)
+
+    def _ps_rows(self, now: float) -> list[tuple]:
+        """Portable path (psutil): a per-process read costs ~0.1-0.2 ms on macOS, so reading every
+        process every window cost 6.7 % of a core on the lab Mac (18 CPUs). The WHOLE table is read
+        every `proc_rescan_s`; in between, only the watched pids (pinned groups + the last top-N).
+        cpu_percent is per Process object, so an unwatched process's value at a rescan averages the
+        whole interval; a process that starts using CPU between rescans appears at the next one."""
+        if now - self._ps_scan_t >= self.proc_rescan_s:
+            self._ps_scan_t = now
+            table, names = {}, {}
+            for p in psutil.process_iter(["name"]):
+                table[p.pid] = self._psproc.get(p.pid) or p  # keep the object: its cpu_percent baseline
+                names[p.pid] = p.info.get("name") or ""
+            self._psproc, self._psname = table, names
+            targets = list(table)
+        else:
+            targets = [pid for pid in self._watch if pid in self._psproc]
+        rows = []
+        for pid in targets:
+            q = self._psproc[pid]
+            try:
+                with q.oneshot():
+                    cpu = q.cpu_percent(None) / 100.0
+                    rss = q.memory_info().rss / MB
+            except Exception:  # gone / access denied: dropped until the next full table
+                self._psproc.pop(pid, None)
+                continue
+            rows.append((pid, self._psname.get(pid, ""), cpu, rss, NAN, NAN))
+        return rows
 
     def _select(self, rows: list[tuple], me: int) -> list[dict]:
         out: dict = {}

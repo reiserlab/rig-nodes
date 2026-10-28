@@ -111,6 +111,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--period", type=float, default=1.0, help="window length in s = publish period (default: 1)")
     p.add_argument("--sub", type=int, default=10, help="CPU sub-windows per window for the peak (default: 10 → 100 ms at 1 s)")
     p.add_argument("--top", type=int, default=3, help="processes per top list (CPU, memory, disk I/O; default: 3)")
+    p.add_argument("--proc-rescan", type=float, default=5.0, help="macOS/Linux: read the whole process table every N s, only the pinned + top-N processes in between (default: 5; Windows reads the whole table every window in one call)")
     p.add_argument("--pin", action="append", default=[], help="extra pinned group NAME=REGEX on the executable name (repeatable; checked first)")
     p.add_argument("--log-dir", default="runlogs", help="where run logs / bags are written: its volume's free space is reported (default: ./runlogs; the arena rig passes its own)")
     p.add_argument("--py-root", action="append", default=[], help="a directory whose Python scripts are pinned as py:<script> (repeatable; `-m rig_nodes.<module>` processes are grouped without it; the arena rig passes <webDisplayTools>/rig)")
@@ -128,7 +129,7 @@ def main(argv: list[str] | None = None) -> int:
         log_dir = Path(args.log_dir)
         log_dir.mkdir(parents=True, exist_ok=True)
         sampler = HostSampler(args.period, args.sub, log_dir, args.top, parse_pins(args.pin) + DEFAULT_PINS, gpu=not args.no_gpu,
-                              py_roots=args.py_root)
+                              py_roots=args.py_root, proc_rescan_s=args.proc_rescan)
     except RuntimeError as exc:  # no psutil
         print(f"[host] {exc} — no host samples (the rig keeps running)", file=sys.stderr)
         return 0

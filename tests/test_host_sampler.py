@@ -89,6 +89,7 @@ class FakeProc:
         return contextlib.nullcontext()
 
     def cpu_percent(self, _):
+        _step(("cpu", self.pid))
         return self.TABLE[self.pid][2]
 
     def memory_info(self):
@@ -114,7 +115,7 @@ fake = FakePsutil(
                                                     "lo0": Nic(9 * k, 9 * k, 0, 0, 0, 0, 0, 0)})(_step("net")),
     net_if_stats=lambda: {"en0": IfStat(True), "lo0": IfStat(True)},
     Process=FakeProc,
-    process_iter=lambda attrs=None: [FakeProc(pid) for pid in FakeProc.TABLE],
+    process_iter=lambda attrs=None: (_step("iter"), [FakeProc(pid) for pid in FakeProc.TABLE])[1],
 )
 me = os.getpid()
 script = os.path.join(WORK, "nodes", "bridge_node.py")
@@ -255,6 +256,19 @@ gq = H.quantize({"gpus": gs})["gpus"][0]
 check("gpu fractions / NaN handled", math.isnan(gq["util_frac"]) and gq["pstate"] == 255, True)
 check("quantized values survive float32 exactly (what the CDR carries)",
       all(f32(v) == v for v in qs["core_busy_mean"] + [qs["mem_used_mb"], qs["context_switches_per_s"]]), True)
+
+print("(g) portable path: full process table every proc_rescan_s, watched pids in between")
+check("default rescan period 5 s", hs.proc_rescan_s, 5.0)
+check("two windows -> ONE full table read (the first)", CALLS["iter"], 1)
+check("an unwatched process (idle.exe) was read only at the full table", CALLS[("cpu", 107)], 1)
+check("a pinned process (fictrac) is read every window", CALLS[("cpu", 101)], 2)
+check("watched = every pinned pid (both browser processes) + the top-N + the monitor",
+      {101, 102, 103, 104, me} <= hs._watch and 107 not in hs._watch, True)
+hs._ps_scan_t -= hs.proc_rescan_s  # the period has passed
+s3 = hs.window()
+check("after the period: the whole table again", (CALLS["iter"], CALLS[("cpu", 107)]), (2, 2))
+check("in-between windows give the same rows as a full read",
+      sorted(p["pid"] for p in s3["procs"]) == sorted(p["pid"] for p in s["procs"]), True)
 
 print(f"\n{total - failures}/{total} passed")
 sys.exit(1 if failures else 0)
