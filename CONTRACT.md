@@ -8,7 +8,7 @@ item 1(b) of the cross-repository checklist in webDisplayTools'
 `telemetry-logging-reference.md` plays for the arena run-log rows. The message definitions
 themselves are `src/rig_interfaces/msg/*.msg`; the envelope is `rig_nodes._common.wrap_line`;
 the FicTrac line grammar is `rig_nodes.fictrac`. Where this file and the code disagree, the code
-is a bug and this file is the authority. Version: package set 0.3.0 (2026-10-28).
+is a bug and this file is the authority. Version: package set 0.4.0 (unreleased; 0.3.0 2026-10-28).
 
 ## 1. Middleware
 
@@ -25,7 +25,9 @@ is a bug and this file is the authority. Version: package set 0.3.0 (2026-10-28)
 ## 2. Topics
 
 Names are absolute and fixed. `<src>` is a short lowercase device identity (`fictrac`,
-`kinefly`, `bias`, `scanimage`), the same string the envelope carries in `src`.
+`kinefly`, `bias`), the same string the envelope carries in `src`. Device nodes kept outside this
+repository follow the same rules under their own `<src>` and own their vocabulary there (the 2P
+rig's ScanImage connector, `/scanimage/cmd|reply|status`, moved out in 0.4.0).
 
 | topic | type | QoS | producer | notes |
 |---|---|---|---|---|
@@ -70,8 +72,7 @@ device's record into another's fields.
 **Command** on `/<src>/cmd`: `{"id": <any JSON>, "command": <name>, "params": {…}}`. `id` is
 minted by the sender and echoed verbatim; the node never interprets it. `command` is the node's
 own vocabulary (each device node owns it — BIAS: `connect`, `startRecording`, `stopRecording`,
-`startPreview`, `stopCapture`, `getTimestamp`, `disconnect`; ScanImage: `setFileStem`, `set`,
-`grab`, `waitIdle`, `abort`, `get`, `ping`, `status`). The protocol plugin registries in
+`startPreview`, `stopCapture`, `getTimestamp`, `disconnect`). The protocol plugin registries in
 webDisplayTools and MATLAB are clients of that vocabulary, not its source.
 
 **Reply** on `/<src>/reply`, exactly one per command:
@@ -102,8 +103,7 @@ executor policy, never node policy). Typed replies use `rig_interfaces/Connector
 **Status** on `/<src>/status`, every `--status-every` seconds: `{"reachable": true, "t_ms": …,
 "rtt_ms": …, …the device's own snapshot…}` or `{"reachable": false, "t_ms": …, "error": "…"}`.
 Device fields are passed through under the device's names (BIAS: `connected`, `capturing`,
-`logging`, `frameCount`, `framesPerSec`, `videoFile`; ScanImage: `acqState`, `lastFrameNumber`,
-`logFileCounter`, `logFileStem`, `logFilePath`, `loggingEnable`). A counter the device does not
+`logging`, `frameCount`, `framesPerSec`, `videoFile`). A counter the device does not
 report is **absent**, never 0.
 
 ## 5. `/arena/frame`

@@ -23,15 +23,12 @@ rig-fictrac-adapter = "rig_nodes.fictrac_udp_adapter:main"
 rig-kinefly-adapter = "rig_nodes.kinefly_udp_adapter:main"
 rig-bias-node = "rig_nodes.bias_node:main"
 rig-bias-cmd = "rig_nodes.bias_cmd:main"
-rig-scanimage-node = "rig_nodes.scanimage_node:main"
-rig-scanimage-cmd = "rig_nodes.scanimage_cmd:main"
 # host pressure (/rig/host; 0.3.0)
 rig-host-monitor = "rig_nodes.host_monitor:main"
 # simulators
 rig-fictrac-sim = "rig_nodes.sims.fictrac_sim:main"
 rig-kinefly-sim = "rig_nodes.sims.kinefly_sim:main"
 rig-bias-sim = "rig_nodes.sims.bias_sim:main"
-rig-si-mock = "rig_nodes.sims.si_json_mock:main"
 # recording + graph tools
 rig-reindex = "rig_nodes.mcap_index:main"
 rig-fox-json = "rig_nodes.foxglove_json:main"

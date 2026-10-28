@@ -61,9 +61,9 @@ system ROS). RoboStack Jazzy and `rmw_zenoh` come from conda-forge/robostack thr
    processes; typed `rig_interfaces/HostStats` in the `typed` environment, else String JSON), then the consumer's harness (`cd rig && pixi run test` in webDisplayTools,
    which is also the cross-repository smoke: record §7.8).
 4. Ports the graph owns on one host: **7447** (Zenoh router, loopback only), **8765** (the
-   Studio gateway), **60000** (FicTrac UDP in), **5010** (BIAS HTTP), **5555** (ScanImage
-   JSON server), **8766** (foxglove_bridge). One router per host: never run two graphs or two
-   harnesses (two worktrees) on one machine at the same time; Zenoh discovery crosses them.
+   Studio gateway), **60000** (FicTrac UDP in), **5010** (BIAS HTTP), **8766** (foxglove_bridge).
+   One router per host: never run two graphs or two harnesses (two worktrees) on one machine at
+   the same time; Zenoh discovery crosses them.
 5. Keep an installable copy of the released channel on the group share (README → "Releasing a
    package set"), so a channel outage never blocks a rig rebuild.
 
@@ -113,7 +113,7 @@ every push; no lab rig runs Linux yet.
 |---|---|---|---|---|---|
 | Michael's Mac (osx-arm64) | development, bench G6 2×10 controller when attached | macOS 14+, Chrome | webDisplayTools `rig/` default + typed from the v0.2.1 channel | 2026-10-27, PR #274 `ad98b2a`: harness 59/59 + 62/62, live FicTrac (sample video) → emulator runs, real Studio connected 20 Hz | webDisplayTools PR #274 comment (2026-10-27); `rig/README.md` → Mac results (2026-10-14) |
 | ww18 (`rig5-mr`, `reiserlab-ww18`) | arena rig: G6 2×10 fly on ball, real FicTrac (FLIR USB3 camera, Spinnaker 4.4), BIAS on an Atlas10 camera | Windows 11 Enterprise 26200; Dell Pro Max Tower T2, Core Ultra 9 285K, 63 GB, RTX PRO 4500; pixi 0.80.0; FicTrac 2.1.2 pixi-built | webDisplayTools `rig/` default + typed from the v0.2.1 channel (rig_nodes 0.2.1, rig_interfaces 0.2.1, mutex 0.19.0, Python 3.12.16; 1.6 GB, 398 packages, 10 s warm) | 2026-10-27/28, PR #274 `ad98b2a` → `ca9f5c4`: plain install without a sibling checkout (13 s), typed + `check-typed`, harness 59/59, graph at 96 Hz on real FicTrac for 24.5 h unattended, two Production Studio v0.98 arena runs on real FicTrac (idx mismatch 0.00 %, runlog-check OK, controller 0x70 = host 0x70 = 1544), plus two on the simulator; export identical to the live file; Foxglove dashboard live during one run at no timing cost | webDisplayTools PR #274 comments [1](https://github.com/reiserlab/webDisplayTools/pull/274#issuecomment-6451162032), [2](https://github.com/reiserlab/webDisplayTools/pull/274#issuecomment-6479759516); `rig/windows-results-ww18-2026-10-15.md`; `docs/typed-windows.md` here |
-| Bergamo PC (`reiserlab-bergamo1`) | 2P rig: ScanImage 2026.0.0 (simulated vDAQ), G6 controller at times | Windows, MATLAB R2025b | webDisplayTools `rig/` default + ScanImage connector | 2026-10-16 (connector day) and 2026-10-22 (ZMQ frames wrapper, PR #261); **released `main` 2026-10-26 pending (QC 2026-10-27)** | webDisplayTools `rig/scanimage-day-2026-10-16.md`, `rig/SCANIMAGE-DAY.md` |
+| Bergamo PC (`reiserlab-bergamo1`) | 2P rig | Windows | its imaging nodes are private (reiserlab/scanimage-2026-bergamo `2p-rig-nodes/`) | see there | reiserlab/scanimage-2026-bergamo `2p-rig-nodes/SETUP.md` |
 | ww14 (okey-cokey PC) | behavior rig: BIAS v0.73.1 (Spinnaker) on a FLIR BFS-U3-51S5M, G6 controller on COM3, no FicTrac | Windows | webDisplayTools `rig/` default + viz | 2026-10-21/22 (PR #269 branch); **released `main` 2026-10-26 pending (QC 2026-10-27)** | webDisplayTools PR #269: `rig/okey-cokey-pc-2026-10-21.md`, `rig/okey-cokey-pc-results-2026-10-21.md` |
 | Robot station (Isabel) | Mecademic robot + two BIAS cameras | — | not yet (LAB-245; shared pieces to come from here) | — | Linear LAB-245 / LAB-248 / LAB-251 |
 
@@ -169,17 +169,7 @@ every push; no lab rig runs Linux yet.
 - Use PowerShell (`Measure-Command`) for timings, not Git Bash.
 
 ### Bergamo PC (`reiserlab-bergamo1`)
-- Start MATLAB from a terminal, **never** from the MATLAB MCP connector's process tree:
-  ScanImage's `AcquisitionMex` aborts in libzmq (`0x40000015`) inside that tree.
-- ScanImage JSON server: `hJ = most.network.json.Server(5555)`; the connector talks to
-  `127.0.0.1:5555`. `hSI.hDisplay.lastFrameNumber` throws `Index exceeds array bounds` until the
-  first frame of a session; the connector tolerates it.
-- `scanFrameRate` is **15.0 Hz** at 512×512 unidirectional; protocols sized for 29 Hz run long.
-- The console code page is cp1252: set `PYTHONUTF8=1` (or avoid non-ASCII in printed text) or
-  Python tools crash on `→`.
-- The simulated vDAQ's GRAB never goes idle on its own; ABORT closes it.
-- With the ZMQ frames wrapper, start the node **before** GRAB; frames queue up to libzmq's
-  default high-water mark (1000 messages, about 1 GB at 512×512×2 channels).
+- Kept in the private rig repository since 2026-10-28: reiserlab/scanimage-2026-bergamo `2p-rig-nodes/SETUP.md`.
 
 ### ww14 (okey-cokey PC)
 - pixi was **0.70.2** on 2026-10-21 (older than the Mac's); update before an install from the

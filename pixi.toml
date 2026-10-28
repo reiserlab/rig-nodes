@@ -106,15 +106,12 @@ fictrac-adapter = "rig-fictrac-adapter"
 kinefly-adapter = "rig-kinefly-adapter"
 bias-node = "rig-bias-node"
 bias-cmd = "rig-bias-cmd"
-scanimage-node = "rig-scanimage-node"
-scanimage-cmd = "rig-scanimage-cmd"
 # the host monitor: PC pressure on /rig/host at 1 Hz (typed HostStats when rig_interfaces has it, else String JSON)
 host-monitor = "rig-host-monitor"
 # ── simulators ─────────────────────────────────────────────────────────────────────────────
 fictrac-sim = "rig-fictrac-sim"
 kinefly-sim = "rig-kinefly-sim"
 bias-sim = "rig-bias-sim"
-si-mock = "rig-si-mock"
 # ── recording + graph tools ────────────────────────────────────────────────────────────────
 reindex = "rig-reindex"
 fox-json = "rig-fox-json"

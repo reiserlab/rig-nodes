@@ -22,9 +22,6 @@ Checks (one Zenoh graph, ≈ 40 s):
   BIAS      bias_sim → bias_node ← bias_cmd: connect / startRecording (artifact) / getTimestamp /
             stopRecording all `ok`; status carries reachable + the device snapshot; sim killed →
             reply outcome `error`, status reachable false
-  ScanImage si_json_mock (stock bug B2 on one allowlisted property) → scanimage_node ← scanimage_cmd:
-            status / setFileStem / grab / waitIdle `ok`; the stalled get → outcome `unknown` (exit 3),
-            then status `ok` again (reconciled)
   Recorder  in-process Recorder: raw CDR + JSON records into a crashsafe bag, closed → indexed;
             counts match; records written while closed are counted as dropped
 Exit 0 when all checks pass. Process logs are kept with --keep.
@@ -144,7 +141,7 @@ class Listener:
         self.msgs: dict[str, list] = {}
         self.lock = threading.Lock()
         self.typed = typed
-        for topic in ("/fictrac/raw", "/kinefly/raw", "/bias/reply", "/bias/status", "/scanimage/reply", "/scanimage/status"):
+        for topic in ("/fictrac/raw", "/kinefly/raw", "/bias/reply", "/bias/status"):
             self.node.create_subscription(String, topic, self._cb(topic, lambda m: json.loads(m.data)), RELIABLE_QOS)
         if typed is not None:
             _ArenaFrame, FicTracFrame = typed
@@ -325,38 +322,6 @@ def judge_bias(L: Listener, start, work: Path) -> None:
     node.stop()
 
 
-def judge_scanimage(L: Listener, start) -> None:
-    port = free_port()
-    mock = start("si-mock", [PY, "-m", "rig_nodes.sims.si_json_mock", "--port", str(port), "--grab-s", "1.0", "--start-delay-s", "0.2",
-                             "--stall-on", "hSI.hRoiManager.scanZoomFactor"])
-    check("scanimage: JSON-server mock up", wait_port("127.0.0.1", port, 10.0 * SCALE))
-    node = start("scanimage-node", [PY, "-m", "rig_nodes.scanimage_node", "--port", str(port), "--status-every", "1", "--timeout-s", str(1.5 * SCALE)])
-    time.sleep(1.5 * SCALE)
-
-    def cmd(*args: str) -> tuple[int, dict]:
-        r = run_capture([PY, "-m", "rig_nodes.scanimage_cmd", *args, "--json", "--timeout", str(30 * SCALE)], timeout=60)
-        return r.returncode, cmd_json(r) or {"rc": r.returncode, "err": (r.stderr or r.stdout)[-300:]}
-
-    rc, rep = cmd("status")
-    check("scanimage: status → ok with acqState", rc == 0 and rep.get("outcome") == "ok" and "acqState" in json.dumps(rep), rep)
-    rc, rep = cmd("setFileStem", "--stem", "conformance")
-    check("scanimage: setFileStem → ok", rc == 0, rep)
-    rc, rep = cmd("grab")
-    check("scanimage: grab → ok (acqState confirmed 'grab')", rc == 0 and rep.get("outcome") == "ok", rep)
-    rc, rep = cmd("waitIdle", "--timeout-s", str(10 * SCALE))
-    check("scanimage: waitIdle → ok once the grab ends", rc == 0, rep)
-    rc, rep = cmd("get", "--property", "hSI.hRoiManager.scanZoomFactor")
-    check("scanimage: a get the server never answers (stock bug B2) → outcome unknown, exit 3", rc == 3 and rep.get("outcome") == "unknown", (rc, rep))
-    rc, rep = cmd("status")
-    check("scanimage: the node reconciled after the unknown outcome → status ok again", rc == 0 and rep.get("outcome") == "ok", rep)
-    rc, rep = cmd("get", "--property", "hSI.notOnTheAllowlist")
-    check("scanimage: a property outside the allowlist is refused in the node (error), never sent", rc == 1 and rep.get("outcome") == "error", rep)
-    st = L.take("/scanimage/status")
-    check("scanimage: status lines carry reachable + acqState", len(st) >= 1 and all("reachable" in s for s in st), st[-1:])
-    node.stop()
-    mock.stop()
-
-
 def judge_recorder(work: Path, typed) -> None:
     from std_msgs.msg import String
     from rclpy.serialization import serialize_message
@@ -428,7 +393,6 @@ def main(argv: list[str] | None = None) -> int:
         for name, fn in (("fictrac", lambda: judge_fictrac(listener, start, work, logdir, typed)),
                          ("kinefly", lambda: judge_kinefly(listener, start, logdir)),
                          ("bias", lambda: judge_bias(listener, start, work)),
-                         ("scanimage", lambda: judge_scanimage(listener, start)),
                          ("recorder", lambda: judge_recorder(work, typed))):
             try:
                 fn()
