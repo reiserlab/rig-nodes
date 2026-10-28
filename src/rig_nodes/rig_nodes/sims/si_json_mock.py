@@ -10,8 +10,7 @@ the server's WIRE and its stock (unpatched) behaviors, not ScanImage's timing:
   * {"command":"get","property":P}           → the same object + "value"
     {"command":"set","property":P,"value":V} → + "actual"
     {"command":"eval","function":F,"num_outputs":N} → + "outputs" (only hSI.startGrab(),
-    hSI.startFocus(), hSI.abort() and AcquisitionMex(hSI.hScan2D.hAcq,'getAcqStatus') are
-    understood; anything else is an error reply)
+    hSI.startFocus(), hSI.abort() are understood; anything else is an error reply)
   * Stock bug B2 (default ON, `--no-b2` to patch it): a get of an OBJECT-valued property gets
     NO reply at all — the client must time out. The connector's property allowlist is what
     keeps a rig away from this; the harness uses it to exercise the UNKNOWN path.
@@ -132,15 +131,7 @@ def _eval(expr: str, args: argparse.Namespace):
             _acq["t_end"] = None
             _acq["aborts"] += 1
         return []
-    if expr == "AcquisitionMex(hSI.hScan2D.hAcq,'getAcqStatus')":
-        _tick()  # the vDAQ engine's status struct (fields as on 2026.0.0, simulated vDAQ 2026-10-21)
-        with _lock:
-            n = STATE["hDisplay"]["lastFrameNumber"]
-            return [{"fifoOverflows": False, "dcOvervoltage": False, "acquisitionFinished": STATE["acqState"] == "idle",
-                     "totalAcquiredFrames": n, "acqNumber": _acq["grabs"], "frameNumberAcq": n,
-                     "acqTriggerTimestamp": -1, "nextFileMarkerTimestamp": -1, "numDroppedFramesDisplay": 0,
-                     "numDroppedFramesLogger": 0, "ZMQIsThreadRunning": STATE["acqState"] != "idle", "ZMQErrorMessage": ""}]
-    raise ValueError(f"mock cannot eval {expr!r} (only hSI.startGrab(), hSI.startFocus(), hSI.abort(), getAcqStatus)")
+    raise ValueError(f"mock cannot eval {expr!r} (only hSI.startGrab(), hSI.startFocus(), hSI.abort())")
 
 
 def _recv_exact(conn: socket.socket, n: int) -> bytes:

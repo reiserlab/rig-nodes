@@ -25,7 +25,7 @@ is a bug and this file is the authority. Version: package set 0.3.0 (2026-10-28)
 ## 2. Topics
 
 Names are absolute and fixed. `<src>` is a short lowercase device identity (`fictrac`,
-`kinefly`, `bias`, `scanimage`, `sipm`), the same string the envelope carries in `src`.
+`kinefly`, `bias`, `scanimage`), the same string the envelope carries in `src`.
 
 | topic | type | QoS | producer | notes |
 |---|---|---|---|---|
@@ -35,8 +35,6 @@ Names are absolute and fixed. `<src>` is a short lowercase device identity (`fic
 | `/<src>/reply` | `std_msgs/String` (JSON, §4) | RELIABLE, KEEP_LAST 200, VOLATILE | the device node | exactly one reply per command |
 | `/<src>/status` | `std_msgs/String` (JSON, §4) | RELIABLE, KEEP_LAST 200, VOLATILE | the device node, every `--status-every` s | reachability + the device's own snapshot |
 | `/bias/frames` | `std_msgs/String` (JSON) | RELIABLE, KEEP_LAST 200, VOLATILE | BIAS node after `stopRecording` | every frame's camera timestamp from BIAS's stamp log, chunked |
-| `/scanimage/frame_meta`, `/scanimage/frame_stats`, `/scanimage/preview/meta` | `std_msgs/String` (JSON) | RELIABLE, KEEP_LAST 200, VOLATILE | `rig_nodes.scanimage_frames_node` (0.3.0) | ScanImage 2026's ZeroMQ frame stream: one `frame_meta` per frame (`seq`, `segment`, `frameNumber`, `frameTimestamp_s`, `dims`, `nchan`, `bytes`, `gap_before`, `rx_epoch_ms`, `rx_mono_ns`, `pub_mono_ns`, `queue_depth`), `frame_stats` every `--stats-every` s (loss accounting: `received == published + dropped_by_queue + queue_depth`), one `preview/meta` per preview image. STREAMS: recorded as received, never derived into a run-log line |
-| `/scanimage/preview/ch1` … `ch4` | `sensor_msgs/CompressedImage` (PNG) | RELIABLE, KEEP_LAST 200, VOLATILE | `rig_nodes.scanimage_frames_node` | bounded preview (`--preview-hz` per channel, 0 = off; `--preview-size`²); live imaging is not v1 |
 | `/rig/host` | `rig_interfaces/HostStats`, or `std_msgs/String` JSON with the same field names | RELIABLE, KEEP_LAST 10, VOLATILE | `rig_nodes.host_monitor` (default 1 Hz; the node is in webDisplayTools `rig/nodes/host_monitor.py` until measured on ww18, the messages ship in 0.3.0) | one host-pressure sample per window (§5a); recorded by the arena gateway; absent values NaN (float) / 0 (int) |
 | `/arena/frame` | `rig_interfaces/ArenaFrame`, or `std_msgs/String` JSON with the same field names | BEST_EFFORT, KEEP_LAST 1, VOLATILE | the arena gateway (webDisplayTools `rig/nodes/bridge_node.py`) | one closed-loop evaluation per FicTrac frame (§5); live viewing only, the recorder writes its own copy |
 | `/arena/browser`, `/arena/event`, `/arena/session` | `std_msgs/String` JSON | recorded only (never published) | the arena gateway | gateway records in the bag; format authority: webDisplayTools `telemetry-logging-reference.md` |
@@ -73,8 +71,7 @@ device's record into another's fields.
 minted by the sender and echoed verbatim; the node never interprets it. `command` is the node's
 own vocabulary (each device node owns it — BIAS: `connect`, `startRecording`, `stopRecording`,
 `startPreview`, `stopCapture`, `getTimestamp`, `disconnect`; ScanImage: `setFileStem`, `set`,
-`grab`, `waitIdle`, `abort`, `get`, `ping`, `status`; SiPM (`rig_nodes.sipm_node`, EXPERIMENTAL in
-0.3.0, read-only, never bench-tested): `ping`, `status`, `get`, `info`, `scan`, `disconnect`, `reconnect`). The protocol plugin registries in
+`grab`, `waitIdle`, `abort`, `get`, `ping`, `status`). The protocol plugin registries in
 webDisplayTools and MATLAB are clients of that vocabulary, not its source.
 
 **Reply** on `/<src>/reply`, exactly one per command:
@@ -106,11 +103,7 @@ executor policy, never node policy). Typed replies use `rig_interfaces/Connector
 "rtt_ms": …, …the device's own snapshot…}` or `{"reachable": false, "t_ms": …, "error": "…"}`.
 Device fields are passed through under the device's names (BIAS: `connected`, `capturing`,
 `logging`, `frameCount`, `framesPerSec`, `videoFile`; ScanImage: `acqState`, `lastFrameNumber`,
-`logFileCounter`, `logFileStem`, `logFilePath`, `loggingEnable`, and since 0.3.0 `acq`: the vDAQ
-engine's `getAcqStatus` subset `frameNumberAcq`, `totalAcquiredFrames`, `acqNumber`,
-`numDroppedFramesDisplay`, `numDroppedFramesLogger`, `fifoOverflows`, `dcOvervoltage` with
-`--frame-counter acqstatus`, the default; SiPM: `connected`, `level`, `warnings`, `read_ms`,
-`connected_detectors`, `control_unit`, `detectors`, `extra`). A counter the device does not
+`logFileCounter`, `logFileStem`, `logFilePath`, `loggingEnable`). A counter the device does not
 report is **absent**, never 0.
 
 ## 5. `/arena/frame`

@@ -25,22 +25,15 @@ rig-bias-node = "rig_nodes.bias_node:main"
 rig-bias-cmd = "rig_nodes.bias_cmd:main"
 rig-scanimage-node = "rig_nodes.scanimage_node:main"
 rig-scanimage-cmd = "rig_nodes.scanimage_cmd:main"
-rig-scanimage-frames = "rig_nodes.scanimage_frames_node:main"
-# EXPERIMENTAL (0.3.0, LAB-319): never run against the real controller
-rig-sipm-node = "rig_nodes.sipm_node:main"
-rig-sipm-cmd = "rig_nodes.sipm_cmd:main"
-rig-sipm = "rig_nodes.thorsipm:main"
 # simulators
 rig-fictrac-sim = "rig_nodes.sims.fictrac_sim:main"
 rig-kinefly-sim = "rig_nodes.sims.kinefly_sim:main"
 rig-bias-sim = "rig_nodes.sims.bias_sim:main"
 rig-si-mock = "rig_nodes.sims.si_json_mock:main"
-rig-zmq-frames-mock = "rig_nodes.sims.zmq_frames_mock:main"
 # recording + graph tools
 rig-reindex = "rig_nodes.mcap_index:main"
 rig-fox-json = "rig_nodes.foxglove_json:main"
 rig-graph = "rig_nodes.graph_dump:main"
-rig-zmq-latency = "rig_nodes.zmq_latency_report:main"
 rig-build-interfaces = "rig_nodes.build_interfaces:main"
 
 [tool.hatch.build.targets.wheel]

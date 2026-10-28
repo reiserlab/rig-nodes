@@ -89,9 +89,7 @@ jobs:
                       if index["name"] == "rig_nodes":
                           # the real package, not an editable stub: every module + the Zenoh configs inside
                           need = ["rig_nodes/__init__.py", "rig_nodes/_common.py", "rig_nodes/supervise.py", "rig_nodes/zenoh.py",
-                                  "rig_nodes/config/zenoh-router.json5", "rig_nodes/config/zenoh-session.json5", "rig_nodes/sims/fictrac_sim.py",
-                                  "rig_nodes/bias_health.py", "rig_nodes/scanimage_frames_node.py", "rig_nodes/sims/zmq_frames_mock.py",
-                                  "rig_nodes/zmq_latency_report.py", "rig_nodes/sipm_node.py", "rig_nodes/thorsipm.py"]
+                                  "rig_nodes/config/zenoh-router.json5", "rig_nodes/config/zenoh-session.json5", "rig_nodes/sims/fictrac_sim.py", "rig_nodes/bias_health.py"]
                           missing = [n for n in need if not any(f.endswith(n) for f in files)]
                           if missing:
                               print(f"  !! rig_nodes package is missing {missing} ({len(files)} files)"); ok = False
@@ -239,10 +237,3 @@ jobs:
             - name: device-node conformance against the installed package
               working-directory: accept
               run: pixi run python tests/test_device_nodes.py --timeout-scale 2
-            # The two harnesses that came with 0.3.0's ports (webDisplayTools #261 / #266), each with its own router
-            - name: ScanImage frame-stream harness against the installed package
-              working-directory: accept
-              run: pixi run python tests/test_scanimage_frames.py
-            - name: SiPM harness (FakeBackend) against the installed package
-              working-directory: accept
-              run: pixi run python tests/test_sipm.py

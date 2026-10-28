@@ -11,9 +11,7 @@ chosen over si_zmp on LAB-305's measurements: event-driven, no frame-timing dist
                            "error", "steps": [...per JSON request...], "rtt_ms", "t_ms", "rx_epoch_ms",
                            "artifact": {"kind":"tiff", "path", "stem", "counter"} (grab)}
   /scanimage/status  OUT  every --status-every s: {"reachable", "acqState", "lastFrameNumber",
-                           "logFileCounter", "logFileStem", "logFilePath", "loggingEnable", "rtt_ms", "t_ms",
-                           "acq": {frameNumberAcq, totalAcquiredFrames, acqNumber, numDroppedFramesDisplay,
-                           numDroppedFramesLogger, fifoOverflows, dcOvervoltage} (--frame-counter acqstatus)}
+                           "logFileCounter", "logFileStem", "logFilePath", "loggingEnable", "rtt_ms", "t_ms"}
 
 The `command` vocabulary is the protocol's `scanimage` plugin (js/plugin-registry.js,
 class "ScanImagePlugin" — MATLAB has no such class yet):
@@ -31,8 +29,8 @@ Why the allowlists (LAB-305, stock server on the rig, patches reverted): B2 — 
 OBJECT-valued property gets no reply and the client hangs; B4 — a partial message blocks
 MATLAB for ~10 s, so every request is one length-prefixed write; the server is single-client,
 so this node is the ONLY client and status polling is coalesced; `eval` exists on the server
-but this node sends only fixed expressions (startGrab, abort, and the getAcqStatus frame
-counter) and never a string from a protocol. The JSON client is ported from tests/remote-control/si_remote.py (JsonClient) in
+but this node sends exactly two fixed expressions (startGrab, abort) and never a string from
+a protocol. The JSON client is ported from tests/remote-control/si_remote.py (JsonClient) in
 reiserlab/scanimage-2026-bergamo (Hannah Marie Santos), with attribution.
 
 LAB-303 semantics (as bias_node.py): `timeout_s` per request (`slow_timeout_s` for grab/abort/
@@ -99,19 +97,12 @@ SET_ALLOWLIST = frozenset({
     "hSI.hStackManager.framesPerSlice",
     "hSI.hChannels.loggingEnable",
 })
-# The only expressions ever sent as `eval` (plus startFocus for the CLI's bench check).
+# The only two expressions ever sent as `eval` (plus startFocus for the CLI's bench check).
 EVAL_GRAB = "hSI.startGrab()"
 EVAL_ABORT = "hSI.abort()"
 EVAL_FOCUS = "hSI.startFocus()"
-# The frame counter (--frame-counter acqstatus): the vDAQ acquisition engine's own status struct.
-# hDisplay.lastFrameNumber throws "Index exceeds array bounds" on 2026.0.0 while idle and even during
-# FOCUS, and the error took ~59 ms against ~2 ms for this (simulated vDAQ, 2026-10-21).
-EVAL_ACQ_STATUS = "AcquisitionMex(hSI.hScan2D.hAcq,'getAcqStatus')"
-ACQ_STATUS_FIELDS = ("frameNumberAcq", "totalAcquiredFrames", "acqNumber", "numDroppedFramesDisplay",
-                     "numDroppedFramesLogger", "fifoOverflows", "dcOvervoltage")
-FRAME_COUNTERS = ("acqstatus", "display", "none")
 SLOW_COMMANDS = frozenset({"grab", "abort", "focus"})
-STATUS_PROPS = ("hSI.acqState", "hSI.hScan2D.logFileCounter",
+STATUS_PROPS = ("hSI.acqState", "hSI.hDisplay.lastFrameNumber", "hSI.hScan2D.logFileCounter",
                 "hSI.hScan2D.logFileStem", "hSI.hScan2D.logFilePath", "hSI.hChannels.loggingEnable")
 
 
@@ -235,18 +226,11 @@ class JsonClient:
         _, rtt = self.request({"command": "eval", "function": expr, "num_outputs": 0}, timeout_s)
         return rtt
 
-    def eval_value(self, expr: str, timeout_s: float | None = None) -> tuple[object, float]:
-        """eval with one output → (output1, rtt_ms)."""
-        rep, rtt = self.request({"command": "eval", "function": expr, "num_outputs": 1}, timeout_s)
-        return (rep.get("outputs") or {}).get("output1"), rtt
-
 
 class ScanImageNode(Node):
-    def __init__(self, cli: JsonClient, status_every_s: float, poll_s: float, default_wait_s: float,
-                 frame_counter: str = "acqstatus") -> None:
+    def __init__(self, cli: JsonClient, status_every_s: float, poll_s: float, default_wait_s: float) -> None:
         super().__init__("scanimage")
         self.cli = cli
-        self.frame_counter = frame_counter
         self.poll_s = poll_s
         self.default_wait_s = default_wait_s
         self.reply_pub = self.create_publisher(String, REPLY_TOPIC, QOS)
@@ -259,7 +243,7 @@ class ScanImageNode(Node):
         if status_every_s > 0:
             self.create_timer(status_every_s, self._enqueue_status)
         self.commands = 0
-        self.get_logger().info(f"ScanImage JSON server at {cli.host}:{cli.port} ← {CMD_TOPIC} → {REPLY_TOPIC}, {STATUS_TOPIC} every {status_every_s:g}s, frame counter {frame_counter}")
+        self.get_logger().info(f"ScanImage JSON server at {cli.host}:{cli.port} ← {CMD_TOPIC} → {REPLY_TOPIC}, {STATUS_TOPIC} every {status_every_s:g}s")
 
     # ── plumbing ────────────────────────────────────────────────────────────────────────
     def _publish(self, pub, obj: dict) -> None:
@@ -321,45 +305,10 @@ class ScanImageNode(Node):
             out[prop.split(".")[-1]] = v
             if steps is not None:
                 steps.append({"command": "get", "property": prop, "ok": True, "value": v, "rtt_ms": rtt})
-        if self.frame_counter != "none":
-            last, acq, rtt = self._frame_number(errors, steps)
-            out["lastFrameNumber"] = last
-            if acq is not None:
-                out["acq"] = acq
-            rtt_total += rtt
         if errors:
             out["errors"] = errors
         out["rtt_ms"] = round(rtt_total, 2)
         return out
-
-    def _frame_number(self, errors: dict, steps: list | None = None) -> tuple[object, dict | None, float]:
-        """→ (lastFrameNumber, acq status subset or None, rtt_ms). Informational: a ScanImage error
-        lands in `errors` and gives None; timeouts and socket errors still raise.
-        acqstatus: frameNumberAcq from EVAL_ACQ_STATUS. display: hDisplay.lastFrameNumber (broken
-        on 2026.0.0; kept to compare the poll's cost on the rig, A2 in the ZMQ follow-up)."""
-        if self.frame_counter == "display":
-            prop = "hSI.hDisplay.lastFrameNumber"
-            try:
-                v, rtt = self.cli.get(prop)
-            except SiError as exc:
-                errors[prop] = str(exc).splitlines()[0]
-                if steps is not None:
-                    steps.append({"command": "get", "property": prop, "ok": False, "error": errors[prop]})
-                return None, None, 0.0
-            if steps is not None:
-                steps.append({"command": "get", "property": prop, "ok": True, "value": v, "rtt_ms": rtt})
-            return v, None, rtt
-        try:
-            v, rtt = self.cli.eval_value(EVAL_ACQ_STATUS)
-        except SiError as exc:
-            errors["getAcqStatus"] = str(exc).splitlines()[0]
-            if steps is not None:
-                steps.append({"command": "eval", "function": EVAL_ACQ_STATUS, "ok": False, "error": errors["getAcqStatus"]})
-            return None, None, 0.0
-        acq = {k: v.get(k) for k in ACQ_STATUS_FIELDS} if isinstance(v, dict) else None
-        if steps is not None:
-            steps.append({"command": "eval", "function": EVAL_ACQ_STATUS, "ok": True, "value": acq, "rtt_ms": rtt})
-        return (acq or {}).get("frameNumberAcq"), acq, rtt
 
     def _do_status(self) -> dict | None:
         t_ms = wall_ms()
@@ -495,16 +444,16 @@ class ScanImageNode(Node):
             waited = round(time.monotonic() - t0, 3)
             if st != "idle":
                 raise SiError(f"still '{st}' after {waited:g} s (timeout_s {to:g}); use abort")
-            # The frame number is informational: a failure must not turn a reached idle into an
-            # error (hDisplay.lastFrameNumber throws even right after a grab on 2026.0.0).
-            out = {"acqState": st, "waited_s": waited}
-            if self.frame_counter != "none":
-                errors: dict = {}
-                out["lastFrameNumber"], acq, _ = self._frame_number(errors, steps)
-                if acq is not None:
-                    out["acq"] = acq
-            out["logFileCounter"] = self._get("hSI.hScan2D.logFileCounter", steps)
-            return out
+            # lastFrameNumber is informational: on the Bergamo (2026.0.0) it throws "Index exceeds
+            # array bounds" even right after a grab, so it must not turn a reached idle into an error.
+            try:
+                last = self._get("hSI.hDisplay.lastFrameNumber", steps)
+            except SiError as exc:
+                last = None
+                steps.append({"command": "get", "property": "hSI.hDisplay.lastFrameNumber", "ok": False,
+                              "error": str(exc).splitlines()[0]})
+            return {"acqState": st, "waited_s": waited, "lastFrameNumber": last,
+                    "logFileCounter": self._get("hSI.hScan2D.logFileCounter", steps)}
         if command == "abort":
             rtt = self.cli.eval(EVAL_ABORT, self.cli.slow_timeout_s)
             steps.append({"command": "eval", "function": EVAL_ABORT, "ok": True, "rtt_ms": rtt})
@@ -521,18 +470,13 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--port", type=int, default=5555, help="ScanImage JSON server port (default: 5555)")
     p.add_argument("--timeout-s", type=float, default=2.0, help="per-request timeout; a timeout is an UNKNOWN outcome and drops the connection (default: 2)")
     p.add_argument("--slow-timeout-s", type=float, default=15.0, help="timeout for grab/abort (ScanImage's startGrab is synchronous, 1.2–2.4 s on the Bergamo PC; default: 15)")
-    p.add_argument("--status-every", type=float, default=1.0, help="status poll period in s; 0 = off (default: 1 — five ~2 ms gets + the frame counter)")
-    p.add_argument("--frame-counter", choices=FRAME_COUNTERS, default="acqstatus",
-                   help="how status and waitIdle read the frame number: acqstatus = one eval of getAcqStatus (~2 ms, also "
-                        "dropped frames, FIFO overflow, DC overvoltage); display = hDisplay.lastFrameNumber (throws on 2026.0.0; "
-                        "kept to compare on the rig); none (default: acqstatus)")
+    p.add_argument("--status-every", type=float, default=1.0, help="status poll period in s; 0 = off (default: 1 — six ~2 ms gets)")
     p.add_argument("--poll-s", type=float, default=0.25, help="acqState poll period inside grab/waitIdle/abort (default: 0.25)")
     p.add_argument("--wait-s", type=float, default=30.0, help="waitIdle default timeout_s when the command carries none (default: 30)")
     args, ros_args = p.parse_known_args(argv)
     raise_timer_resolution()
     rclpy.init(args=ros_args)
-    node = ScanImageNode(JsonClient(args.host, args.port, args.timeout_s, args.slow_timeout_s), args.status_every, args.poll_s, args.wait_s,
-                         args.frame_counter)
+    node = ScanImageNode(JsonClient(args.host, args.port, args.timeout_s, args.slow_timeout_s), args.status_every, args.poll_s, args.wait_s)
     spin(node)
     print(f"[scanimage-node] {node.commands} commands handled, {node.cli.reconnects} reconnects", file=sys.stderr)
     return 0
