@@ -227,5 +227,34 @@ check("strict JSON (NaN → null)", json.loads(j)["hard_page_faults_per_s"], Non
 line = H.summary_line(s)
 check("summary line", line.startswith("CPU 1.20 cores (peak 1.40, busiest core 80 %)") and "top fictrac 0.78" in line and "GPU" in line, True)
 
+print("(f) typed quantization (host_sampler.quantize, applied by host_monitor.to_msg)")
+import struct  # noqa: E402
+
+before = json.dumps(H.to_json_safe(s), sort_keys=True)
+qs = H.quantize(s)
+f32 = lambda v: struct.unpack("<f", struct.pack("<f", v))[0]  # noqa: E731
+
+
+def on_step(v, step):
+    return isinstance(v, float) and (math.isnan(v) or abs(v / step - round(v / step)) < 1e-9)
+
+
+check("steps are 1/1024 and 1/64", (H.FRAC_STEP, H.RATE_STEP), (1 / 1024, 1 / 64))
+check("per-core fractions on the 1/1024 grid", all(on_step(v, H.FRAC_STEP) for v in qs["core_busy_mean"] + qs["core_busy_peak"]), True)
+check("cores rounded to nearest 1/1024", qs["cpu_busy_cores_mean"], round(s["cpu_busy_cores_mean"] * 1024) / 1024)
+check("rates / MB on the 1/64 grid (top level, disks, nets, procs)",
+      all(on_step(v, H.RATE_STEP) for v in [qs["context_switches_per_s"], qs["mem_used_mb"], qs["log_volume_free_gb"]]
+          + [d["read_mb_per_s"] for d in qs["disks"]] + [n["rx_mb_per_s"] for n in qs["nets"]] + [p["rss_mb"] for p in qs["procs"]]), True)
+check("process CPU on the 1/1024 grid", all(on_step(p["cpu_cores"], H.FRAC_STEP) for p in qs["procs"]), True)
+check("error ≤ half a step", abs(qs["mem_used_mb"] - s["mem_used_mb"]) <= H.RATE_STEP / 2 and abs(qs["cpu_busy_cores_peak"] - s["cpu_busy_cores_peak"]) <= H.FRAC_STEP / 2, True)
+check("NaN stays NaN (absent value)", math.isnan(qs["hard_page_faults_per_s"]), True)
+check("ints and strings untouched", (qs["sub_samples"], qs["t_ms"], qs["hostname"], [n["errors"] for n in qs["nets"]], [p["pid"] for p in qs["procs"]]),
+      (s["sub_samples"], s["t_ms"], s["hostname"], [n["errors"] for n in s["nets"]], [p["pid"] for p in s["procs"]]))
+check("the caller's sample is not mutated (nested rows included)", json.dumps(H.to_json_safe(s), sort_keys=True) == before and qs != s, True)
+gq = H.quantize({"gpus": gs})["gpus"][0]
+check("gpu fractions / NaN handled", math.isnan(gq["util_frac"]) and gq["pstate"] == 255, True)
+check("quantized values survive float32 exactly (what the CDR carries)",
+      all(f32(v) == v for v in qs["core_busy_mean"] + [qs["mem_used_mb"], qs["context_switches_per_s"]]), True)
+
 print(f"\n{total - failures}/{total} passed")
 sys.exit(1 if failures else 0)

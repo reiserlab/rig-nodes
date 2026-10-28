@@ -606,6 +606,54 @@ def _nansum(vals) -> float:
     return sum(vals) if vals else NAN
 
 
+# Typed-message quantization: float32 carries ~24 bits of sampling noise per value, which zstd cannot
+# compress; rounding each float to a power-of-two step leaves the low mantissa bits zero (n·2^-k is
+# exact in float32 for |n| < 2^24). Measured on ww18 (24 CPUs, ~20 process rows per sample, harness
+# bag): typed /rig/host 6.7 % of the run's compressed payload as published, 4.1 % with these steps.
+FRAC_STEP = 2.0 ** -10  # 0..1 fractions and CPU cores: 1/1024 (0.1 %)
+RATE_STEP = 2.0 ** -6  # rates, MB, MB/s, ms, GB, °C, W: 1/64
+_FRAC_FIELDS = {
+    None: ("cpu_busy_cores_mean", "cpu_busy_cores_peak", "core_busy_mean", "core_busy_peak", "monitor_cpu_cores"),
+    "disks": ("busy_frac",),
+    "procs": ("cpu_cores",),
+    "gpus": ("util_frac", "mem_util_frac", "encoder_util_frac", "decoder_util_frac"),
+}
+_RATE_FIELDS = {
+    None: ("sampler_late_ms_max", "context_switches_per_s", "interrupts_per_s", "dpcs_per_s", "hard_page_faults_per_s",
+           "mem_total_mb", "mem_used_mb", "mem_available_mb", "pagefile_used_mb", "log_volume_free_gb"),
+    "disks": ("read_mb_per_s", "write_mb_per_s", "reads_per_s", "writes_per_s"),
+    "nets": ("rx_mb_per_s", "tx_mb_per_s"),
+    "procs": ("rss_mb", "io_read_mb_per_s", "io_write_mb_per_s"),
+    "gpus": ("mem_used_mb", "mem_total_mb", "temperature_c", "power_w"),
+}
+
+
+def _q(v, step: float):
+    if isinstance(v, list):
+        return [_q(x, step) for x in v]
+    if isinstance(v, float) and math.isfinite(v):
+        return round(v / step) * step
+    return v  # NaN (absent) and non-floats pass through
+
+
+def quantize(sample: dict) -> dict:
+    """A copy of `sample` with every float field rounded to its power-of-two step (FRAC_STEP for
+    0..1 fractions and cores, RATE_STEP for everything else measured); NaN stays NaN, ints and
+    strings are untouched. host_monitor.to_msg applies it to the typed message (the JSON form
+    rounds to 3 decimals instead)."""
+    out = dict(sample)
+    for nested in ("disks", "nets", "gpus", "procs"):  # never mutate the caller's rows
+        if isinstance(out.get(nested), list):
+            out[nested] = [dict(d) for d in out[nested]]
+    for table, step in ((_FRAC_FIELDS, FRAC_STEP), (_RATE_FIELDS, RATE_STEP)):
+        for nested, fields in table.items():
+            for d in ([out] if nested is None else out.get(nested) or []):
+                for f in fields:
+                    if f in d:
+                        d[f] = _q(d[f], step)
+    return out
+
+
 def to_json_safe(obj):
     """NaN → None, recursively (the String-JSON form must stay strict JSON)."""
     if isinstance(obj, float):
