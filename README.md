@@ -29,6 +29,7 @@ src/rig_nodes/            Python package (pixi-build-python, hatchling); console
   rig_nodes/fictrac_udp_adapter.py, kinefly_udp_adapter.py          stream adapters → /<src>/raw (+ /fictrac/frame typed)
   rig_nodes/bias_node.py, bias_cmd.py, bias_health.py               BIAS camera: /bias/cmd|reply|status|frames
   rig_nodes/scanimage_node.py, scanimage_cmd.py                     ScanImage JSON server: /scanimage/cmd|reply|status
+  rig_nodes/host_monitor.py, host_sampler.py                        the PC's pressure (CPU per core mean+peak, memory, disks, network, NVIDIA GPUs, top processes) on /rig/host at 1 Hz (0.3.0)
   rig_nodes/recorder.py        one MCAP bag per run (rosbag2_py), a writer library — the lifecycle belongs to the application
   rig_nodes/mcap_index.py      reindex a finished bag; recover a torn one
   rig_nodes/cdr.py             decode CDR from the ros2msg schema text in a bag (no ROS process)
@@ -38,9 +39,9 @@ src/rig_nodes/            Python package (pixi-build-python, hatchling); console
   rig_nodes/sims/              fictrac_sim, kinefly_sim, bias_sim, si_json_mock — the device programs, stood in
   rig_nodes/zenoh.py + config/ the loopback-only Zenoh configs, shipped in the package; `rig-router` starts rmw_zenohd with them
 channel/                  the published conda channel: README always; payloads only on a tagged release commit
-tests/                    test_pure.py (no graph), test_device_nodes.py (sims → nodes → topics → loss accounting)
+tests/                    test_pure.py (no graph), test_host_sampler.py (no graph), test_device_nodes.py (sims → nodes → topics → loss accounting)
 bench/                    shm_bench.py, shm_bench_qpc.py, mcap_bench.py, sizing/ (measurements behind docs/)
-docs/                     shm-bench.md, typed-distribution-decision.md, typed-windows.md
+docs/                     shm-bench.md, typed-distribution-decision.md, typed-windows.md, host-monitor.md
 foxglove/                 generic Foxglove layouts (none yet; the arena layouts stay in webDisplayTools)
 .github/workflows/package-set.yml   build both packages on win-64 / osx-arm64 / linux-64, index the channel, install-test it
 ```
@@ -50,6 +51,7 @@ foxglove/                 generic Foxglove layouts (none yet; the arena layouts 
 ```bash
 pixi install          # solves RoboStack Jazzy and BUILDS src/rig_interfaces + src/rig_nodes in place (pixi-build)
 pixi run test-pure    # the pure modules, no router needed
+pixi run test-host    # the host sampler on a fake psutil, no router needed
 pixi run test-sim     # the FicTrac simulator (record packing, replay, model fly)
 pixi run test         # the device-node conformance run (starts its own Zenoh router on 127.0.0.1:7447)
 pixi run router       # a router for manual runs; then e.g. `pixi run fictrac-sim` + `pixi run fictrac-adapter`

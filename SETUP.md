@@ -56,7 +56,9 @@ system ROS). RoboStack Jazzy and `rmw_zenoh` come from conda-forge/robostack thr
    platform and installed like any other conda package (9 s on ww18). Building the interfaces
    from source is the **developer path only** (see Windows below).
 3. Check: `python -m rig_nodes.build_interfaces --check` (typed package importable and
-   serializing), then the consumer's harness (`cd rig && pixi run test` in webDisplayTools,
+   serializing), `python -m rig_nodes.host_monitor --print-every 1 --log-dir <the rig's runlogs>` for a
+   minute (one summary line per second: busy cores, memory, the log volume's free space, the top
+   processes; typed `rig_interfaces/HostStats` in the `typed` environment, else String JSON), then the consumer's harness (`cd rig && pixi run test` in webDisplayTools,
    which is also the cross-repository smoke: record §7.8).
 4. Ports the graph owns on one host: **7447** (Zenoh router, loopback only), **8765** (the
    Studio gateway), **60000** (FicTrac UDP in), **5010** (BIAS HTTP), **5555** (ScanImage

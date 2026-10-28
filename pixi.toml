@@ -64,6 +64,7 @@ ros-jazzy-rosbag2-py = "*"
 ros-jazzy-rosbag2-storage-mcap = "*"
 mcap = ">=1.2"
 websockets = ">=12"
+psutil = "*"
 # ── the two packages, built from source here ────────────────────────────────────────────────
 rig_nodes = { path = "src/rig_nodes" }
 rig_interfaces = { path = "src/rig_interfaces" }
@@ -107,6 +108,8 @@ bias-node = "rig-bias-node"
 bias-cmd = "rig-bias-cmd"
 scanimage-node = "rig-scanimage-node"
 scanimage-cmd = "rig-scanimage-cmd"
+# the host monitor: PC pressure on /rig/host at 1 Hz (typed HostStats when rig_interfaces has it, else String JSON)
+host-monitor = "rig-host-monitor"
 # ── simulators ─────────────────────────────────────────────────────────────────────────────
 fictrac-sim = "rig-fictrac-sim"
 kinefly-sim = "rig-kinefly-sim"
@@ -123,6 +126,7 @@ build-interfaces = "python -m rig_nodes.build_interfaces --src src/rig_interface
 test = "python tests/test_device_nodes.py"
 test-pure = "python tests/test_pure.py"
 test-sim = "python tests/test_fictrac_sim.py"
+test-host = "python tests/test_host_sampler.py"
 # ── benches (`pixi run -e bench …`) ────────────────────────────────────────────────────────
 shm-bench = "python bench/shm_bench.py"
 shm-bench-qpc = "python bench/shm_bench_qpc.py"
