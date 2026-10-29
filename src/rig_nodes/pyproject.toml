@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "rig_nodes"
-version = "0.3.0"
+version = "0.4.0"
 description = "Reiser Lab rig infrastructure: ROS 2 device adapters and simulators, MCAP recording and supervision primitives"
 readme = "README.md"
 license = "MIT"

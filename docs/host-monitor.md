@@ -46,7 +46,7 @@ rig-software-repos-and-runners.md §3). It is prototyped in `rig/nodes/` because
 there and is the PC the cost has to be measured on. It moves unchanged: `host_sampler.py` has no
 ROS and no import from this repo; `host_monitor.py` imports only rclpy, std_msgs and the sampler.
 
-The typed message needs `rig_interfaces` ≥ 0.3.0 (rig-nodes release in progress, win-64 build
+The typed message needs `rig_interfaces` ≥ 0.3.0 (released 2026-10-28, win-64 build
 included). Until that is installed (`pixi install -e typed`), the node publishes `std_msgs/String`
 JSON with the same field names (NaN → null, floats to 3 decimals), the `--typed auto` pattern the
 FicTrac adapter uses. The gateway picks the same type for its recording subscription.

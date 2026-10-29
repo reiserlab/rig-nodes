@@ -8,7 +8,7 @@ item 1(b) of the cross-repository checklist in webDisplayTools'
 `telemetry-logging-reference.md` plays for the arena run-log rows. The message definitions
 themselves are `src/rig_interfaces/msg/*.msg`; the envelope is `rig_nodes._common.wrap_line`;
 the FicTrac line grammar is `rig_nodes.fictrac`. Where this file and the code disagree, the code
-is a bug and this file is the authority. Version: package set 0.4.0 (unreleased; 0.3.0 2026-10-28).
+is a bug and this file is the authority. Version: package set 0.4.0 (2026-10-28; 0.3.0 earlier the same day).
 
 ## 1. Middleware
 

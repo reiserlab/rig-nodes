@@ -29,7 +29,7 @@ env:
     # The pixi + pixi-build backend pair the packages were last built and tested with. Bump
     # deliberately: the backends are NOT in pixi.lock.
     PIXI_VERSION: v0.80.0
-    PACKAGE_SET_VERSION: 0.3.0
+    PACKAGE_SET_VERSION: 0.4.0
 
 jobs:
     build:

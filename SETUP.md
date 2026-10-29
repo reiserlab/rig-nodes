@@ -25,7 +25,7 @@ system ROS). RoboStack Jazzy and `rmw_zenoh` come from conda-forge/robostack thr
    ```toml
    [workspace]
    channels = ["conda-forge", "robostack-jazzy",
-               "https://raw.githubusercontent.com/reiserlab/rig-nodes/v0.3.0/channel"]
+               "https://raw.githubusercontent.com/reiserlab/rig-nodes/v0.4.0/channel"]
 
    platforms = [{ name = "osx-arm64-macos-14-0", platform = "osx-arm64", macos = "14.0" }, "win-64", "linux-64"]
                                         # the macOS floor on the platform (pixi ≥ 0.80): osx-arm64 otherwise resolves the older 0.16 set
@@ -34,8 +34,8 @@ system ROS). RoboStack Jazzy and `rmw_zenoh` come from conda-forge/robostack thr
    [dependencies]
    ros2-distro-mutex = "0.19.*"         # the RoboStack set the packages were built against
    python = "3.12.*"
-   rig_nodes = "==0.3.0"
-   rig_interfaces = "==0.3.0"           # optional: without it nodes publish String JSON (the host
+   rig_nodes = "==0.4.0"
+   rig_interfaces = "==0.4.0"           # optional: without it nodes publish String JSON (the host
                                         # monitor's typed /rig/host needs it: the `typed` environment, or the String fallback)
    ```
 

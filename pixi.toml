@@ -15,7 +15,7 @@
 # resolves from there. Bare channel names resolve through pixi's default channel alias.
 [workspace]
 name = "rig-nodes"
-version = "0.3.0"
+version = "0.4.0"
 channels = ["conda-forge", "robostack-jazzy"]
 # rmw_zenoh 0.2.11 (the 0.19 set) is built for macOS ≥ 14; without this floor the osx-arm64 solve falls
 # back to the 0.16 set and the platforms drift apart. Declared on the platform (pixi ≥ 0.80 virtual
