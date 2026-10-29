@@ -28,7 +28,6 @@ src/rig_nodes/            Python package (pixi-build-python, hatchling); console
   rig_nodes/fictrac.py        FicTrac's line grammar + column names (pure)
   rig_nodes/fictrac_udp_adapter.py, kinefly_udp_adapter.py          stream adapters → /<src>/raw (+ /fictrac/frame typed)
   rig_nodes/bias_node.py, bias_cmd.py, bias_health.py               BIAS camera: /bias/cmd|reply|status|frames
-  rig_nodes/scanimage_node.py, scanimage_cmd.py                     ScanImage JSON server: /scanimage/cmd|reply|status
   rig_nodes/host_monitor.py, host_sampler.py                        the PC's pressure (CPU per core mean+peak, memory, disks, network, NVIDIA GPUs, top processes) on /rig/host at 1 Hz (0.3.0)
   rig_nodes/recorder.py        one MCAP bag per run (rosbag2_py), a writer library — the lifecycle belongs to the application
   rig_nodes/mcap_index.py      reindex a finished bag; recover a torn one
@@ -36,7 +35,7 @@ src/rig_nodes/            Python package (pixi-build-python, hatchling); console
   rig_nodes/foxglove_json.py   String-topic bag → Foxglove-plottable JSON MCAP (generic; applications add `enrich` / `derive` hooks)
   rig_nodes/graph_dump.py      the live graph as Mermaid / DOT / a rate table
   rig_nodes/build_interfaces.py   colcon build of src/rig_interfaces (the .msg author's route) + `--check`
-  rig_nodes/sims/              fictrac_sim, kinefly_sim, bias_sim, si_json_mock — the device programs, stood in
+  rig_nodes/sims/              fictrac_sim, kinefly_sim, bias_sim — the device programs, stood in
   rig_nodes/zenoh.py + config/ the loopback-only Zenoh configs, shipped in the package; `rig-router` starts rmw_zenohd with them
 channel/                  the published conda channel: README always; payloads only on a tagged release commit
 tests/                    test_pure.py (no graph), test_host_sampler.py (no graph), test_device_nodes.py (sims → nodes → topics → loss accounting)
