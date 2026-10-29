@@ -328,7 +328,7 @@ class Nvml:
 class HostSampler:
     def __init__(self, window_s: float = 1.0, sub_samples: int = 10, log_volume: str | os.PathLike = ".",
                  top_n: int = 3, pins: list[tuple[str, str]] | None = None, gpu: bool = True,
-                 py_roots: list[str | os.PathLike] | tuple = ()) -> None:
+                 py_roots: list[str | os.PathLike] | tuple = (), proc_rescan_s: float = 5.0) -> None:
         if psutil is None:
             raise RuntimeError("psutil is not installed")
         self.window_s = float(window_s)
@@ -336,6 +336,7 @@ class HostSampler:
         self.log_volume = str(Path(log_volume).resolve().anchor or log_volume) if WIN else str(log_volume)
         self._log_path = str(log_volume)
         self.top_n = int(top_n)
+        self.proc_rescan_s = float(proc_rescan_s)  # portable path: full process-table period (_ps_rows)
         self.pins = [(n, re.compile(rx, re.I)) for n, rx in (pins if pins is not None else DEFAULT_PINS)]
         self.py_roots = tuple(Path(r) for r in py_roots)  # script roots for py_group (a rig's own nodes)
         self.hostname = socket.gethostname()
@@ -355,6 +356,9 @@ class HostSampler:
             psutil.cpu_percent(None, percpu=True)
             self._procs = {}
             self._psproc: dict[int, "psutil.Process"] = {}
+            self._psname: dict[int, str] = {}
+            self._watch: set[int] = set()
+            self._ps_scan_t = -math.inf  # the first window reads the whole table
             self._self = psutil.Process()
             self._self_cpu = sum(self._self.cpu_times()[:2])
         self._t_procs = time.perf_counter()
@@ -544,27 +548,47 @@ class HostSampler:
             self_cores = (c - self._self_cyc) / (self.hz * dt)
             self._self_cyc = c
         else:
-            seen = set()
-            for p in psutil.process_iter(["name"]):
-                seen.add(p.pid)
-                q = self._psproc.setdefault(p.pid, p)
-                try:
-                    with q.oneshot():
-                        cpu = q.cpu_percent(None) / 100.0
-                        rss = q.memory_info().rss / MB
-                except Exception:
-                    continue
-                rows.append((p.pid, p.info.get("name") or "", cpu, rss, NAN, NAN))
-            for pid in list(self._psproc):
-                if pid not in seen:
-                    self._psproc.pop(pid, None)
+            rows = self._ps_rows(now)
             t = sum(self._self.cpu_times()[:2])
             self_cores = (t - self._self_cpu) / dt
             self._self_cpu = t
-        live = {r[0] for r in rows}
+        live = {r[0] for r in rows} if WIN else set(self._psproc)  # portable: the last full table
         for pid in [p for p in self._groups if p not in live]:
             self._groups.pop(pid, None)
-        return self._select(rows, me), hard, max(0.0, self_cores)
+        out = self._select(rows, me)
+        if not WIN:  # what the next in-between windows refresh: every pinned pid + this window's top-N
+            self._watch = ({r["pid"] for r in out if not r["group"]}
+                           | {pid for pid, hit in self._groups.items() if hit[1]} | {me})
+        return out, hard, max(0.0, self_cores)
+
+    def _ps_rows(self, now: float) -> list[tuple]:
+        """Portable path (psutil): a per-process read costs ~0.1-0.2 ms on macOS, so reading every
+        process every window cost 6.7 % of a core on the lab Mac (18 CPUs). The WHOLE table is read
+        every `proc_rescan_s`; in between, only the watched pids (pinned groups + the last top-N).
+        cpu_percent is per Process object, so an unwatched process's value at a rescan averages the
+        whole interval; a process that starts using CPU between rescans appears at the next one."""
+        if now - self._ps_scan_t >= self.proc_rescan_s:
+            self._ps_scan_t = now
+            table, names = {}, {}
+            for p in psutil.process_iter(["name"]):
+                table[p.pid] = self._psproc.get(p.pid) or p  # keep the object: its cpu_percent baseline
+                names[p.pid] = p.info.get("name") or ""
+            self._psproc, self._psname = table, names
+            targets = list(table)
+        else:
+            targets = [pid for pid in self._watch if pid in self._psproc]
+        rows = []
+        for pid in targets:
+            q = self._psproc[pid]
+            try:
+                with q.oneshot():
+                    cpu = q.cpu_percent(None) / 100.0
+                    rss = q.memory_info().rss / MB
+            except Exception:  # gone / access denied: dropped until the next full table
+                self._psproc.pop(pid, None)
+                continue
+            rows.append((pid, self._psname.get(pid, ""), cpu, rss, NAN, NAN))
+        return rows
 
     def _select(self, rows: list[tuple], me: int) -> list[dict]:
         out: dict = {}
@@ -604,6 +628,54 @@ class HostSampler:
 def _nansum(vals) -> float:
     vals = [v for v in vals if math.isfinite(v)]
     return sum(vals) if vals else NAN
+
+
+# Typed-message quantization: float32 carries ~24 bits of sampling noise per value, which zstd cannot
+# compress; rounding each float to a power-of-two step leaves the low mantissa bits zero (n·2^-k is
+# exact in float32 for |n| < 2^24). Measured on ww18 (24 CPUs, ~20 process rows per sample, harness
+# bag): typed /rig/host 6.7 % of the run's compressed payload as published, 4.1 % with these steps.
+FRAC_STEP = 2.0 ** -10  # 0..1 fractions and CPU cores: 1/1024 (0.1 %)
+RATE_STEP = 2.0 ** -6  # rates, MB, MB/s, ms, GB, °C, W: 1/64
+_FRAC_FIELDS = {
+    None: ("cpu_busy_cores_mean", "cpu_busy_cores_peak", "core_busy_mean", "core_busy_peak", "monitor_cpu_cores"),
+    "disks": ("busy_frac",),
+    "procs": ("cpu_cores",),
+    "gpus": ("util_frac", "mem_util_frac", "encoder_util_frac", "decoder_util_frac"),
+}
+_RATE_FIELDS = {
+    None: ("sampler_late_ms_max", "context_switches_per_s", "interrupts_per_s", "dpcs_per_s", "hard_page_faults_per_s",
+           "mem_total_mb", "mem_used_mb", "mem_available_mb", "pagefile_used_mb", "log_volume_free_gb"),
+    "disks": ("read_mb_per_s", "write_mb_per_s", "reads_per_s", "writes_per_s"),
+    "nets": ("rx_mb_per_s", "tx_mb_per_s"),
+    "procs": ("rss_mb", "io_read_mb_per_s", "io_write_mb_per_s"),
+    "gpus": ("mem_used_mb", "mem_total_mb", "temperature_c", "power_w"),
+}
+
+
+def _q(v, step: float):
+    if isinstance(v, list):
+        return [_q(x, step) for x in v]
+    if isinstance(v, float) and math.isfinite(v):
+        return round(v / step) * step
+    return v  # NaN (absent) and non-floats pass through
+
+
+def quantize(sample: dict) -> dict:
+    """A copy of `sample` with every float field rounded to its power-of-two step (FRAC_STEP for
+    0..1 fractions and cores, RATE_STEP for everything else measured); NaN stays NaN, ints and
+    strings are untouched. host_monitor.to_msg applies it to the typed message (the JSON form
+    rounds to 3 decimals instead)."""
+    out = dict(sample)
+    for nested in ("disks", "nets", "gpus", "procs"):  # never mutate the caller's rows
+        if isinstance(out.get(nested), list):
+            out[nested] = [dict(d) for d in out[nested]]
+    for table, step in ((_FRAC_FIELDS, FRAC_STEP), (_RATE_FIELDS, RATE_STEP)):
+        for nested, fields in table.items():
+            for d in ([out] if nested is None else out.get(nested) or []):
+                for f in fields:
+                    if f in d:
+                        d[f] = _q(d[f], step)
+    return out
 
 
 def to_json_safe(obj):

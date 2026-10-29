@@ -16,7 +16,10 @@ Foxglove, the router, each graph node as py:<script>). `monitor_cpu_cores` is th
 
 Message type: rig_interfaces/HostStats when the installed rig_interfaces has it (rig-nodes ≥ 0.3.0,
 the `typed` environment), else std_msgs/String JSON with the same field names (NaN → null, floats
-to 3 decimals) — `--typed auto|on|off`, the same pattern as the FicTrac adapter. The arena gateway
+to 3 decimals) — `--typed auto|on|off`, the same pattern as the FicTrac adapter. The typed form
+rounds every float to a power-of-two step first (host_sampler.quantize: 1/1024 for 0..1 fractions
+and cores, 1/64 for rates / MB / ms): full float32 noise made typed /rig/host 6.7 % of a ww18
+harness run's compressed bag, the rounded form 4.1 %. The arena gateway
 records /rig/host into each run's MCAP bag. Generic on purpose: this node and host_sampler.py are
 rig-nodes material (`rig_nodes.host_monitor`, since 0.3.0), prototyped in webDisplayTools on ww18. Design, budget, measured
 cost: docs/development/rig-host-monitor.md.
@@ -38,7 +41,7 @@ from rclpy.node import Node
 from rclpy.qos import QoSDurabilityPolicy, QoSHistoryPolicy, QoSProfile, QoSReliabilityPolicy
 from std_msgs.msg import String
 
-from rig_nodes.host_sampler import DEFAULT_PINS, HostSampler, summary_line, to_json_safe
+from rig_nodes.host_sampler import DEFAULT_PINS, HostSampler, quantize, summary_line, to_json_safe
 
 TOPIC = "/rig/host"
 QOS = QoSProfile(reliability=QoSReliabilityPolicy.RELIABLE, history=QoSHistoryPolicy.KEEP_LAST, depth=10,
@@ -58,9 +61,11 @@ def load_typed():
 
 
 def to_msg(sample: dict, types: dict):
-    """HostStats fields (host_sampler dict) → the typed message; one builder for every field."""
+    """HostStats fields (host_sampler dict) → the typed message; one builder for every field.
+    Floats are quantized first (host_sampler.quantize: power-of-two steps, so float32 noise bits do
+    not cost bag space)."""
     m = types["HostStats"]()
-    for k, v in sample.items():
+    for k, v in quantize(sample).items():
         if k in NESTED:
             cls = types[NESTED[k]]
             items = []
@@ -106,6 +111,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--period", type=float, default=1.0, help="window length in s = publish period (default: 1)")
     p.add_argument("--sub", type=int, default=10, help="CPU sub-windows per window for the peak (default: 10 → 100 ms at 1 s)")
     p.add_argument("--top", type=int, default=3, help="processes per top list (CPU, memory, disk I/O; default: 3)")
+    p.add_argument("--proc-rescan", type=float, default=5.0, help="macOS/Linux: read the whole process table every N s, only the pinned + top-N processes in between (default: 5; Windows reads the whole table every window in one call)")
     p.add_argument("--pin", action="append", default=[], help="extra pinned group NAME=REGEX on the executable name (repeatable; checked first)")
     p.add_argument("--log-dir", default="runlogs", help="where run logs / bags are written: its volume's free space is reported (default: ./runlogs; the arena rig passes its own)")
     p.add_argument("--py-root", action="append", default=[], help="a directory whose Python scripts are pinned as py:<script> (repeatable; `-m rig_nodes.<module>` processes are grouped without it; the arena rig passes <webDisplayTools>/rig)")
@@ -123,7 +129,7 @@ def main(argv: list[str] | None = None) -> int:
         log_dir = Path(args.log_dir)
         log_dir.mkdir(parents=True, exist_ok=True)
         sampler = HostSampler(args.period, args.sub, log_dir, args.top, parse_pins(args.pin) + DEFAULT_PINS, gpu=not args.no_gpu,
-                              py_roots=args.py_root)
+                              py_roots=args.py_root, proc_rescan_s=args.proc_rescan)
     except RuntimeError as exc:  # no psutil
         print(f"[host] {exc} — no host samples (the rig keeps running)", file=sys.stderr)
         return 0
