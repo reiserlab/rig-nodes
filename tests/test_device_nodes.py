@@ -13,7 +13,7 @@ vocabulary, the counter-reset rule, the recorder's accounting. Nothing here know
 the arena gateway's harness in webDisplayTools (`rig/tests/test_ros2_poc.py`) runs the whole graph
 against these installed nodes and is the cross-repository smoke.
 
-Checks (one Zenoh graph, ≈ 40 s):
+Checks (one Zenoh graph, ≈ 50 s):
   FicTrac   sim --proto udp → fictrac adapter → /fictrac/raw (+ /fictrac/frame when rig_interfaces
             is importable): envelope keys/order, src, consecutive seq, 25 columns, stamps in range,
             typed frame == envelope; adapter SIGKILLed and restarted → seq restarts at 1 (contract §6)
@@ -22,6 +22,11 @@ Checks (one Zenoh graph, ≈ 40 s):
   BIAS      bias_sim → bias_node ← bias_cmd: connect / startRecording (artifact) / getTimestamp /
             stopRecording all `ok`; status carries reachable + the device snapshot; sim killed →
             reply outcome `error`, status reachable false
+  Backlight backlight_sim (socket://) → backlight_node ← backlight_cmd: setIRLEDPower /
+            setRedLEDPower (panel + pattern) / turnOnLED / setVisibleBacklightsOff `ok`, one step
+            per controller line, the exact lines reach the device; a pattern without panel_num is
+            dropped with a warning; unknown command → `error`; sim killed → `error`, status
+            reachable false; sim back → the node reopens the port by itself
   Recorder  in-process Recorder: raw CDR + JSON records into a crashsafe bag, closed → indexed;
             counts match; records written while closed are counted as dropped
 Exit 0 when all checks pass. Process logs are kept with --keep.
@@ -141,7 +146,7 @@ class Listener:
         self.msgs: dict[str, list] = {}
         self.lock = threading.Lock()
         self.typed = typed
-        for topic in ("/fictrac/raw", "/kinefly/raw", "/bias/reply", "/bias/status"):
+        for topic in ("/fictrac/raw", "/kinefly/raw", "/bias/reply", "/bias/status", "/backlight/reply", "/backlight/status"):
             self.node.create_subscription(String, topic, self._cb(topic, lambda m: json.loads(m.data)), RELIABLE_QOS)
         if typed is not None:
             _ArenaFrame, FicTracFrame = typed
@@ -322,6 +327,67 @@ def judge_bias(L: Listener, start, work: Path) -> None:
     node.stop()
 
 
+def judge_backlight(L: Listener, start) -> None:
+    port = free_port()
+    sim = start("backlight-sim", [PY, "-m", "rig_nodes.sims.backlight_sim", "--port", str(port)])
+    check("backlight: simulator up", wait_port("127.0.0.1", port, 10.0 * SCALE))
+    url = f"socket://127.0.0.1:{port}"
+    node = start("backlight-node", [PY, "-m", "rig_nodes.backlight_node", "--port", url, "--status-every", "0.5"])
+    time.sleep(1.5 * SCALE)
+
+    def cmd(*args: str) -> tuple[int, dict]:
+        r = run_capture([PY, "-m", "rig_nodes.backlight_cmd", *args, "--json", "--timeout", str(15 * SCALE)], timeout=40)
+        return r.returncode, cmd_json(r) or {"rc": r.returncode, "err": (r.stderr or r.stdout)[-300:]}
+
+    rc, rep = cmd("setIRLEDPower", "--power", "50")
+    check("backlight: setIRLEDPower → ok (exit 0)", rc == 0 and rep.get("outcome") == "ok" and rep.get("ok") is True, rep)
+    check("backlight: reply carries id, command, steps, rtt_ms, t_ms (contract §4)",
+          all(k in rep for k in ("id", "command", "ok", "outcome", "steps", "rtt_ms", "t_ms")) and rep.get("command") == "setIRLEDPower", sorted(rep))
+    check("backlight: one step per line, written but not confirmed by the device",
+          rep.get("steps") and rep["steps"][0].get("command") == "IR 50" and rep["steps"][0].get("confirmed") is False, rep.get("steps"))
+    rc, rep = cmd("setRedLEDPower", "--power", "5", "--panel-num", "2", "--pattern", "1010")
+    check("backlight: setRedLEDPower with panel + pattern → ok", rc == 0 and [x.get("command") for x in rep.get("steps", [])] == ["RED 5 2 1010"], rep)
+    rc, rep = cmd("setGreenLEDPower", "--power", "7", "--pattern", "0011")
+    check("backlight: a pattern without panel_num → ok, pattern dropped, a warning says so",
+          rc == 0 and [x.get("command") for x in rep.get("steps", [])] == ["GRN 7"] and "pattern ignored" in rep.get("warning", ""), rep)
+    rc, rep = cmd("turnOnLED")
+    check("backlight: turnOnLED → ok", rc == 0, rep)
+    rc, rep = cmd("setVisibleBacklightsOff")
+    check("backlight: setVisibleBacklightsOff → ok with three steps", rc == 0 and len(rep.get("steps", [])) == 3, rep)
+    want = ["'IR 50'", "'RED 5 2 1010'", "'GRN 7'", "'ON 0,0'", "'RED 0'", "'GRN 0'", "'BLU 0'"]
+    got = wait_for(lambda: all(w in sim.text() for w in want), 3.0)
+    text = sim.text()
+    positions = [text.find(w) for w in want]
+    check("backlight: the device received exactly those lines, in order", got and positions == sorted(positions), text[-600:])
+    rc, rep = cmd("bogusCommand")
+    check("backlight: an unknown command → outcome error (exit 1), never a crash", rc == 1 and rep.get("outcome") == "error" and node.alive(), rep)
+    st = [s for s in L.take("/backlight/status") if s.get("reachable")]
+    check("backlight: status every 0.5 s with reachable + port", len(st) >= 2 and all("t_ms" in s and s.get("port") == url for s in st[-2:]),
+          L.take("/backlight/status")[-1:])
+    # the device goes away: replies say so, status says unreachable, the node stays up
+    sim.kill9()
+    time.sleep(0.5 * SCALE)
+    rc, rep = cmd("turnOffLED")
+    if rc == 0:  # the first write after a peer closes can still land in the socket buffer
+        rc, rep = cmd("turnOffLED")
+    check("backlight: device gone → reply outcome error|unknown with a message; node alive",
+          rc in (1, 3) and rep.get("outcome") in ("error", "unknown") and rep.get("error") and node.alive(), rep)
+    got = wait_for(lambda: any(s.get("reachable") is False for s in L.take("/backlight/status")[-4:]), 4.0)
+    check("backlight: status reports reachable=false after the loss", got, L.take("/backlight/status")[-1:])
+    # the device comes back on the same port: the node reopens it without a restart
+    sim2 = start("backlight-sim-2", [PY, "-m", "rig_nodes.sims.backlight_sim", "--port", str(port)])
+    wait_port("127.0.0.1", port, 10.0 * SCALE)
+    got = wait_for(lambda: (L.take("/backlight/status")[-1:] or [{}])[0].get("reachable") is True, 5.0)
+    rc, rep = cmd("setIRLEDPower", "--power", "0")
+    check("backlight: device back → the node reopens the port by itself; power 0 is sent, not dropped",
+          got and rc == 0 and [x.get("command") for x in rep.get("steps", [])] == ["IR 0"], rep)
+    replies = L.take("/backlight/reply")
+    check("backlight: outcome vocabulary is closed (ok | error | unknown)", all(r.get("outcome") in ("ok", "error", "unknown") for r in replies),
+          {r.get("outcome") for r in replies})
+    node.stop()
+    sim2.stop()
+
+
 def judge_recorder(work: Path, typed) -> None:
     from std_msgs.msg import String
     from rclpy.serialization import serialize_message
@@ -393,6 +459,7 @@ def main(argv: list[str] | None = None) -> int:
         for name, fn in (("fictrac", lambda: judge_fictrac(listener, start, work, logdir, typed)),
                          ("kinefly", lambda: judge_kinefly(listener, start, logdir)),
                          ("bias", lambda: judge_bias(listener, start, work)),
+                         ("backlight", lambda: judge_backlight(listener, start)),
                          ("recorder", lambda: judge_recorder(work, typed))):
             try:
                 fn()

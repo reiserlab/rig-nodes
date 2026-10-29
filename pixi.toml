@@ -65,6 +65,7 @@ ros-jazzy-rosbag2-storage-mcap = "*"
 mcap = ">=1.2"
 websockets = ">=12"
 psutil = "*"
+pyserial = "*"
 # ── the two packages, built from source here ────────────────────────────────────────────────
 rig_nodes = { path = "src/rig_nodes" }
 rig_interfaces = { path = "src/rig_interfaces" }
@@ -106,12 +107,15 @@ fictrac-adapter = "rig-fictrac-adapter"
 kinefly-adapter = "rig-kinefly-adapter"
 bias-node = "rig-bias-node"
 bias-cmd = "rig-bias-cmd"
+backlight-node = "rig-backlight-node"
+backlight-cmd = "rig-backlight-cmd"
 # the host monitor: PC pressure on /rig/host at 1 Hz (typed HostStats when rig_interfaces has it, else String JSON)
 host-monitor = "rig-host-monitor"
 # ── simulators ─────────────────────────────────────────────────────────────────────────────
 fictrac-sim = "rig-fictrac-sim"
 kinefly-sim = "rig-kinefly-sim"
 bias-sim = "rig-bias-sim"
+backlight-sim = "rig-backlight-sim"
 # ── recording + graph tools ────────────────────────────────────────────────────────────────
 reindex = "rig-reindex"
 fox-json = "rig-fox-json"
