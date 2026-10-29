@@ -11,4 +11,4 @@ nodes and in `_common`; the pure modules `fictrac`, `cdr`, `supervise`, `mcap_in
 `foxglove_json`, `bias_health` run without a ROS process).
 """
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"

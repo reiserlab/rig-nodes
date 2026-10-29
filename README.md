@@ -72,12 +72,12 @@ A consumer's `pixi.toml` adds the channel and pins the package set:
 
 ```toml
 [workspace]
-channels = ["conda-forge", "robostack-jazzy", "https://raw.githubusercontent.com/reiserlab/rig-nodes/v0.3.0/channel"]
+channels = ["conda-forge", "robostack-jazzy", "https://raw.githubusercontent.com/reiserlab/rig-nodes/v0.4.0/channel"]
 
 [dependencies]
 ros2-distro-mutex = "0.19.*"          # the RoboStack set the packages were built against (macOS ≥ 14 for osx-arm64)
-rig_nodes = "==0.3.0"
-rig_interfaces = "==0.3.0"            # optional: without it the nodes publish String JSON (`--typed auto`)
+rig_nodes = "==0.4.0"
+rig_interfaces = "==0.4.0"            # optional: without it the nodes publish String JSON (`--typed auto`)
 ```
 
 and starts nodes with their console scripts (`rig-fictrac-adapter`, `rig-bias-node`, …) or
