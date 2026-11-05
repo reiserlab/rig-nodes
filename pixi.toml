@@ -7,16 +7,27 @@
 # workspace (the arena rig's is webDisplayTools/rig/pixi.toml).
 #
 #   pixi install            # RoboStack Jazzy (ros-base) + rmw_zenoh + rosbag2/MCAP + src/rig_nodes + src/rig_interfaces
+#   pixi install -e lyrical # the same set on RoboStack Lyrical (ROS 2 Lyrical Luth, Python 3.14): the migration rehearsal
 #   pixi run test           # device-node conformance: sims → nodes → topics → loss accounting (≈ 40 s)
 #   pixi run test-pure      # the pure modules (envelope, FicTrac parser, CDR decoder, Foxglove schema, supervision)
 #   pixi run router         # a Zenoh router on 127.0.0.1:7447 (one per host)
 #
-# Channels: RoboStack publishes ROS 2 as conda packages; conda-forge first so the non-ROS stack
-# resolves from there. Bare channel names resolve through pixi's default channel alias.
+# THE ROS DISTRIBUTION IS ONE SWITCH (docs/ros-distro-switch.md, 2026-11-05). A `[feature.<distro>]`
+# below carries the three things that differ between RoboStack sets — the channel, the
+# `ros2-distro-mutex` pin and the Python pin — plus that distro's spelling of the ROS packages the
+# workspace itself uses; an environment picks ONE such feature. Nothing else in this repository
+# names a distro: the package manifests under src/ take theirs from the environment that builds
+# them (pixi-build-ros reads the `robostack-<distro>` channel; rig_nodes depends on RoboStack's
+# distro-neutral `ros2-*` package names), the code reads ROS_DISTRO, and the Zenoh configs are one
+# pair (rig_nodes/zenoh.py). `viz` is the exception: rqt + foxglove_bridge are spelled for Jazzy.
+#
+# Channels: conda-forge first so the non-ROS stack resolves from there; each distro feature appends
+# its RoboStack channel BEHIND it (`priority = -1`; a feature's channels otherwise go in front).
+# Bare channel names resolve through pixi's default channel alias.
 [workspace]
 name = "rig-nodes"
 version = "0.4.0"
-channels = ["conda-forge", "robostack-jazzy"]
+channels = ["conda-forge"]
 # rmw_zenoh 0.2.11 (the 0.19 set) is built for macOS ≥ 14; without this floor the osx-arm64 solve falls
 # back to the 0.16 set and the platforms drift apart. Declared on the platform (pixi ≥ 0.80 virtual
 # packages; the older [system-requirements] table is deprecated and warned on every command). pixi
@@ -28,6 +39,18 @@ preview = ["pixi-build"]
 # (webDisplayTools issue #280).
 requires-pixi = ">=0.80"
 
+# The source packages leave their `ros2-distro-mutex` unpinned; this ONE variant value pins their
+# build to the RoboStack set the environment uses: a disjunction of every set the workspace knows,
+# which each distro's channel narrows to its own (robostack-jazzy carries 0.19 and 0.20, so without
+# it the host solve would take 0.20 — the Python 3.14 rebuild of Jazzy, not the rigs' set; the
+# lyrical channel carries 0.22 only). It is ONE value, not a list of two, because pixi solves every
+# listed variant in every environment and `0.22.*` has no candidate in the Jazzy channel. The set
+# then fixes Python through the ROS packages' python-specific builds (rig_interfaces comes out
+# py312 on Jazzy, py314 on Lyrical), so no Python variant is needed. A new RoboStack set = one
+# more alternative here + a `[feature.<distro>]`.
+[workspace.build-variants]
+ros2-distro-mutex = ["0.19.*|0.22.*"]
+
 [activation.env]
 # Every ROS 2 process in this workspace uses the Zenoh middleware. rmw_zenoh needs ONE router
 # per host (`pixi run router`); nodes keep retrying until it is up.
@@ -37,7 +60,9 @@ ZENOH_ROUTER_CHECK_ATTEMPTS = "0"
 # (fails on a host without IPv6) and connect to `tcp/localhost:7447`. Ours bind/connect 127.0.0.1 —
 # a rig PC's graph is not reachable from the lab network. The files ship INSIDE the rig_nodes
 # package (importing rig_nodes._common applies them as defaults); these two lines only make
-# `ros2 topic echo` and friends in this workspace use them too.
+# `ros2 topic echo` and friends in this workspace use them too. One pair serves every distro: the
+# stock files rmw_zenoh ships at the Jazzy (0.2.11) and Lyrical (0.10.6) versions RoboStack
+# packages are byte-identical (zenoh.py explains how a distro-specific pair is added if that changes).
 ZENOH_ROUTER_CONFIG_URI = "$PIXI_PROJECT_ROOT/src/rig_nodes/rig_nodes/config/zenoh-router.json5"
 ZENOH_SESSION_CONFIG_URI = "$PIXI_PROJECT_ROOT/src/rig_nodes/rig_nodes/config/zenoh-session.json5"
 # The adapters print non-ASCII to stderr and Python on Windows would pick cp1252 when stdio is a pipe.
@@ -49,38 +74,64 @@ PYTHONUTF8 = "1"
 ZENOH_ROUTER_CONFIG_URI = '%PIXI_PROJECT_ROOT%\src\rig_nodes\rig_nodes\config\zenoh-router.json5'
 ZENOH_SESSION_CONFIG_URI = '%PIXI_PROJECT_ROOT%\src\rig_nodes\rig_nodes\config\zenoh-session.json5'
 
+# ── distro-neutral: in every environment ───────────────────────────────────────────────────
 [dependencies]
-# ── ONE RoboStack set, pinned (2026-10-26) ──────────────────────────────────────────────────
-# The mutex decides which RoboStack Jazzy rebuild every ros-jazzy-* package comes from; the
-# packages built from src/ pin the same, so a rig that installs them next to its own ROS packages
-# gets one set, not two. 0.19 + Python 3.12 is what the rigs run (the arena workspace lock on
-# win-64 / linux-64; its osx-arm64 lock sat on 0.16 only because rmw_zenoh ≥ 0.2.11 needs macOS 14,
-# declared below as the system requirement).
+mcap = ">=1.2"
+websockets = ">=12"
+psutil = "*"
+# ── the two packages, built from source here ────────────────────────────────────────────────
+# Both are built for the environment's RoboStack set (the `[workspace.build-variants]` above).
+rig_nodes = { path = "src/rig_nodes" }
+rig_interfaces = { path = "src/rig_interfaces" }
+# rosidl generates C typesupport + a Python C extension, so building rig_interfaces needs the
+# ament/rosidl toolchain (in the distro features below) and a C/C++ compiler on this machine (Windows:
+# the MSVC v143 toolset, which pixi cannot install, plus a short build path — docs/typed-windows.md).
+# colcon is here for the .msg author's alternative route (`pixi run build-interfaces`).
+colcon-common-extensions = "*"
+cmake = "*"
+ninja = "*"
+cxx-compiler = "*"
+
+# ── THE switch: one feature per RoboStack set ──────────────────────────────────────────────
+# jazzy — what the rigs run (2026-10-26). The mutex decides which RoboStack Jazzy rebuild every
+# ros-jazzy-* package comes from; the packages built from src/ pin the same (build-variants above),
+# so a rig that installs them next to its own ROS packages gets one set, not two. 0.19 + Python
+# 3.12 is the arena workspace lock on win-64 / linux-64 (osx-arm64 reaches the same set with the
+# macOS ≥ 14 floor declared on the platform).
+[feature.jazzy]
+channels = [{ channel = "robostack-jazzy", priority = -1 }]
+
+[feature.jazzy.dependencies]
 ros2-distro-mutex = "0.19.*"
 python = "3.12.*"
 ros-jazzy-ros-base = "*"
 ros-jazzy-rmw-zenoh-cpp = "*"
 ros-jazzy-rosbag2-py = "*"
 ros-jazzy-rosbag2-storage-mcap = "*"
-mcap = ">=1.2"
-websockets = ">=12"
-psutil = "*"
-# ── the two packages, built from source here ────────────────────────────────────────────────
-rig_nodes = { path = "src/rig_nodes" }
-rig_interfaces = { path = "src/rig_interfaces" }
-# rosidl generates C typesupport + a Python C extension, so building rig_interfaces needs the
-# ament/rosidl toolchain and a C/C++ compiler on this machine (Windows: the MSVC v143 toolset,
-# which pixi cannot install, plus a short build path — docs/typed-windows.md). colcon is here for
-# the .msg author's alternative route (`pixi run build-interfaces`).
 ros-jazzy-ament-cmake = "*"
 ros-jazzy-rosidl-default-generators = "*"
 ros-jazzy-rosidl-default-runtime = "*"
 ros-jazzy-ros-environment = "*"
-colcon-common-extensions = "*"
-cmake = "*"
-ninja = "*"
-cxx-compiler = "*"
 
+# lyrical — ROS 2 Lyrical Luth from RoboStack (opt-in; `pixi install -e lyrical`). RoboStack's
+# lyrical set is mutex 0.22 (build tag `lyrical_30`) on Python 3.14 for all three platforms as of
+# 2026-11-05; rmw_zenoh ≥ 0.10.6 because 0.10.5 can hang in rmw_wait. Not what any rig runs: this
+# environment exists so CI proves the package set builds and its simulator tests pass on the next
+# distribution before anyone migrates (docs/ros-distro-switch.md lists what still blocks that).
+[feature.lyrical]
+channels = [{ channel = "robostack-lyrical", priority = -1 }]
+
+[feature.lyrical.dependencies]
+ros2-distro-mutex = "0.22.*"
+python = "3.14.*"
+ros-lyrical-ros-base = "*"
+ros-lyrical-rmw-zenoh-cpp = ">=0.10.6"
+ros-lyrical-rosbag2-py = "*"
+ros-lyrical-rosbag2-storage-mcap = "*"
+ros-lyrical-ament-cmake = "*"
+ros-lyrical-rosidl-default-generators = "*"
+ros-lyrical-rosidl-default-runtime = "*"
+ros-lyrical-ros-environment = "*"
 
 # ── benchmarks (bench/): shared-memory and MCAP recording studies; zstandard/lz4 for the sizing study ──
 [feature.bench.dependencies]
@@ -88,15 +139,18 @@ zstandard = "*"
 lz4 = "*"
 
 # ── seeing a graph: rqt + foxglove_bridge (Qt + the bridge add ~0.3 GB a rig does not need) ──
+# Jazzy-only: these names carry the distro; a Lyrical viz environment is the same four lines
+# spelled `ros-lyrical-*` the day someone needs it.
 [feature.viz.dependencies]
 ros-jazzy-rqt-graph = "*"
 ros-jazzy-rqt-topic = "*"
 ros-jazzy-foxglove-bridge = "*"
 
 [environments]
-default = { solve-group = "main" }
-bench = { features = ["bench"], solve-group = "main" }
-viz = { features = ["viz"], solve-group = "main" }
+default = { features = ["jazzy"], solve-group = "jazzy" }
+bench = { features = ["jazzy", "bench"], solve-group = "jazzy" }
+viz = { features = ["jazzy", "viz"], solve-group = "jazzy" }
+lyrical = { features = ["lyrical"], solve-group = "lyrical" }
 
 [tasks]
 # ── middleware ─────────────────────────────────────────────────────────────────────────────
@@ -116,6 +170,9 @@ bias-sim = "rig-bias-sim"
 reindex = "rig-reindex"
 fox-json = "rig-fox-json"
 graph = "rig-graph"
+# what this environment runs on (ROS distro, rmw, RoboStack set, Python, package set) — the same
+# dict the recorder writes into every bag's metadata
+runtime = "python -m rig_nodes.runtime"
 # colcon build of src/rig_interfaces into src/install (the .msg author's measured route;
 # `-- --check` reports whether the typed package imports and serializes in this env)
 build-interfaces = "python -m rig_nodes.build_interfaces --src src/rig_interfaces --prefix src/install"

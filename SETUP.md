@@ -17,7 +17,9 @@ shrinks to one line that names the check.
 ## Install recipe
 
 Prerequisite: [pixi](https://pixi.sh) (the lab's only developer tool; no conda, mamba, npm or
-system ROS). RoboStack Jazzy and `rmw_zenoh` come from conda-forge/robostack through pixi.
+system ROS). RoboStack Jazzy and `rmw_zenoh` come from conda-forge/robostack through pixi. The
+distribution is a pixi feature in each workspace (`jazzy` today; `lyrical` is the CI rehearsal of
+the next one, not something a rig installs — `docs/ros-distro-switch.md`).
 
 1. **Pin the package set** in the workspace `pixi.toml` (the arena workspace is
    `webDisplayTools/rig/pixi.toml`; copy its shape for a new rig):
@@ -32,8 +34,10 @@ system ROS). RoboStack Jazzy and `rmw_zenoh` come from conda-forge/robostack thr
    requires-pixi = ">=0.80"             # an older pixi refuses instead of rewriting pixi.lock in its own format
 
    [dependencies]
-   ros2-distro-mutex = "0.19.*"         # the RoboStack set the packages were built against
+   ros2-distro-mutex = "0.19.*"         # the RoboStack set the packages were built against (the channel is Jazzy-only)
    python = "3.12.*"
+   ros-jazzy-ros-base = "*"             # the `ros2` CLI + the stack rig_nodes' own `ros2-rclpy`/`ros2-rosbag2-*` dependencies sit on
+   ros-jazzy-rmw-zenoh-cpp = "*"        # the middleware: never a dependency of rig_nodes, always the workspace's
    rig_nodes = "==0.4.0"
    rig_interfaces = "==0.4.0"           # optional: without it nodes publish String JSON (the host
                                         # monitor's typed /rig/host needs it: the `typed` environment, or the String fallback)
@@ -107,8 +111,8 @@ system ROS). RoboStack Jazzy and `rmw_zenoh` come from conda-forge/robostack thr
   `--manifest-path`.
 - The stock Zenoh IPv6 router config is unverified; the shipped loopback config is IPv4.
 
-**Linux** (CI only so far): the package-set workflow installs and tests on `ubuntu-latest`
-every push; no lab rig runs Linux yet.
+**Linux** (CI only so far): the package-set workflow installs and tests on `ubuntu-24.04`
+every push (Jazzy release path + the allowed-to-fail Lyrical rehearsal); no lab rig runs Linux yet.
 
 ## Host table
 

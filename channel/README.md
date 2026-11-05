@@ -10,8 +10,11 @@ a compiler** installs typed messages as a download (decision: `../docs/typed-dis
 **The package payload is not in the tree between releases.** The `<subdir>/` directories are
 committed ONCE, on the tagged release commit (README "Releasing a package set"), and removed again
 in the next commit; git history serves the pinned URL. This README stays as the record of what was
-built. Every package pins `ros2-distro-mutex` to the RoboStack set the rigs run (0.19) and Python 3.12 —
-one set on every platform, never two (the 0.2.0 lesson below).
+built. Every published package is built for the RoboStack set the rigs run (Jazzy, mutex 0.19, Python 3.12) —
+one set on every platform, never two (the 0.2.0 lesson below). From the next release on, `rig_interfaces`
+carries that pin (`>=0.19.0,<0.20.0a0`, from the ROS packages' run_exports) and `rig_nodes` names the mutex
+bare and follows the consumer's pin through its distro-neutral `ros2-*` dependencies
+(`../docs/ros-distro-switch.md`). The channel is Jazzy-only; the Lyrical rehearsal in CI publishes nothing.
 
 ## Releases
 

@@ -9,6 +9,11 @@
 # RIG_NODES_CHANNEL names one (with the PREFIX_API_KEY secret). Until the lab owns a hosted
 # channel, the `rig-nodes-channel` artifact is committed into channel/ by hand on the release
 # commit (README "Releasing a package set").
+#
+# The ROS distribution is one switch (docs/ros-distro-switch.md, 2026-11-05): the release path
+# (build → channel → accept) runs on the set the rigs run, `jazzy` (RoboStack mutex 0.19, Python
+# 3.12), spelled ONCE in each job's matrix; the `lyrical` job is the allowed-to-fail rehearsal of
+# the next distribution.
 name: package-set
 
 on:
@@ -27,22 +32,25 @@ concurrency:
 
 env:
     # The pixi + pixi-build backend pair the packages were last built and tested with. Bump
-    # deliberately: the backends are NOT in pixi.lock.
-    PIXI_VERSION: v0.80.0
+    # deliberately: the backends are NOT in pixi.lock. 0.83 since 2026-11-05: the rigs' floor
+    # (SETUP.md) and the pixi that writes this repository's lock, which the `lyrical` job installs.
+    PIXI_VERSION: v0.83.0
     PACKAGE_SET_VERSION: 0.4.0
 
 jobs:
     build:
-        name: build (${{ matrix.subdir }})
+        name: build (${{ matrix.subdir }}, ${{ matrix.distro }})
         strategy:
             fail-fast: false
             matrix:
                 include:
                     # windows-2022 carries VS 2022 → conda-forge's vs2022 activation finds the v143
                     # toolset without the Build-Tools detour of docs/typed-windows.md W2.
-                    - { os: windows-2022, subdir: win-64, mutex: '0.19' }
-                    - { os: macos-14, subdir: osx-arm64, mutex: '0.19' }
-                    - { os: ubuntu-24.04, subdir: linux-64, mutex: '0.19' }
+                    # `pixi build` builds for the workspace's default environment = the `jazzy` feature
+                    # (pixi.toml); mutex + python here are what the inspect step checks the result against.
+                    - { os: windows-2022, subdir: win-64, distro: jazzy, mutex: '0.19', python: '3.12' }
+                    - { os: macos-14, subdir: osx-arm64, distro: jazzy, mutex: '0.19', python: '3.12' }
+                    - { os: ubuntu-24.04, subdir: linux-64, distro: jazzy, mutex: '0.19', python: '3.12' }
         runs-on: ${{ matrix.os }}
         defaults:
             run:
@@ -70,10 +78,10 @@ jobs:
             # (rig_nodes may come out noarch), and its RoboStack pins must be THE pinned set.
             - name: inspect the packages (pins)
               run: |
-                  pixi exec --spec python --spec zstandard -- python - dist "${{ matrix.subdir }}" "${{ matrix.mutex }}" <<'EOF'
+                  pixi exec --spec python --spec zstandard -- python - dist "${{ matrix.subdir }}" "${{ matrix.mutex }}" "${{ matrix.python }}" <<'EOF'
                   import glob, io, json, os, shutil, sys, tarfile, zipfile
                   import zstandard
-                  dist, subdir, mutex = sys.argv[1:4]
+                  dist, subdir, mutex, pyver = sys.argv[1:5]
                   ok = True
                   for path in sorted(glob.glob(os.path.join(dist, "*.conda"))):
                       with zipfile.ZipFile(path) as z:  # closed before the move below (Windows: WinError 32 otherwise)
@@ -88,7 +96,7 @@ jobs:
                       files = tarfile.open(fileobj=io.BytesIO(payload)).getnames()
                       if index["name"] == "rig_nodes":
                           # the real package, not an editable stub: every module + the Zenoh configs inside
-                          need = ["rig_nodes/__init__.py", "rig_nodes/_common.py", "rig_nodes/supervise.py", "rig_nodes/zenoh.py",
+                          need = ["rig_nodes/__init__.py", "rig_nodes/_common.py", "rig_nodes/supervise.py", "rig_nodes/zenoh.py", "rig_nodes/runtime.py",
                                   "rig_nodes/config/zenoh-router.json5", "rig_nodes/config/zenoh-session.json5", "rig_nodes/sims/fictrac_sim.py", "rig_nodes/bias_health.py", "rig_nodes/host_monitor.py", "rig_nodes/host_sampler.py"]
                           missing = [n for n in need if not any(f.endswith(n) for f in files)]
                           if missing:
@@ -100,17 +108,28 @@ jobs:
                       print(os.path.basename(path), pkg_subdir, index["version"], mx, py)
                       if index["version"] != os.environ["PACKAGE_SET_VERSION"]:
                           print(f"  !! version {index['version']} != package set {os.environ['PACKAGE_SET_VERSION']}"); ok = False
-                      # The backend may add a bare `ros2-distro-mutex` beside the pinned one; the pin itself is
-                      # spelled `>=0.19.0,<0.20.0a0` (run_exports, rig_interfaces) or `0.19.*` (rig_nodes).
-                      pinned = [m for m in mx if f">={mutex}" in m or f"{mutex}.*" in m]
-                      if not pinned:
-                          print(f"  !! ros2-distro-mutex pin {mx} is not {mutex}"); ok = False
+                      # rig_interfaces is compiled against ONE RoboStack set: pixi-build-ros adds a bare `ros2-distro-mutex`
+                      # and the mutex's run_exports add the pin, `>=0.19.0,<0.20.0a0`. rig_nodes is noarch Python and
+                      # set-agnostic since 2026-11-05: pixi-build-python carries no run_exports, so it names the mutex
+                      # bare and takes the set from the consumer's pin through its distro-neutral `ros2-*` dependencies
+                      # (docs/ros-distro-switch.md) — those must be there.
+                      if index["name"] == "rig_nodes":
+                          need_deps = ["ros2-distro-mutex", "ros2-rclpy", "ros2-rosbag2-py", "ros2-rosbag2-storage-mcap"]
+                          missing = [n for n in need_deps if not any(d.split()[0] == n for d in depends)]
+                          if missing:
+                              print(f"  !! rig_nodes run dependencies lack {missing}"); ok = False
+                      else:
+                          pinned = [m for m in mx if f">={mutex}" in m or f"{mutex}.*" in m]
+                          if not pinned:
+                              print(f"  !! ros2-distro-mutex pin {mx} is not {mutex}"); ok = False
                       if pkg_subdir not in (subdir, "noarch"):
                           print(f"  !! subdir {pkg_subdir} is neither {subdir} nor noarch"); ok = False
                       # rig_nodes (noarch) pins python >=3.12; rig_interfaces carries no python entry of its own
-                      # (its extension lives under lib/python3.12/site-packages — the host python decides that path).
-                      if py and not any("3.12" in p for p in py):
-                          print(f"  !! python pin {py} is not 3.12"); ok = False
+                      # (its extension lives under lib/python3.X/site-packages — the host python decides that path).
+                      if py and not any(pyver in p for p in py) and not any(p.startswith("python >=") for p in py):
+                          print(f"  !! python pin {py} is not {pyver}"); ok = False
+                      if index["name"] == "rig_interfaces" and f"py{pyver.replace('.', '')}" not in index.get("build", ""):
+                          print(f"  !! rig_interfaces build string {index.get('build')} was not made against Python {pyver}"); ok = False
                       out = os.path.join(dist, pkg_subdir)
                       os.makedirs(out, exist_ok=True)
                       shutil.move(path, os.path.join(out, os.path.basename(path)))
@@ -171,15 +190,15 @@ jobs:
         # The release gate: a clean directory with ONLY a consumer manifest, the channel just built
         # and RoboStack; `pixi install` must resolve both packages, and the repository's tests must
         # pass against the INSTALLED packages (the tests are copied in; the source tree is not).
-        name: accept (${{ matrix.subdir }})
+        name: accept (${{ matrix.subdir }}, ${{ matrix.distro }})
         needs: channel
         strategy:
             fail-fast: false
             matrix:
                 include:
-                    - { os: windows-2022, subdir: win-64, mutex: '0.19' }
-                    - { os: macos-14, subdir: osx-arm64, mutex: '0.19' }
-                    - { os: ubuntu-24.04, subdir: linux-64, mutex: '0.19' }
+                    - { os: windows-2022, subdir: win-64, distro: jazzy, mutex: '0.19', python: '3.12' }
+                    - { os: macos-14, subdir: osx-arm64, distro: jazzy, mutex: '0.19', python: '3.12' }
+                    - { os: ubuntu-24.04, subdir: linux-64, distro: jazzy, mutex: '0.19', python: '3.12' }
         runs-on: ${{ matrix.os }}
         defaults:
             run:
@@ -206,7 +225,7 @@ jobs:
                   cat > accept/pixi.toml <<EOF
                   [workspace]
                   name = "rig-nodes-accept"
-                  channels = ["conda-forge", "robostack-jazzy", "file://$CHAN"]
+                  channels = ["conda-forge", "robostack-${{ matrix.distro }}", "file://$CHAN"]
                   platforms = [${{ matrix.subdir == 'osx-arm64' && '{ name = "osx-arm64-macos-14-0", platform = "osx-arm64", macos = "14.0" }' || format('"{0}"', matrix.subdir) }}]
 
                   [activation.env]
@@ -216,9 +235,9 @@ jobs:
 
                   [dependencies]
                   ros2-distro-mutex = "${{ matrix.mutex }}.*"
-                  python = "3.12.*"
-                  ros-jazzy-ros-base = "*"
-                  ros-jazzy-rmw-zenoh-cpp = "*"
+                  python = "${{ matrix.python }}.*"
+                  ros-${{ matrix.distro }}-ros-base = "*"
+                  ros-${{ matrix.distro }}-rmw-zenoh-cpp = "*"
                   rig_nodes = "==${{ env.PACKAGE_SET_VERSION }}"
                   rig_interfaces = "==${{ env.PACKAGE_SET_VERSION }}"
                   EOF
@@ -227,7 +246,8 @@ jobs:
               working-directory: accept
               run: |
                   pixi install
-                  pixi list | grep -E "^(rig_|ros2-distro-mutex|python |ros-jazzy-rclpy)" || pixi list | grep -iE "rig_|mutex|^python"
+                  pixi list | grep -E "^(rig_|ros2-distro-mutex|python |ros2-rclpy|ros2-rmw-zenoh-cpp)" || pixi list | grep -iE "rig_|mutex|^python"
+                  pixi run python -m rig_nodes.runtime
             - name: typed interfaces import + serialize (installed package)
               working-directory: accept
               run: pixi run python -m rig_nodes.build_interfaces --check
@@ -240,3 +260,52 @@ jobs:
             - name: device-node conformance against the installed package
               working-directory: accept
               run: pixi run python tests/test_device_nodes.py --timeout-scale 2
+
+    lyrical:
+        # The migration rehearsal (docs/ros-distro-switch.md): the SAME source tree built and tested on
+        # RoboStack Lyrical (ROS 2 Lyrical Luth; mutex 0.22, Python 3.14, rmw_zenoh ≥ 0.10.6) through
+        # the workspace's `lyrical` environment — pixi-build compiles rig_interfaces and packages
+        # rig_nodes for that set in place, then the pure, host-sampler, FicTrac-simulator and
+        # device-node conformance tests (simulators only, no hardware) run on it. Allowed to fail:
+        # nothing a rig runs depends on it, and RoboStack's Lyrical channel is young. No channel
+        # payload comes out of it — the published package set stays Jazzy until a migration is decided.
+        name: lyrical rehearsal (${{ matrix.subdir }}, allowed to fail)
+        continue-on-error: true
+        timeout-minutes: 90
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - { os: windows-2022, subdir: win-64 }
+                    - { os: macos-14, subdir: osx-arm64 }
+                    - { os: ubuntu-24.04, subdir: linux-64 }
+        runs-on: ${{ matrix.os }}
+        defaults:
+            run:
+                shell: bash
+        steps:
+            - uses: actions/checkout@v7
+              with:
+                  persist-credentials: false
+            - uses: prefix-dev/setup-pixi@v0.10.2
+              with:
+                  pixi-version: ${{ env.PIXI_VERSION }}
+                  run-install: false
+            - name: Windows build root
+              if: runner.os == 'Windows'
+              run: pixi config set --local detached-environments 'C:\px'
+            - name: pixi install -e lyrical (builds both packages for the Lyrical set)
+              run: |
+                  pixi install -e lyrical
+                  pixi list -e lyrical | grep -E "^(rig_|ros2-distro-mutex|python |ros2-rclpy|ros2-rmw-zenoh-cpp|ros2-rosbag2-storage-mcap)"
+                  pixi run -e lyrical runtime
+            - name: typed interfaces import + serialize
+              run: pixi run -e lyrical python -m rig_nodes.build_interfaces --check
+            - name: pure tests
+              run: pixi run -e lyrical test-pure
+            - name: host sampler
+              run: pixi run -e lyrical test-host
+            - name: FicTrac simulator
+              run: pixi run -e lyrical test-sim
+            - name: device-node conformance (simulators → nodes → topics → recorder)
+              run: pixi run -e lyrical test -- --timeout-scale 2

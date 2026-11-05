@@ -3,6 +3,12 @@
 # at the repository root depends on it by path, so `pixi install` there builds it in place.
 # Pure Python (hatchling wheel via the pixi-build-python backend); the ROS 2 dependencies are
 # conda packages, declared below, never pip.
+#
+# This manifest names NO ROS distribution (2026-11-05, docs/ros-distro-switch.md). The RoboStack
+# set comes from the environment that builds the package: `ros2-distro-mutex = "*"` and
+# `python = "*"` in host are pinned by the workspace's `[workspace.build-variants]` through the
+# environment's own pins (0.19 + 3.12 for Jazzy, 0.22 + 3.14 for Lyrical), and the mutex's
+# run_exports carry that set into the run dependencies (`ros2-distro-mutex >=0.19.0,<0.20.0a0`).
 [package]
 name = "rig_nodes"
 version = "0.4.0"
@@ -11,20 +17,24 @@ version = "0.4.0"
 backend = { name = "pixi-build-python", version = "*", channels = ["https://prefix.dev/pixi-build-backends", "https://prefix.dev/conda-forge"] }
 
 [package.host-dependencies]
-python = "3.12.*"
+python = "*"
 hatchling = "*"
+ros2-distro-mutex = "*"
 
 [package.run-dependencies]
 python = ">=3.12"
 # rclpy + std_msgs for the nodes; rosbag2_py + the MCAP storage plugin for the recorder;
-# rosidl_runtime_py for graph_dump's type lookup. All from robostack-jazzy, pinned to one
-# RoboStack set by the mutex (the same pin the workspace and rig_interfaces use).
-ros-jazzy-rclpy = "*"
-ros-jazzy-std-msgs = "*"
-ros-jazzy-rosbag2-py = "*"
-ros-jazzy-rosbag2-storage-mcap = "*"
-ros-jazzy-rosidl-runtime-py = "*"
-ros2-distro-mutex = "0.19.*"
+# rosidl_runtime_py for graph_dump's type lookup. Spelled with RoboStack's distro-NEUTRAL names:
+# `ros-<distro>-rclpy` is a 2 KiB shim that depends on `ros2-rclpy ==<that distro's version>` plus
+# the set's mutex, in robostack-jazzy (0.19 set) and robostack-lyrical alike (checked 2026-11-05),
+# so one manifest builds for either set and the mutex pin decides which versions resolve. Should
+# RoboStack rename them, this list is the only place.
+ros2-rclpy = "*"
+ros2-std-msgs = "*"
+ros2-rosbag2-py = "*"
+ros2-rosbag2-storage-mcap = "*"
+ros2-rosidl-runtime-py = "*"
+ros2-distro-mutex = "*"
 mcap = ">=1.2"
 websockets = ">=12"
 # 0.3.0: the host monitor (rig_nodes.host_sampler: CPU, memory, disks, network, processes; NVML through ctypes)
