@@ -13,7 +13,7 @@ vocabulary, the counter-reset rule, the recorder's accounting. Nothing here know
 the arena gateway's harness in webDisplayTools (`rig/tests/test_ros2_poc.py`) runs the whole graph
 against these installed nodes and is the cross-repository smoke.
 
-Checks (one Zenoh graph, ≈ 50 s):
+Checks (one Zenoh graph, ≈ 60 s):
   FicTrac   sim --proto udp → fictrac adapter → /fictrac/raw (+ /fictrac/frame when rig_interfaces
             is importable): envelope keys/order, src, consecutive seq, 25 columns, stamps in range,
             typed frame == envelope; adapter SIGKILLed and restarted → seq restarts at 1 (contract §6)
@@ -24,9 +24,15 @@ Checks (one Zenoh graph, ≈ 50 s):
             reply outcome `error`, status reachable false
   Backlight backlight_sim (socket://) → backlight_node ← backlight_cmd: setIRLEDPower /
             setRedLEDPower (panel + pattern) / turnOnLED / setVisibleBacklightsOff `ok`, one step
-            per controller line, the exact lines reach the device; a pattern without panel_num is
-            dropped with a warning; unknown command → `error`; sim killed → `error`, status
-            reachable false; sim back → the node reopens the port by itself
+            per controller line, the device receives exactly those lines and nothing else; a
+            pattern without panel_num is dropped with a warning; unknown command → `error`; sim
+            killed → `error`, status reachable false; sim back → the node reopens the port by
+            itself; exactly one reply per command
+  Backlight on a real tty (POSIX; a pseudo-terminal stands in for the USB serial port): the
+            exact bytes, CR included, pass pyserial's serial path; a full output buffer → write
+            timeout → `unknown` + a reconciling status, then normal again; the device replaced
+            behind the same name (an unplug/replug) → the FIRST command after it is `ok`, with
+            the failed attempt in `steps` and a warning that the port was reopened
   Recorder  in-process Recorder: raw CDR + JSON records into a crashsafe bag, closed → indexed;
             counts match; records written while closed are counted as dropped
 Exit 0 when all checks pass. Process logs are kept with --keep.
@@ -38,6 +44,8 @@ import argparse
 import json
 import math
 import os
+import re
+import select
 import shutil
 import socket
 import subprocess
@@ -335,9 +343,12 @@ def judge_backlight(L: Listener, start) -> None:
     node = start("backlight-node", [PY, "-m", "rig_nodes.backlight_node", "--port", url, "--status-every", "0.5"])
     time.sleep(1.5 * SCALE)
 
+    replies_before = L.count("/backlight/reply")
+    sent = [0]
+
     def cmd(*args: str) -> tuple[int, dict]:
-        r = run_capture([PY, "-m", "rig_nodes.backlight_cmd", *args, "--json", "--timeout", str(15 * SCALE)], timeout=40)
-        return r.returncode, cmd_json(r) or {"rc": r.returncode, "err": (r.stderr or r.stdout)[-300:]}
+        sent[0] += 1
+        return backlight_cmd(*args)
 
     rc, rep = cmd("setIRLEDPower", "--power", "50")
     check("backlight: setIRLEDPower → ok (exit 0)", rc == 0 and rep.get("outcome") == "ok" and rep.get("ok") is True, rep)
@@ -354,11 +365,9 @@ def judge_backlight(L: Listener, start) -> None:
     check("backlight: turnOnLED → ok", rc == 0, rep)
     rc, rep = cmd("setVisibleBacklightsOff")
     check("backlight: setVisibleBacklightsOff → ok with three steps", rc == 0 and len(rep.get("steps", [])) == 3, rep)
-    want = ["'IR 50'", "'RED 5 2 1010'", "'GRN 7'", "'ON 0,0'", "'RED 0'", "'GRN 0'", "'BLU 0'"]
-    got = wait_for(lambda: all(w in sim.text() for w in want), 3.0)
-    text = sim.text()
-    positions = [text.find(w) for w in want]
-    check("backlight: the device received exactly those lines, in order", got and positions == sorted(positions), text[-600:])
+    want = ["IR 50", "RED 5 2 1010", "GRN 7", "ON 0,0", "RED 0", "GRN 0", "BLU 0"]
+    wait_for(lambda: len(sim_rx(sim)) >= len(want), 3.0)
+    check("backlight: the device received exactly those lines, in order, and nothing else", sim_rx(sim) == want, sim_rx(sim))
     rc, rep = cmd("bogusCommand")
     check("backlight: an unknown command → outcome error (exit 1), never a crash", rc == 1 and rep.get("outcome") == "error" and node.alive(), rep)
     st = [s for s in L.take("/backlight/status") if s.get("reachable")]
@@ -381,11 +390,104 @@ def judge_backlight(L: Listener, start) -> None:
     rc, rep = cmd("setIRLEDPower", "--power", "0")
     check("backlight: device back → the node reopens the port by itself; power 0 is sent, not dropped",
           got and rc == 0 and [x.get("command") for x in rep.get("steps", [])] == ["IR 0"], rep)
-    replies = L.take("/backlight/reply")
+    got = wait_for(lambda: L.count("/backlight/reply") - replies_before >= sent[0], 3.0)
+    replies = L.take("/backlight/reply")[replies_before:]
+    check(f"backlight: exactly one reply per command on /backlight/reply ({sent[0]} sent)", got and len(replies) == sent[0], len(replies))
     check("backlight: outcome vocabulary is closed (ok | error | unknown)", all(r.get("outcome") in ("ok", "error", "unknown") for r in replies),
           {r.get("outcome") for r in replies})
     node.stop()
     sim2.stop()
+
+
+def backlight_cmd(*args: str) -> tuple[int, dict]:
+    """One backlight_cmd run: (exit code, the reply it printed with --json)."""
+    r = run_capture([PY, "-m", "rig_nodes.backlight_cmd", *args, "--json", "--timeout", str(15 * SCALE)], timeout=40)
+    return r.returncode, cmd_json(r) or {"rc": r.returncode, "err": (r.stderr or r.stdout)[-300:]}
+
+
+def sim_rx(sim: Proc) -> list[str]:
+    """Every line backlight_sim received, in order, from its `rx '<line>'` log records."""
+    return re.findall(r"\] rx '([^']*)'", sim.text())
+
+
+def new_tty(link: Path) -> tuple[int, int]:
+    """A pseudo-terminal pair (master, slave) with `link` pointing at the slave, the way socat
+    publishes one: the node opens `link` as a serial port, the test reads the bytes from master."""
+    master, slave = os.openpty()
+    tmp = link.with_name(link.name + ".tmp")
+    os.symlink(os.ttyname(slave), tmp)
+    os.replace(tmp, link)
+    return master, slave
+
+
+def read_tty(master: int, n: int, timeout_s: float = 3.0) -> bytes:
+    """Up to n bytes from the master side, waiting at most timeout_s."""
+    buf = b""
+    end = time.monotonic() + timeout_s * SCALE
+    while len(buf) < n and time.monotonic() < end:
+        if select.select([master], [], [], 0.05)[0]:
+            buf += os.read(master, 65536)
+    return buf
+
+
+def judge_backlight_tty(L: Listener, start, work: Path) -> None:
+    if not hasattr(os, "openpty"):
+        print("  info  backlight tty: pseudo-terminals are POSIX only — real-serial-path checks skipped on Windows", file=sys.stderr)
+        return
+    import fcntl
+
+    link = work / "backlight-tty"
+    master, slave = new_tty(link)
+    # --status-every 0: the only status messages are the startup one and the reconciling one
+    node = start("backlight-node-tty", [PY, "-m", "rig_nodes.backlight_node", "--port", str(link), "--status-every", "0", "--write-timeout-s", "1"])
+    time.sleep(1.5 * SCALE)
+    replies_before, sent = L.count("/backlight/reply"), 0
+
+    rc, rep = backlight_cmd("setRedLEDPower", "--power", "5", "--panel-num", "2", "--pattern", "1010")
+    sent += 1
+    got = read_tty(master, len(b"RED 5 2 1010\r"))
+    check("backlight tty: a real serial port carries the exact bytes, CR included (pyserial's serial path, raw mode)",
+          rc == 0 and got == b"RED 5 2 1010\r", (rc, got, rep))
+
+    # A full output buffer: nothing drains the device side, so the write cannot finish.
+    fcntl.fcntl(slave, fcntl.F_SETFL, fcntl.fcntl(slave, fcntl.F_GETFL) | os.O_NONBLOCK)
+    try:
+        while True:
+            os.write(slave, b"x" * 1024)
+    except BlockingIOError:
+        pass
+    status_before = L.count("/backlight/status")
+    rc, rep = backlight_cmd("turnOnLED")
+    sent += 1
+    check("backlight tty: a write that cannot finish → outcome unknown (exit 3), never retried",
+          rc == 3 and rep.get("outcome") == "unknown" and len(rep.get("steps", [])) == 1 and rep["steps"][0].get("ok") is None, rep)
+    check("backlight tty: after an unknown outcome the node publishes a status before anything else (contract §4)",
+          wait_for(lambda: L.count("/backlight/status") > status_before, 3.0), L.take("/backlight/status")[-1:])
+    while select.select([master], [], [], 0.1)[0]:  # the device reads again
+        os.read(master, 65536)
+    rc, rep = backlight_cmd("turnOffLED")
+    sent += 1
+    check("backlight tty: once the device reads again, commands are ok again", rc == 0 and read_tty(master, 4).endswith(b"OFF\r"), rep)
+
+    # The device goes away and a new one appears behind the same name (an unplug + replug).
+    os.close(master)
+    os.close(slave)
+    master, slave = new_tty(link)
+    rc, rep = backlight_cmd("turnOnLED")
+    sent += 1
+    steps = rep.get("steps", [])
+    check("backlight tty: device replaced → the FIRST command is ok (port reopened, line sent again)",
+          rc == 0 and [x.get("ok") for x in steps] == [False, True] and read_tty(master, 7) == b"ON 0,0\r", rep)
+    check("backlight tty: the reply says the port was reopened", "reopened" in rep.get("warning", ""), rep.get("warning"))
+    rc, rep = backlight_cmd("setIRLEDPower", "--power", "0")
+    sent += 1
+    check("backlight tty: the next command needs no retry", rc == 0 and len(rep.get("steps", [])) == 1 and read_tty(master, 5) == b"IR 0\r", rep)
+    got = wait_for(lambda: L.count("/backlight/reply") - replies_before >= sent, 3.0)
+    check(f"backlight tty: exactly one reply per command ({sent} sent)", got and L.count("/backlight/reply") - replies_before == sent,
+          L.count("/backlight/reply") - replies_before)
+    node.stop()
+    os.close(master)
+    os.close(slave)
 
 
 def judge_recorder(work: Path, typed) -> None:
@@ -460,6 +562,7 @@ def main(argv: list[str] | None = None) -> int:
                          ("kinefly", lambda: judge_kinefly(listener, start, logdir)),
                          ("bias", lambda: judge_bias(listener, start, work)),
                          ("backlight", lambda: judge_backlight(listener, start)),
+                         ("backlight tty", lambda: judge_backlight_tty(listener, start, work)),
                          ("recorder", lambda: judge_recorder(work, typed))):
             try:
                 fn()

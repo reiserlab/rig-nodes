@@ -20,10 +20,17 @@ MATLAB sends; each line is one entry in `steps`.
 What the outcome means here: the controller sends no acknowledgment for these commands, so `ok`
 means every line was written to the port, and each step says `"confirmed": false`. A write that
 times out is `unknown` (the bytes may have gone out), after which the node publishes a status
-before anything else. A port that cannot be opened, or fails mid-write, is `error`: the node
-closes it and reopens it on the next command or status tick, so a controller that was unplugged
-and plugged back in recovers without restarting the node. `reachable` in the status means the
-port is open, not that the controller answered. `critical` / `on_loss` are the executor's
+before anything else. A port that cannot be opened is `error`.
+
+A write that fails with an error (the device behind the port is gone: unplugged, or a new
+pseudo-terminal behind the same name) makes the node close the port, reopen it, and send the
+same line again, once per command. The failed attempt stays in `steps` and `warning` says the
+port was reopened; if the reopen or the second write fails too, the outcome is `error` and the
+next command or status tick tries again. So a controller that was unplugged and plugged back in
+is used again from the first command, without restarting the node. The retry is safe because
+every command in the vocabulary sets a state (a level, on, off): sending a line twice changes
+nothing. A timeout is never retried. `reachable` in the status means the port is open, not that
+the controller answered: with no writes, the node cannot tell that the device went away. `critical` / `on_loss` are the executor's
 decision (CONTRACT.md §4) — the node only reports.
 
 Stopping the node closes the port and leaves the LEDs as they are (LEDController.m's behavior).
@@ -167,9 +174,8 @@ class BacklightNode(Node):
             self._publish(self.reply_pub, out)
             self.get_logger().warning(f"{command} → error: {exc}")
             return
-        if warnings:
-            out["warning"] = "; ".join(warnings)
-            self.get_logger().warning(f"{command}: {out['warning']}")
+        for text in warnings:
+            self._warn(out, f"{command}: {text}")
         self._write(lines, out)
         out["rtt_ms"] = round((time.perf_counter() - t0) * 1000.0, 2)
         self._publish(self.reply_pub, out)
@@ -179,31 +185,51 @@ class BacklightNode(Node):
         else:
             self.get_logger().warning(f"{command} → {out['outcome']} ({out['rtt_ms']} ms): {out.get('error')}")
 
+    def _warn(self, out: dict, text: str) -> None:
+        """Add one warning to the reply (joined with '; ') and to the node's log."""
+        out["warning"] = f"{out['warning']}; {text}" if out.get("warning") else text
+        self.get_logger().warning(text)
+
     def _write(self, lines: list[str], out: dict) -> None:
-        """Write the lines in order, one `steps` entry each; stop at the first failure."""
+        """Write the lines in order, one `steps` entry per attempt; stop at the first failure.
+        A write error reopens the port and sends the line again, once per command."""
         try:
             dev = self._ensure_open()
         except OSError as exc:
             self._drop_port()
             out.update({"ok": False, "outcome": "error", "error": f"backlight controller unreachable on {self.port}: {exc}"})
             return
+        reopened = False
         for line in lines:
-            t0 = time.perf_counter()
-            try:
-                dev.send_line(line)
-            except serial.SerialTimeoutException as exc:
-                # UNKNOWN: some of the line may have gone out. Reconcile before anything else runs.
-                out["steps"].append({"command": line, "ok": None, "error": f"write timeout after {self.write_timeout_s:g}s"})
-                out.update({"ok": False, "outcome": "unknown", "error": str(exc) or "write timeout"})
-                self._do_status()
-                return
-            except OSError as exc:
-                out["steps"].append({"command": line, "ok": False, "error": str(exc)})
-                self._drop_port()
-                out.update({"ok": False, "outcome": "error", "error": f"write to {self.port} failed: {exc}"})
-                return
-            out["steps"].append({"command": line, "ok": True, "confirmed": False,
-                                 "rtt_ms": round((time.perf_counter() - t0) * 1000.0, 2)})
+            while True:
+                t0 = time.perf_counter()
+                try:
+                    dev.send_line(line)
+                except serial.SerialTimeoutException as exc:
+                    # UNKNOWN: some of the line may have gone out. Never retried; reconcile first.
+                    out["steps"].append({"command": line, "ok": None, "error": f"write timeout after {self.write_timeout_s:g}s"})
+                    out.update({"ok": False, "outcome": "unknown", "error": str(exc) or "write timeout"})
+                    self._do_status()
+                    return
+                except OSError as exc:
+                    out["steps"].append({"command": line, "ok": False, "error": str(exc)})
+                    self._drop_port()
+                    if reopened:
+                        out.update({"ok": False, "outcome": "error", "error": f"write to {self.port} failed again after reopening it: {exc}"})
+                        return
+                    reopened = True
+                    try:
+                        dev = self._ensure_open()
+                    except OSError as reopen_exc:
+                        self._drop_port()
+                        out.update({"ok": False, "outcome": "error",
+                                    "error": f"write to {self.port} failed ({exc}); reopening it failed: {reopen_exc}"})
+                        return
+                    self._warn(out, f"port {self.port} reopened after a write error ({exc}); {line!r} sent again")
+                    continue
+                out["steps"].append({"command": line, "ok": True, "confirmed": False,
+                                     "rtt_ms": round((time.perf_counter() - t0) * 1000.0, 2)})
+                break
         out.update({"ok": True, "outcome": "ok", "value": None})
 
 
