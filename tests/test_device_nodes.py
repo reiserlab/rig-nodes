@@ -521,8 +521,18 @@ def judge_recorder(work: Path, typed) -> None:
             counts[ch.topic] = counts.get(ch.topic, 0) + 1
             if ch.topic == "/x/raw" and m.publish_time != m.log_time - 500:
                 pub_lag_ok = False
+        metas = {m.name: m.metadata for m in r.iter_metadata()}
     check("recorder: every record read back per topic, indexed (summary present)", counts == {"/x/raw": n, "/x/json": n} and summ is not None, counts)
     check("recorder: MCAP log_time = receive stamp, publish_time = the producer's own stamp", pub_lag_ok)
+    # what the bag ran on: rosbag2's `rosbag2` metadata record (serialized BagMetadata) carries ROS_DISTRO
+    # and our custom_data = runtime_info(); the crashsafe → reindexed rewrite must keep that record
+    serialized = metas.get("rosbag2", {}).get("serialized_metadata", "")
+    rt = rep.get("runtime") or {}
+    check("recorder: close() reports the runtime (python, rig_nodes, ros_distro)", {"python", "rig_nodes", "ros_distro"} <= set(rt), rt)
+    check("recorder: the reindexed bag keeps rosbag2's metadata record with ros_distro", f"ros_distro: {os.environ.get('ROS_DISTRO')}" in serialized, serialized[:300])
+    check("recorder: custom_data in the bag names the runtime (rig_nodes version, python, mutex set)",
+          all(f"{k}: {v}" in serialized or f"{k}: '{v}'" in serialized or f'{k}: "{v}"' in serialized for k, v in rt.items() if k in ("rig_nodes", "python", "ros_distro", "rmw_implementation")),
+          serialized[-600:])
     check("recorder: both writer profiles are defined", set(PROFILES) == {"default", "crashsafe"}, list(PROFILES))
 
 

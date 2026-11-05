@@ -199,9 +199,13 @@ these, not the absence of a message.
    release that says so.
 4. **The `outcome` vocabulary is closed** (`ok | error | unknown`). A node that cannot express a
    result in it reports `error` with a message rather than inventing a fourth value.
-5. **One RoboStack set per platform.** The packages pin `ros2-distro-mutex` (0.19 and Python 3.12 on all three
-   platforms as of 0.2.1; macOS ≥ 14). Moving the pin is a
-   package-set release and every rig re-locks.
+5. **One RoboStack set per platform.** The set is pinned by `ros2-distro-mutex` (0.19 and Python 3.12 on all three
+   platforms as of 0.2.1; macOS ≥ 14): `rig_interfaces` carries the pin of the set it was compiled against,
+   `rig_nodes` (noarch Python) takes the consumer's pin through its distro-neutral `ros2-*` dependencies
+   (since 2026-11-05). Moving the pin is a package-set release and every rig re-locks. The distribution itself
+   is one switch — a `[feature.<distro>]` in each workspace (`jazzy` today, `lyrical` as the CI rehearsal;
+   `docs/ros-distro-switch.md`); the packages name no distro and are built for the set of the environment that
+   builds them, so the published set is whatever the release workflow's distro feature says.
 6. **One package-set version.** `rig_interfaces` and `rig_nodes` are released together under one
    tag (`vX.Y.Z`), tested together; a consumer pins that version and records it with every run
    (checklist item 7, done in the consumer).

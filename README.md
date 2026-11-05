@@ -20,7 +20,7 @@ stays with its application until a consumer asks.
 ## Layout
 
 ```
-pixi.toml                 the SOURCE workspace (RoboStack Jazzy + rmw_zenoh + the two packages built from src/)
+pixi.toml                 the SOURCE workspace (RoboStack + rmw_zenoh + the two packages built from src/; the ROS distribution is a feature: `jazzy` default, `lyrical` opt-in)
 src/rig_interfaces/       ament_cmake message package: FicTracFrame, ArenaFrame, ConnectorReply, HostStats (+ DiskStats, NetStats, GpuStats, ProcStats; 0.3.0)  (pixi-build-ros)
 src/rig_nodes/            Python package (pixi-build-python, hatchling); console scripts rig-*
   rig_nodes/_common.py        clocks (precise on Windows), QoS, the adapter envelope, spin, typed-interfaces probe
@@ -38,26 +38,34 @@ src/rig_nodes/            Python package (pixi-build-python, hatchling); console
   rig_nodes/graph_dump.py      the live graph as Mermaid / DOT / a rate table
   rig_nodes/build_interfaces.py   colcon build of src/rig_interfaces (the .msg author's route) + `--check`
   rig_nodes/sims/              fictrac_sim, kinefly_sim, bias_sim, backlight_sim — the device programs, stood in
-  rig_nodes/zenoh.py + config/ the loopback-only Zenoh configs, shipped in the package; `rig-router` starts rmw_zenohd with them
+  rig_nodes/zenoh.py + config/ the loopback-only Zenoh configs (one pair for every distro today; `config/<distro>/` wins when present), shipped in the package; `rig-router` starts rmw_zenohd with them
+  rig_nodes/runtime.py         what this process runs on (ROS distro, rmw, RoboStack set, Python, package set) — the recorder writes it into every bag's metadata
 channel/                  the published conda channel: README always; payloads only on a tagged release commit
 tests/                    test_pure.py (no graph), test_host_sampler.py (no graph), test_device_nodes.py (sims → nodes → topics → loss accounting)
 bench/                    shm_bench.py, shm_bench_qpc.py, mcap_bench.py, sizing/ (measurements behind docs/)
-docs/                     shm-bench.md, typed-distribution-decision.md, typed-windows.md, host-monitor.md
+docs/                     shm-bench.md, typed-distribution-decision.md, typed-windows.md, host-monitor.md, ros-distro-switch.md (the distro switch + the Lyrical rehearsal)
 foxglove/                 generic Foxglove layouts (none yet; the arena layouts stay in webDisplayTools)
-.github/workflows/package-set.yml   build both packages on win-64 / osx-arm64 / linux-64, index the channel, install-test it
+.github/workflows/package-set.yml   build both packages on win-64 / osx-arm64 / linux-64, index the channel, install-test it; the allowed-to-fail `lyrical` job builds + tests the same tree on ROS 2 Lyrical
 ```
 
 ## Developing here
 
 ```bash
 pixi install          # solves RoboStack Jazzy and BUILDS src/rig_interfaces + src/rig_nodes in place (pixi-build)
+pixi install -e lyrical   # the same on RoboStack Lyrical (Python 3.14); every task below takes `-e lyrical` (docs/ros-distro-switch.md)
 pixi run test-pure    # the pure modules, no router needed
 pixi run test-host    # the host sampler on a fake psutil, no router needed
 pixi run test-sim     # the FicTrac simulator (record packing, replay, model fly)
 pixi run test         # the device-node conformance run (starts its own Zenoh router on 127.0.0.1:7447)
 pixi run router       # a router for manual runs; then e.g. `pixi run fictrac-sim` + `pixi run fictrac-adapter`
 pixi run graph        # the live graph as Mermaid
+pixi run runtime      # what this environment runs on — the dict the recorder writes into every bag
 ```
+
+The ROS distribution is one switch: a `[feature.<distro>]` in `pixi.toml` (channel, mutex pin,
+Python pin); the package manifests under `src/` name no distro and are built for the set of the
+environment that builds them. `docs/ros-distro-switch.md` is the record (what differs between
+sets, what the Lyrical rehearsal found, what blocks a migration).
 
 Building `rig_interfaces` from source needs a C/C++ compiler (rosidl generates C typesupport and
 a Python extension): clang on macOS and GCC on Linux come from conda-forge's `cxx-compiler`;
@@ -77,7 +85,7 @@ A consumer's `pixi.toml` adds the channel and pins the package set:
 channels = ["conda-forge", "robostack-jazzy", "https://raw.githubusercontent.com/reiserlab/rig-nodes/v0.4.0/channel"]
 
 [dependencies]
-ros2-distro-mutex = "0.19.*"          # the RoboStack set the packages were built against (macOS ≥ 14 for osx-arm64)
+ros2-distro-mutex = "0.19.*"          # the RoboStack set the packages were built against (macOS ≥ 14 for osx-arm64); the channel is Jazzy-only
 rig_nodes = "==0.4.0"
 rig_interfaces = "==0.4.0"            # optional: without it the nodes publish String JSON (`--typed auto`)
 ```
