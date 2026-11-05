@@ -22,7 +22,17 @@ thread, the asyncio side from the loop thread. Records that arrive while the bag
 opening (rosbag2 takes ~150 ms to open one) are buffered and written first.
 
 Timestamps: rosbag2_py's 4-argument write is (topic, data, recv_timestamp, send_timestamp)
-→ MCAP log_time = recv, publish_time = send (checked by reading the bag back).
+→ MCAP log_time = recv, publish_time = send (checked by reading the bag back). Passed by KEYWORD
+where the binding names them (rosbag2_py ≥ 0.33, Lyrical): there the 3-argument overload took an
+optional `sequence_number`, and a positional 4th argument binds to it instead of the send stamp.
+
+What the bag ran on (2026-11-05): `open()` hands `rig_nodes.runtime.runtime_info()` — ROS distro,
+rmw + its version, the RoboStack set (`ros2-distro-mutex` build), Python, the package-set versions —
+to rosbag2 as the StorageOptions `custom_data`. rosbag2 writes it, with its own `ros_distro`, into
+the MCAP metadata record named `rosbag2` (`serialized_metadata`, a YAML BagMetadata) when the bag
+closes, and into metadata.yaml; `mcap_index.reindex` copies metadata records, so the reindexed bag
+keeps it. `close()` returns the same dict as `runtime`. A bag the writer never closed has no
+metadata record — the arena gateway's `/arena/session` open record is the crash-safe copy.
 """
 
 from __future__ import annotations
@@ -38,6 +48,7 @@ from rclpy.serialization import serialize_message
 from std_msgs.msg import String
 
 from rig_nodes._common import wall_ns  # the precise wall clock on Windows (time.time_ns elsewhere)
+from rig_nodes.runtime import runtime_info
 
 STRING_TYPE = "std_msgs/msg/String"
 
@@ -75,6 +86,8 @@ class Recorder:
         self.dropped = 0  # writes attempted while closed
         self.opened_mono = None
         self._pending: list | None = None  # records that arrived while open() was running
+        self.runtime: dict[str, str] = {}  # what this bag runs on (runtime_info), filled by open()
+        self._named_write = False
 
     @property
     def active(self) -> bool:
@@ -95,6 +108,9 @@ class Recorder:
                 Path(cfg_path).write_text(text, encoding="utf-8")
         so = rosbag2_py.StorageOptions(uri=str(self.bag_dir), storage_id="mcap", max_cache_size=cache,
                                        storage_preset_profile=preset, storage_config_uri=cfg_path)
+        self.runtime = runtime_info()
+        if hasattr(so, "custom_data"):  # rosbag2 ≥ Iron; written into the bag's `rosbag2` metadata record at close
+            so.custom_data = dict(self.runtime)
         if self.max_bag_bytes > 0:
             so.max_bagfile_size = self.max_bag_bytes
         co = rosbag2_py.ConverterOptions(input_serialization_format="cdr", output_serialization_format="cdr")
@@ -103,6 +119,9 @@ class Recorder:
             self.count = 0
             self.bytes = 0
         w = rosbag2_py.SequentialWriter()
+        # Does this rosbag2_py name write()'s stamps (`recv_timestamp`, `send_timestamp`)? Jazzy's binding
+        # does not (positional only); Lyrical's does and needs them (see _write_locked).
+        self._named_write = "send_timestamp" in (getattr(w.write, "__doc__", None) or "")
         w.open(so, co)
         for i, (name, typ) in enumerate(sorted(self.topics.items())):
             w.create_topic(rosbag2_py.TopicMetadata(id=i, name=name, type=typ, serialization_format="cdr"))
@@ -131,8 +150,13 @@ class Recorder:
     def _write_locked(self, topic: str, data: bytes, log_ns: int, pub_ns: int | None) -> None:
         if pub_ns is None:
             self._w.write(topic, data, log_ns)
+        elif self._named_write:
+            # rosbag2_py ≥ 0.33 (Lyrical): the 3-argument overload gained an optional `sequence_number`,
+            # so a POSITIONAL 4-argument call binds to it and the producer stamp silently becomes the
+            # sequence number (publish_time == log_time; found by the Lyrical rehearsal, 2026-11-05).
+            self._w.write(topic, data, recv_timestamp=log_ns, send_timestamp=pub_ns)
         else:
-            self._w.write(topic, data, log_ns, pub_ns)  # (recv_timestamp, send_timestamp)
+            self._w.write(topic, data, log_ns, pub_ns)  # Jazzy's binding names no arguments: (recv, send)
         self.count += 1
         self.bytes += len(data)
 
@@ -175,4 +199,5 @@ class Recorder:
             "payload_bytes": self.bytes,
             "profile": self.profile,
             "open_s": round(time.perf_counter() - self.opened_mono, 3) if self.opened_mono else None,
+            "runtime": dict(self.runtime),
         }

@@ -4,28 +4,20 @@
 # CMakeLists.txt, with no colcon step and nothing to source. CI builds the same package on
 # win-64 / osx-arm64 / linux-64 and publishes it to the channel (.github/workflows/package-set.yml),
 # so a rig installs it as a download (docs/typed-distribution-decision.md).
+#
+# This manifest names NO ROS distribution (2026-11-05, docs/ros-distro-switch.md). pixi-build-ros
+# takes the distro from the first `robostack-<distro>` channel of the environment that builds the
+# package — the workspace's `[feature.jazzy]` or `[feature.lyrical]` — and maps package.xml's
+# ament_cmake / rosidl_default_generators (host) and rosidl_default_runtime (run) to that distro's
+# packages itself; it also adds `python` and the `ros2-distro-mutex` to host and run. The two pins
+# that tie the build to ONE RoboStack set (the 0.2.0 build let each CI runner drift: mutex 0.20 +
+# Python 3.14 on win-64/linux-64, 0.16 + 3.12 on osx-arm64) come from the workspace's
+# `[workspace.build-variants]`, selected by the environment's own mutex + Python pins, and the
+# RoboStack packages' run_exports carry the set into this package's run dependencies
+# (`ros2-distro-mutex >=0.19.0,<0.20.0a0`; CI's inspect step checks it).
 [package]
 name = "rig_interfaces"
 version = "0.4.0"
 
 [package.build]
-backend = { name = "pixi-build-ros", version = "*", channels = ["https://prefix.dev/pixi-build-backends", "https://prefix.dev/conda-forge", "https://prefix.dev/robostack-jazzy"] }
-
-[package.build.config]
-distro = "jazzy"
-
-# THE pin (2026-10-26): the 0.2.0 build let each CI runner resolve whatever RoboStack Jazzy was
-# current (ros2-distro-mutex 0.20 + Python 3.14 on win-64/linux-64, 0.16 + 3.12 on osx-arm64), so
-# a rig running its default environment plus the typed package carried two RoboStack sets. The
-# host environment is now pinned to the set the rigs run — mutex 0.19 and Python 3.12, the arena
-# workspace lock on win-64 / linux-64 (osx-arm64 reaches the same set with macOS ≥ 14, the
-# workspace's system requirement) — and the backend's run_exports pin the package's run
-# dependencies to the same.
-[package.host-dependencies]
-ros-jazzy-ament-cmake = "*"
-ros-jazzy-rosidl-default-generators = "*"
-ros2-distro-mutex = "0.19.*"
-python = "3.12.*"
-
-[package.run-dependencies]
-ros-jazzy-rosidl-default-runtime = "*"
+backend = { name = "pixi-build-ros", version = "*", channels = ["https://prefix.dev/pixi-build-backends", "https://prefix.dev/conda-forge"] }

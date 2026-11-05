@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """test_pure.py — the rig_nodes modules that need no graph: envelope, FicTrac grammar, CDR
-decoding, the Foxglove JSON rewriter, the MCAP indexer, the supervision primitives, BIAS health.
+decoding, the Foxglove JSON rewriter, the MCAP indexer, the supervision primitives, BIAS health,
+the runtime description and the Zenoh config selection.
 
     pixi run test-pure            # in the rig-nodes checkout
     python tests/test_pure.py     # in any environment where rig_nodes is installed
@@ -244,6 +245,41 @@ def test_supervise() -> None:
         check("supervise: signal_group(SIGKILL) ends the group", False, "still alive")
 
 
+def test_runtime_and_zenoh_config(tmp: Path) -> None:
+    import os
+
+    from rig_nodes import zenoh
+    from rig_nodes.runtime import runtime_info
+
+    info = runtime_info()
+    check("runtime: every value is a non-empty string", info and all(isinstance(v, str) and v for v in info.values()), info)
+    check("runtime: python + platform + rig_nodes always present", {"python", "platform", "rig_nodes"} <= set(info), sorted(info))
+    if os.environ.get("ROS_DISTRO"):
+        check("runtime: ros_distro follows ROS_DISTRO", info.get("ros_distro") == os.environ["ROS_DISTRO"], info.get("ros_distro"))
+        check("runtime: the RoboStack set is named (ros2-distro-mutex `<version> <build>`)",
+              info.get("ros2_distro_mutex", "").count(" ") == 1 and "_" in info["ros2_distro_mutex"], info.get("ros2_distro_mutex"))
+    # the Zenoh pair: one shared pair; a distro-specific pair in config/<distro>/ wins only when complete
+    shared = zenoh.CONFIG_DIR
+    check("zenoh: the shared pair ships in the package", zenoh.ROUTER_CONFIG.is_file() and zenoh.SESSION_CONFIG.is_file(), shared)
+    check("zenoh: jazzy, lyrical and an unset distro all resolve to the shared pair today",
+          all(zenoh.config_dir(d) == shared for d in ("jazzy", "lyrical", "", None)) and zenoh.router_config("lyrical") == zenoh.ROUTER_CONFIG)
+    root = tmp / "zenoh-sets"
+    (root / "fake").mkdir(parents=True)
+    (root / "fake" / zenoh.ROUTER_NAME).write_text("{}", encoding="utf-8")
+    check("zenoh: a half pair (router only) falls back to the shared pair", zenoh.config_dir("fake", root=root) == root)
+    (root / "fake" / zenoh.SESSION_NAME).write_text("{}", encoding="utf-8")
+    check("zenoh: a complete config/<distro>/ pair is selected by distro (case-insensitive)",
+          zenoh.config_dir("FAKE", root=root) == root / "fake" and zenoh.config_dir("other", root=root) == root)
+    env = {"ROS_DISTRO": "lyrical"}
+    zenoh.apply_env_defaults(env)
+    check("zenoh: apply_env_defaults fills the URIs + rmw defaults from the env's ROS_DISTRO",
+          env["ZENOH_ROUTER_CONFIG_URI"] == str(zenoh.ROUTER_CONFIG) and env["ZENOH_SESSION_CONFIG_URI"] == str(zenoh.SESSION_CONFIG)
+          and env["RMW_IMPLEMENTATION"] == "rmw_zenoh_cpp" and env["ZENOH_ROUTER_CHECK_ATTEMPTS"] == "0", env)
+    env2 = {"ZENOH_ROUTER_CONFIG_URI": "/elsewhere/router.json5"}
+    zenoh.apply_env_defaults(env2)
+    check("zenoh: an environment that names its own config is left alone", env2["ZENOH_ROUTER_CONFIG_URI"] == "/elsewhere/router.json5")
+
+
 def main() -> int:
     import rig_nodes
 
@@ -251,7 +287,8 @@ def main() -> int:
     tmp = Path(tempfile.mkdtemp(prefix="rig-nodes-pure-"))
     groups = [("envelope", test_envelope), ("fictrac", test_fictrac), ("cdr", test_cdr),
               ("foxglove_json", lambda: test_foxglove_json(tmp)), ("mcap_index", lambda: test_mcap_index(tmp)),
-              ("bias_health", test_bias_health), ("supervise", test_supervise)]
+              ("bias_health", test_bias_health), ("supervise", test_supervise),
+              ("runtime+zenoh", lambda: test_runtime_and_zenoh_config(tmp))]
     for name, fn in groups:
         try:
             fn()
