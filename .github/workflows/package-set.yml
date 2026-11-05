@@ -128,8 +128,11 @@ jobs:
                       # (its extension lives under lib/python3.X/site-packages — the host python decides that path).
                       if py and not any(pyver in p for p in py) and not any(p.startswith("python >=") for p in py):
                           print(f"  !! python pin {py} is not {pyver}"); ok = False
-                      if index["name"] == "rig_interfaces" and f"py{pyver.replace('.', '')}" not in index.get("build", ""):
-                          print(f"  !! rig_interfaces build string {index.get('build')} was not made against Python {pyver}"); ok = False
+                      # rig_interfaces' build string is a bare hash; the Python it was compiled against is its
+                      # `python_abi 3.12.* *_cp312` dependency.
+                      abi = [d for d in depends if d.startswith("python_abi")]
+                      if index["name"] == "rig_interfaces" and not any(pyver in a for a in abi):
+                          print(f"  !! rig_interfaces python_abi {abi} is not {pyver}"); ok = False
                       out = os.path.join(dist, pkg_subdir)
                       os.makedirs(out, exist_ok=True)
                       shutil.move(path, os.path.join(out, os.path.basename(path)))

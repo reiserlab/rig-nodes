@@ -59,9 +59,11 @@ mentions of "Jazzy" in `_common.py` and `bias_cmd.py` are comments about rclpy s
 the Windows clock, not logic.
 
 **The consumer (webDisplayTools `rig/pixi.toml`)** mirrors the features: `default` / `typed` /
-`viz` / `dev` stay Jazzy and untouched; its `lyrical` environment builds the two packages from this
-repository's git source, because the published channel is Jazzy-only (the channel packages pin
-mutex 0.19). The private 2P rig repository (`scanimage-2026-bergamo/2p-rig-nodes`) has its own
+`viz` / `dev` stay Jazzy and resolve to the same packages; its `lyrical` environment builds the two
+packages from this repository's git source, because the published channel is Jazzy-only (the
+channel packages pin mutex 0.19). It carries the same `[workspace.build-variants]` line: a consumer
+that builds the source packages must, or the Jazzy host solve takes mutex 0.20 once `main` has no
+manifest pin. The private 2P rig repository (`scanimage-2026-bergamo/2p-rig-nodes`) has its own
 manifest and has not mirrored the switch.
 
 ## 3. The Zenoh configs: one pair, selected by distro when it has to be
