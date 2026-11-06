@@ -30,7 +30,8 @@ Checks (one Zenoh graph, ≈ 60 s):
             itself; exactly one reply per command
   Backlight on a real tty (POSIX; a pseudo-terminal stands in for the USB serial port): the
             exact bytes, CR included, pass pyserial's serial path; a full output buffer → write
-            timeout → `unknown` + a reconciling status, then normal again; the device replaced
+            timeout → `unknown` + a reconciling status, then normal again; a command's own
+            `timeout_s` replaces the node's write timeout for that command only; the device replaced
             behind the same name (an unplug/replug) → the FIRST command after it is `ok`, with
             the failed attempt in `steps` and a warning that the port was reopened
   Recorder  in-process Recorder: raw CDR + JSON records into a crashsafe bag, closed → indexed;
@@ -457,10 +458,15 @@ def judge_backlight_tty(L: Listener, start, work: Path) -> None:
     except BlockingIOError:
         pass
     status_before = L.count("/backlight/status")
+    rc, rep = backlight_cmd("turnOnLED", "--timeout-s", "0.3")
+    sent += 1
+    check("backlight tty: a command's own timeout_s bounds its write (0.3 s, not the node's 1 s)",
+          rc == 3 and rep.get("outcome") == "unknown" and "after 0.3s" in str(rep.get("steps")) and rep.get("rtt_ms", 1e9) < 900, rep)
     rc, rep = backlight_cmd("turnOnLED")
     sent += 1
-    check("backlight tty: a write that cannot finish → outcome unknown (exit 3), never retried",
-          rc == 3 and rep.get("outcome") == "unknown" and len(rep.get("steps", [])) == 1 and rep["steps"][0].get("ok") is None, rep)
+    check("backlight tty: a write that cannot finish → outcome unknown (exit 3), never retried; the next command is back on the node's 1 s",
+          rc == 3 and rep.get("outcome") == "unknown" and len(rep.get("steps", [])) == 1 and rep["steps"][0].get("ok") is None
+          and "after 1s" in rep["steps"][0].get("error", ""), rep)
     check("backlight tty: after an unknown outcome the node publishes a status before anything else (contract §4)",
           wait_for(lambda: L.count("/backlight/status") > status_before, 3.0), L.take("/backlight/status")[-1:])
     while select.select([master], [], [], 0.1)[0]:  # the device reads again

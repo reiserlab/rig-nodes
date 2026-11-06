@@ -5,7 +5,7 @@ The controller is a serial device (one ASCII command per line, CR, 115200 baud; 
 that MATLAB drove through LEDController.m / LEDControllerPlugin.m. This node owns its port and
 exposes it on three topics, all std_msgs/String JSON (no custom message types):
 
-  /backlight/cmd     IN   {"id": <any>, "command": <plugin command>, "params": {…}}
+  /backlight/cmd     IN   {"id": <any>, "command": <plugin command>, "params": {…, "timeout_s"?}}
   /backlight/reply   OUT  {"id", "command", "params", "ok", "outcome": "ok"|"error"|"unknown",
                            "value", "error", "warning", "steps": [...one per controller line...],
                            "rtt_ms", "t_ms", "rx_epoch_ms"}
@@ -15,7 +15,8 @@ The `command` vocabulary is the protocol's `backlight` plugin (LEDControllerPlug
 js/plugin-registry.js is a client of it): setIRLEDPower(power), setRedLEDPower /
 setGreenLEDPower / setBlueLEDPower(power[, panel_num[, pattern]]), turnOnLED, turnOffLED,
 setVisibleBacklightsOff. backlight.plan() turns each into controller lines, byte for byte what
-MATLAB sends; each line is one entry in `steps`.
+MATLAB sends; each line is one entry in `steps`. Any command may also carry `timeout_s` (the
+LAB-303 convention): the most each of its writes may block, instead of --write-timeout-s.
 
 What the outcome means here: the controller sends no acknowledgment for these commands, so `ok`
 means every line was written to the port, and each step says `"confirmed": false`. A write that
@@ -54,7 +55,7 @@ from rclpy.node import Node
 from std_msgs.msg import String
 
 from rig_nodes._common import RELIABLE_QOS, raise_timer_resolution, spin, wall_ms
-from rig_nodes.backlight import WRITE_TIMEOUT_S, LEDController, plan
+from rig_nodes.backlight import WRITE_TIMEOUT_S, LEDController, plan, timeout_param
 
 CMD_TOPIC = "/backlight/cmd"
 REPLY_TOPIC = "/backlight/reply"
@@ -169,6 +170,7 @@ class BacklightNode(Node):
             if not isinstance(params, dict):
                 raise ValueError("params must be a JSON object")
             lines, warnings = plan(command, params)
+            timeout_s = timeout_param(params) or self.write_timeout_s
         except (ValueError, TypeError) as exc:
             out.update({"ok": False, "outcome": "error", "error": str(exc)})
             self._publish(self.reply_pub, out)
@@ -176,7 +178,7 @@ class BacklightNode(Node):
             return
         for text in warnings:
             self._warn(out, f"{command}: {text}")
-        self._write(lines, out)
+        self._write(lines, out, timeout_s)
         out["rtt_ms"] = round((time.perf_counter() - t0) * 1000.0, 2)
         self._publish(self.reply_pub, out)
         # rclpy caches a severity per call site, so info and warning need separate statements.
@@ -190,9 +192,20 @@ class BacklightNode(Node):
         out["warning"] = f"{out['warning']}; {text}" if out.get("warning") else text
         self.get_logger().warning(text)
 
-    def _write(self, lines: list[str], out: dict) -> None:
+    def _write(self, lines: list[str], out: dict, timeout_s: float) -> None:
         """Write the lines in order, one `steps` entry per attempt; stop at the first failure.
-        A write error reopens the port and sends the line again, once per command."""
+        Each write may block at most timeout_s. A write error reopens the port and sends the line
+        again, once per command."""
+        try:
+            self._write_lines(lines, out, timeout_s)
+        finally:
+            if self.dev is not None:  # the next command starts from the node's own timeout
+                try:
+                    self.dev.write_timeout_s = self.write_timeout_s
+                except OSError:  # the device went away: the next command or status tick reopens
+                    self._drop_port()
+
+    def _write_lines(self, lines: list[str], out: dict, timeout_s: float) -> None:
         try:
             dev = self._ensure_open()
         except OSError as exc:
@@ -204,10 +217,11 @@ class BacklightNode(Node):
             while True:
                 t0 = time.perf_counter()
                 try:
+                    dev.write_timeout_s = timeout_s  # inside the try: on a dead port this fails like a write
                     dev.send_line(line)
                 except serial.SerialTimeoutException as exc:
                     # UNKNOWN: some of the line may have gone out. Never retried; reconcile first.
-                    out["steps"].append({"command": line, "ok": None, "error": f"write timeout after {self.write_timeout_s:g}s"})
+                    out["steps"].append({"command": line, "ok": None, "error": f"write timeout after {timeout_s:g}s"})
                     out.update({"ok": False, "outcome": "unknown", "error": str(exc) or "write timeout"})
                     self._do_status()
                     return

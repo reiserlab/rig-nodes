@@ -256,8 +256,10 @@ def test_backlight() -> None:
             check("backlight: an over-long pulse set is refused before anything is sent", False, "no ValueError")
         except ValueError:
             check("backlight: an over-long pulse set is refused before anything is sent", sent(dev) == b"")
-    with LEDController("loop://") as dev:
+    with LEDController("loop://", write_timeout_s=10) as dev:
         check("backlight: a query returns the reply lines (loop:// echoes the command)", dev.get_experiment_status() == "getExperimentStatus")
+        dev.write_timeout_s = 0.25
+        check("backlight: write_timeout_s reads and sets the port's write timeout", dev.write_timeout_s == 0.25 and dev._serial.write_timeout == 0.25)
 
     # the plugin vocabulary
     check("backlight plan: setRedLEDPower with panel + pattern → one line, no warning",
@@ -268,6 +270,16 @@ def test_backlight() -> None:
     lines, warns = plan("setIRLEDPower", {"power": 50, "brightness": 3})
     check("backlight plan: a parameter the command does not take is ignored with a warning", lines == ["IR 50"] and len(warns) == 1, warns)
     check("backlight plan: setVisibleBacklightsOff → three lines", plan("setVisibleBacklightsOff")[0] == ["RED 0", "GRN 0", "BLU 0"])
+    check("backlight plan: timeout_s is accepted on any command, without a warning or a line",
+          plan("turnOnLED", {"timeout_s": 2}) == (["ON 0,0"], []) and plan("setIRLEDPower", {"power": 5, "timeout_s": 0.5}) == (["IR 5"], []))
+    bad_timeouts = []
+    for t in (0, -1, "2", True, float("nan"), float("inf")):
+        try:
+            plan("turnOnLED", {"timeout_s": t})
+            bad_timeouts.append(t)
+        except ValueError:
+            pass
+    check("backlight plan: timeout_s must be a positive, finite number (0, -1, '2', true, nan, inf refused)", not bad_timeouts, bad_timeouts)
     refused = []
     for command, params, exc_type in (("explode", {}, ValueError), ("setIRLEDPower", {}, ValueError),
                                       ("setRedLEDPower", {"power": 5, "panel_num": 0, "pattern": 1010}, TypeError)):

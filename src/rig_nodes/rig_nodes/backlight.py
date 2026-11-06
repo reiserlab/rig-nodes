@@ -65,6 +65,9 @@ PLUGIN_PARAMS: dict[str, tuple[str, ...]] = {
     "setVisibleBacklightsOff": (),
 }
 PLUGIN_COMMANDS = tuple(PLUGIN_PARAMS)
+# Parameters any command may carry that are for the executor, not the controller (the LAB-303
+# convention): `timeout_s` bounds each controller write of that command (backlight_node.py).
+EXECUTOR_PARAMS = ("timeout_s",)
 COLOR_PREFIX = {"setRedLEDPower": "RED", "setGreenLEDPower": "GRN", "setBlueLEDPower": "BLU"}
 TURN_ON_LINE = "ON 0,0"  # "0,0" = all panels, all quadrants (LEDController.m's comment)
 TURN_OFF_LINE = "OFF"
@@ -153,16 +156,29 @@ def color_line(prefix: str, power, panel_num=None, pattern=None) -> str:
 # ── the plugin vocabulary ───────────────────────────────────────────────────────────────────
 
 
+def timeout_param(params: Mapping) -> float | None:
+    """The command's `timeout_s` in seconds, None when absent. Raises ValueError unless it is a
+    positive, finite number."""
+    if params.get("timeout_s") is None:
+        return None
+    t = params["timeout_s"]
+    if isinstance(t, bool) or not isinstance(t, (int, float)) or not math.isfinite(t) or t <= 0:
+        raise ValueError(f"timeout_s must be a positive number of seconds, got {t!r}")
+    return float(t)
+
+
 def plan(command: str, params: Mapping | None = None) -> tuple[list[str], list[str]]:
     """Plugin command → (controller lines, warnings), as LEDControllerPlugin.m maps it.
 
-    Raises ValueError for an unknown command or a missing `power`, TypeError for a non-string
-    pattern. Kept from the MATLAB plugin: a pattern without panel_num is dropped (warning), and
-    parameters a command does not take are ignored (warning)."""
+    Raises ValueError for an unknown command, a missing `power` or an invalid `timeout_s`,
+    TypeError for a non-string pattern. Kept from the MATLAB plugin: a pattern without panel_num
+    is dropped (warning), and parameters a command does not take are ignored (warning).
+    EXECUTOR_PARAMS (`timeout_s`) are accepted on every command and produce no line."""
     params = params or {}
     if command not in PLUGIN_PARAMS:
         raise ValueError(f"unknown plugin command {command!r} (one of {PLUGIN_COMMANDS})")
-    allowed = PLUGIN_PARAMS[command]
+    timeout_param(params)
+    allowed = PLUGIN_PARAMS[command] + EXECUTOR_PARAMS
     warnings = [f"parameter {k!r} ignored: {command} does not take it" for k in params if k not in allowed]
     if "power" in allowed and params.get("power") is None:
         raise ValueError("missing required parameter: power")
@@ -211,6 +227,18 @@ class LEDController:
     @property
     def is_open(self) -> bool:
         return self._serial.is_open
+
+    @property
+    def write_timeout_s(self) -> float | None:
+        """The most one write may block before serial.SerialTimeoutException; settable any time.
+        Setting a new value reconfigures the port, so on a port whose device is gone it raises
+        OSError (SerialException), like a write would; setting the current value does nothing."""
+        return self._serial.write_timeout
+
+    @write_timeout_s.setter
+    def write_timeout_s(self, seconds: float) -> None:
+        if self._serial.write_timeout != seconds:
+            self._serial.write_timeout = seconds
 
     def close(self) -> None:
         """Close the port. The LEDs stay in whatever state they are in."""

@@ -5,6 +5,7 @@
     pixi run backlight-cmd -- setRedLEDPower --power 5 --panel-num 2 --pattern 1010
     pixi run backlight-cmd -- turnOnLED
     pixi run backlight-cmd -- setVisibleBacklightsOff --json
+    pixi run backlight-cmd -- turnOnLED --timeout-s 2        # each write may block at most 2 s
 
 Exit 0 on `ok`, 1 on an error reply, 3 on an UNKNOWN outcome (timeout), 2 on no reply.
 """
@@ -39,11 +40,13 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--power", type=float, help="setIRLEDPower / set<Color>LEDPower: 0-100")
     p.add_argument("--panel-num", type=int, help="set<Color>LEDPower: panel number")
     p.add_argument("--pattern", help="set<Color>LEDPower: on/off pattern, e.g. 1010 (needs --panel-num)")
-    p.add_argument("--timeout", type=float, default=10.0, help="seconds to wait for the reply (default: 10)")
+    p.add_argument("--timeout-s", type=float, help="the command's timeout_s: the most each controller write may block (the node's --write-timeout-s otherwise)")
+    p.add_argument("--timeout", type=float, default=10.0, help="seconds this tool waits for the reply (default: 10)")
     p.add_argument("--json", action="store_true", help="print the raw reply JSON")
     args, ros_args = p.parse_known_args(argv)
     # `is not None`, not truthiness: power 0 and panel 0 are real values.
-    params = {k: v for k, v in (("power", args.power), ("panel_num", args.panel_num), ("pattern", args.pattern)) if v is not None}
+    params = {k: v for k, v in (("power", args.power), ("panel_num", args.panel_num), ("pattern", args.pattern), ("timeout_s", args.timeout_s))
+              if v is not None}
     cid = str(uuid.uuid4())[:8]
 
     rclpy.init(args=ros_args)
