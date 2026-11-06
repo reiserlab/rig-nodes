@@ -183,7 +183,7 @@ Run from webDisplayTools #294's `lyrical` environment on the arena rig `rig5-mr`
 | arena harness (`pixi run -e lyrical test`) | **63/63** in 80 s (Jazzy baseline on the same PC: 60/60 in 56 s) |
 | real run: FicTrac 2.1.2 on the FLIR camera at ~96 Hz, typed adapter, Production Studio, G6 on COM4, closed-loop protocol | gateway bag 4,182 records → 6,637 converted lines identical to the live file; `runlog-check` 4/4; controller 0x70 = host 0x70 = 1,543; shutdown parsed 29,472 / skipped 0 / bad 0, p99 0.77 ms; Console clean |
 | soak smoke, simulator and real FicTrac (`soak -- --hours 0.1 --every 1`) | 6/6 ok each, `clean exit 0`; real FicTrac 35,044 frames, 0 bad, p50 0.41 / p99 0.61 ms; the Windows CTRL_BREAK stop path works |
-| overnight `soak -- --hours 8 --every 10 --fictrac` | started 13:04 local; result in the record when it ends |
+| overnight `soak -- --hours 8 --every 10 --fictrac` (real FicTrac on the FLIR camera, 13:04–21:04 local) | **48/48 emulator runs ok over 8.0 h, graph `clean exit 0`**; every run rc 0 and 19.8–19.9 s, applied 1,541–1,544 per run; gateway shutdown parsed 2,776,157 / skipped 0, fictrac 0 bad frames p50 0.52 / p99 0.84 ms, bias 144,261 frames 0 bad p99 1.56 ms, host 28,515 samples; `rig.log` (6,597 lines) has no errors or tracebacks; the adapter held 96.2–96.4 Hz to the end (adapter − gateway = 87 frames, 139 in the smoke: a startup window, not steady-state loss). `soak.json` is in the record's folder (`soak-overnight-fictrac-20261105-130415.json`) |
 
 Findings: the Windows activation-env regression of #294 (fixed before merge, §2); `rig.py --foxglove`
 hard-coded the Jazzy `viz` environment, so a `lyrical-viz` environment was added; Lyrical's
