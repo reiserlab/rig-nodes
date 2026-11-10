@@ -63,7 +63,13 @@ the Windows clock, not logic.
 packages from this repository's git source, because the published channel is Jazzy-only (the
 channel packages pin mutex 0.19). It carries the same `[workspace.build-variants]` line: a consumer
 that builds the source packages must, or the Jazzy host solve takes mutex 0.20 once `main` has no
-manifest pin. The private 2P rig repository (`scanimage-2026-bergamo/2p-rig-nodes`) has its own
+manifest pin. Two consumer lessons from ww18 (2026-11-05): a feature's `activation.env` takes
+precedence over a workspace-level `[target.win-64.activation.env]`, so anything a distro feature sets
+for POSIX (the Zenoh config URIs under `lib/python3.x/`) needs its Windows spelling in
+`[feature.<distro>.target.win-64.activation.env]` — otherwise every environment on Windows gets the
+literal `$CONDA_PREFIX/...` and no router starts; and a tool from another set cannot join the graph
+(a Jazzy `foxglove_bridge` on a Lyrical router), so per-distro helpers get a per-distro environment
+(`lyrical-viz`). The private 2P rig repository (`scanimage-2026-bergamo/2p-rig-nodes`) has its own
 manifest and has not mirrored the switch.
 
 ## 3. The Zenoh configs: one pair, selected by distro when it has to be
@@ -163,6 +169,27 @@ newest packages in it were uploaded on 2026-11-05 — the channel is still being
    Python 3.14**; the rigs' 0.19 set is a frozen snapshot that no longer receives rebuilds. The next
    re-pin on Jazzy would therefore bring Python 3.14 too — item 1 is on the path either way, which
    is why the switch was built before the migration rather than as part of it.
+
+## 8a. The first rig PC (ww18, Windows 11, 2026-11-05)
+
+Run from webDisplayTools #294's `lyrical` environment on the arena rig `rig5-mr` (pixi 0.83.0, VS
+2022 Build Tools 19.44); record `rigs/ww18/lyrical-bench-2026-11-05.md` in `reiserlab/arena-experiments`.
+
+| step | result |
+|---|---|
+| `pixi install --locked -e lyrical` | 43 s; `rig_interfaces` compiled for win-64 with vs2022 (16 harmless D9025 warnings) |
+| runtime | `lyrical`, rmw 0.10.6, rclpy 10.0.11, rosbag2 0.33.4, mutex `0.22.0 lyrical_30`, Python 3.14.10 |
+| check-typed · test-gateway · test-stimulus · test-viz | ✓ 8 types · 5/5 · 51/51 · 12/12 |
+| arena harness (`pixi run -e lyrical test`) | **63/63** in 80 s (Jazzy baseline on the same PC: 60/60 in 56 s) |
+| real run: FicTrac 2.1.2 on the FLIR camera at ~96 Hz, typed adapter, Production Studio, G6 on COM4, closed-loop protocol | gateway bag 4,182 records → 6,637 converted lines identical to the live file; `runlog-check` 4/4; controller 0x70 = host 0x70 = 1,543; shutdown parsed 29,472 / skipped 0 / bad 0, p99 0.77 ms; Console clean |
+| soak smoke, simulator and real FicTrac (`soak -- --hours 0.1 --every 1`) | 6/6 ok each, `clean exit 0`; real FicTrac 35,044 frames, 0 bad, p50 0.41 / p99 0.61 ms; the Windows CTRL_BREAK stop path works |
+| overnight `soak -- --hours 8 --every 10 --fictrac` (real FicTrac on the FLIR camera, 13:04–21:04 local) | **48/48 emulator runs ok over 8.0 h, graph `clean exit 0`**; every run rc 0 and 19.8–19.9 s, applied 1,541–1,544 per run; gateway shutdown parsed 2,776,157 / skipped 0, fictrac 0 bad frames p50 0.52 / p99 0.84 ms, bias 144,261 frames 0 bad p99 1.56 ms, host 28,515 samples; `rig.log` (6,597 lines) has no errors or tracebacks; the adapter held 96.2–96.4 Hz to the end (adapter − gateway = 87 frames, 139 in the smoke: a startup window, not steady-state loss). `soak.json` is in the record's folder (`soak-overnight-fictrac-20261105-130415.json`) |
+
+Findings: the Windows activation-env regression of #294 (fixed before merge, §2); `rig.py --foxglove`
+hard-coded the Jazzy `viz` environment, so a `lyrical-viz` environment was added; Lyrical's
+`foxglove_bridge` logs one benign `Failed to retrieve parameters from node '/rig_host_monitor'` on
+connect. Not yet done on a rig: BIAS on the real Atlas10 under Lyrical (the soaks use the simulator),
+a second night as the Jazzy baseline.
 
 ## 8. Rehearsal results (2026-11-05, Michael's Mac, osx-arm64, pixi 0.83.0)
 
