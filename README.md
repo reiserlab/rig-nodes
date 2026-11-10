@@ -28,6 +28,7 @@ src/rig_nodes/            Python package (pixi-build-python, hatchling); console
   rig_nodes/fictrac.py        FicTrac's line grammar + column names (pure)
   rig_nodes/fictrac_udp_adapter.py, kinefly_udp_adapter.py          stream adapters → /<src>/raw (+ /fictrac/frame typed)
   rig_nodes/bias_node.py, bias_cmd.py, bias_health.py               BIAS camera: /bias/cmd|reply|status|frames
+  rig_nodes/uvc_camera_node.py, uvc.py                              USB (UVC) camera through ffmpeg: /<src>/image/compressed (camera JPEGs untouched) or /<src>/image_raw (mono8), /<src>/status with the measured rate; Windows (docs/uvc-cameras.md)
   rig_nodes/host_monitor.py, host_sampler.py                        the PC's pressure (CPU per core mean+peak, memory, disks, network, NVIDIA GPUs, top processes) on /rig/host at 1 Hz (0.3.0)
   rig_nodes/recorder.py        one MCAP bag per run (rosbag2_py), a writer library — the lifecycle belongs to the application
   rig_nodes/mcap_index.py      reindex a finished bag; recover a torn one

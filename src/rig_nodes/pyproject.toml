@@ -23,6 +23,7 @@ rig-fictrac-adapter = "rig_nodes.fictrac_udp_adapter:main"
 rig-kinefly-adapter = "rig_nodes.kinefly_udp_adapter:main"
 rig-bias-node = "rig_nodes.bias_node:main"
 rig-bias-cmd = "rig_nodes.bias_cmd:main"
+rig-uvc-camera = "rig_nodes.uvc_camera_node:main"
 # host pressure (/rig/host; 0.3.0)
 rig-host-monitor = "rig_nodes.host_monitor:main"
 # simulators

@@ -37,6 +37,8 @@ rig's ScanImage connector, `/scanimage/cmd|reply|status`, moved out in 0.4.0).
 | `/<src>/reply` | `std_msgs/String` (JSON, §4) | RELIABLE, KEEP_LAST 200, VOLATILE | the device node | exactly one reply per command |
 | `/<src>/status` | `std_msgs/String` (JSON, §4) | RELIABLE, KEEP_LAST 200, VOLATILE | the device node, every `--status-every` s | reachability + the device's own snapshot |
 | `/bias/frames` | `std_msgs/String` (JSON) | RELIABLE, KEEP_LAST 200, VOLATILE | BIAS node after `stopRecording` | every frame's camera timestamp from BIAS's stamp log, chunked |
+| `/<src>/image/compressed` | `sensor_msgs/CompressedImage`, `format` `"jpeg"` | RELIABLE, KEEP_LAST 200, VOLATILE | `rig_nodes.uvc_camera_node --mode mjpeg` | one message per camera frame, the camera's own JPEG bytes untouched; `header.stamp` = host wall clock at arrival (not exposure time), `header.frame_id` = `<src>` |
+| `/<src>/image_raw` | `sensor_msgs/Image`, `mono8` | RELIABLE, KEEP_LAST 30, VOLATILE | `rig_nodes.uvc_camera_node --mode gray` | the same, decoded to 8-bit luma |
 | `/rig/host` | `rig_interfaces/HostStats`, or `std_msgs/String` JSON with the same field names | RELIABLE, KEEP_LAST 10, VOLATILE | `rig_nodes.host_monitor` (default 1 Hz; `--typed auto\|on\|off`, `--py-root` names a rig's own script directory for the process groups) | one host-pressure sample per window (§5a); recorded by the arena gateway; absent values NaN (float) / 0 (int) |
 | `/arena/frame` | `rig_interfaces/ArenaFrame`, or `std_msgs/String` JSON with the same field names | BEST_EFFORT, KEEP_LAST 1, VOLATILE | the arena gateway (webDisplayTools `rig/nodes/bridge_node.py`) | one closed-loop evaluation per FicTrac frame (§5); live viewing only, the recorder writes its own copy |
 | `/arena/browser`, `/arena/event`, `/arena/session` | `std_msgs/String` JSON | recorded only (never published) | the arena gateway | gateway records in the bag; format authority: webDisplayTools `telemetry-logging-reference.md` |
@@ -104,7 +106,9 @@ executor policy, never node policy). Typed replies use `rig_interfaces/Connector
 "rtt_ms": …, …the device's own snapshot…}` or `{"reachable": false, "t_ms": …, "error": "…"}`.
 Device fields are passed through under the device's names (BIAS: `connected`, `capturing`,
 `logging`, `frameCount`, `framesPerSec`, `videoFile`). A counter the device does not
-report is **absent**, never 0.
+report is **absent**, never 0. The UVC camera node has no commands; its status is `device`, `mode`,
+`size`, `fps_requested`, `frames`, `bytes` and, from the second status on, `fps_measured` (frames
+counted against the host clock over the last status interval).
 
 ## 5. `/arena/frame`
 

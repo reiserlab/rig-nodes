@@ -31,6 +31,7 @@ python = ">=3.12"
 # RoboStack rename them, this list is the only place.
 ros2-rclpy = "*"
 ros2-std-msgs = "*"
+ros2-sensor-msgs = "*"  # the UVC camera node's CompressedImage / Image
 ros2-rosbag2-py = "*"
 ros2-rosbag2-storage-mcap = "*"
 ros2-rosidl-runtime-py = "*"

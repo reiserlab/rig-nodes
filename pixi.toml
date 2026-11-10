@@ -160,6 +160,8 @@ fictrac-adapter = "rig-fictrac-adapter"
 kinefly-adapter = "rig-kinefly-adapter"
 bias-node = "rig-bias-node"
 bias-cmd = "rig-bias-cmd"
+# a USB (UVC) camera through ffmpeg: `-- --list`, `-- --device "<name>" --src <src> --size WxH --fps N` (docs/uvc-cameras.md)
+uvc-camera = "rig-uvc-camera"
 # the host monitor: PC pressure on /rig/host at 1 Hz (typed HostStats when rig_interfaces has it, else String JSON)
 host-monitor = "rig-host-monitor"
 # ── simulators ─────────────────────────────────────────────────────────────────────────────
