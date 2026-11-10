@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """test_pure.py — the rig_nodes modules that need no graph: envelope, FicTrac grammar, CDR
 decoding, the Foxglove JSON rewriter, the MCAP indexer, the supervision primitives, BIAS health,
-the runtime description and the Zenoh config selection.
+the runtime description, the Zenoh config selection and the UVC camera node's stream splitter.
 
     pixi run test-pure            # in the rig-nodes checkout
     python tests/test_pure.py     # in any environment where rig_nodes is installed
@@ -280,6 +280,43 @@ def test_runtime_and_zenoh_config(tmp: Path) -> None:
     check("zenoh: an environment that names its own config is left alone", env2["ZENOH_ROUTER_CONFIG_URI"] == "/elsewhere/router.json5")
 
 
+def test_uvc() -> None:
+    from rig_nodes.uvc import JpegSplitter, ffmpeg_argv, parse_size, rate_note
+
+    a = b"\xff\xd8" + b"\x01\x02\xff\x00\x03" + b"\xff\xd9"
+    b = b"\xff\xd8" + b"\x09" * 5000 + b"\xff\xd9"
+    stream = b"junk" + a + b + a
+    for step in (1, 2, 3, 7, 4096, len(stream)):  # every chunking gives the same frames, markers split or not
+        sp = JpegSplitter()
+        got = [f for i in range(0, len(stream), step) for f in sp.feed(stream[i:i + step])]
+        if not check(f"uvc: splitter, {step}-byte chunks → 3 whole JPEGs", got == [a, b, a] and sp.skipped == 4, (len(got), sp.skipped)):
+            break
+    sp = JpegSplitter()
+    check("uvc: splitter holds an unfinished JPEG back", sp.feed(a[:-1]) == [] and sp.feed(a[-1:]) == [a])
+    sp = JpegSplitter()
+    check("uvc: splitter discards bytes with no SOI, keeps a trailing 0xFF", sp.feed(b"\x00" * 10 + b"\xff") == [] and sp.feed(a[1:]) == [a] and sp.skipped == 10, sp.skipped)
+
+    m = ffmpeg_argv("ffmpeg", "Cam A", "1280x800", 120, "mjpeg")
+    check("uvc: mjpeg argv stream-copies the camera's JPEGs", m[m.index("-i") + 1] == "video=Cam A" and m[m.index("-c") + 1] == "copy" and m[-3:] == ["-f", "mjpeg", "-"] and "1280x800" in m and "120" in m, m)
+    g = ffmpeg_argv("ffmpeg", "Cam A", "640x480", 60, "gray")
+    check("uvc: gray argv decodes to luma without resampling the rate", g[g.index("-pix_fmt") + 1] == "gray" and g[g.index("-fps_mode") + 1] == "passthrough" and g[-3:] == ["-f", "rawvideo", "-"], g)
+    check("uvc: input options precede -i", all(m.index(o) < m.index("-i") for o in ("-video_size", "-framerate", "-vcodec")) and g.index("-pixel_format") < g.index("-i"))
+    for bad in ("640", "0x480", "axb"):
+        try:
+            parse_size(bad)
+            check(f"uvc: parse_size rejects {bad!r}", False)
+        except ValueError:
+            check(f"uvc: parse_size rejects {bad!r}", True)
+    try:
+        ffmpeg_argv("ffmpeg", "Cam A", "640x480", 60, "h264")
+        check("uvc: unknown mode rejected", False)
+    except ValueError:
+        check("uvc: unknown mode rejected", True)
+    check("uvc: rate within 5 % is quiet (asked 60, got 61.5)", rate_note(60, 61.5) == "")
+    check("uvc: a snapped rate is named (asked 120, got 100)", "120" in rate_note(120, 101.2) and "101.2" in rate_note(120, 101.2))
+    check("uvc: no measurement yet → quiet", rate_note(60, 0) == "")
+
+
 def main() -> int:
     import rig_nodes
 
@@ -288,7 +325,7 @@ def main() -> int:
     groups = [("envelope", test_envelope), ("fictrac", test_fictrac), ("cdr", test_cdr),
               ("foxglove_json", lambda: test_foxglove_json(tmp)), ("mcap_index", lambda: test_mcap_index(tmp)),
               ("bias_health", test_bias_health), ("supervise", test_supervise),
-              ("runtime+zenoh", lambda: test_runtime_and_zenoh_config(tmp))]
+              ("runtime+zenoh", lambda: test_runtime_and_zenoh_config(tmp)), ("uvc", test_uvc)]
     for name, fn in groups:
         try:
             fn()
