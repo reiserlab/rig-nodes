@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """test_pure.py — the rig_nodes modules that need no graph: envelope, FicTrac grammar, CDR
 decoding, the Foxglove JSON rewriter, the MCAP indexer, the supervision primitives, BIAS health,
-the runtime description and the Zenoh config selection.
+the runtime description and the Zenoh config selection, the backlight driver and its plugin vocabulary.
 
     pixi run test-pure            # in the rig-nodes checkout
     python tests/test_pure.py     # in any environment where rig_nodes is installed
@@ -208,6 +208,89 @@ def test_bias_health() -> None:
     check("bias_health: the five Atlas10 loss counters", set(BIAS_DROP_KEYS) == {"frameIdGaps", "cameraSkipped", "incompleteFrames", "loggerSkipped", "writerSkipped"})
 
 
+def test_backlight() -> None:
+    """The bytes LEDController.m sends, through the driver on pyserial's echo port (loop://)."""
+    from rig_nodes.backlight import STEP_FIELDS, LEDController, matlab_round, num2str, plan
+
+    check("backlight: matlab_round rounds half away from zero (2.5 → 3, -2.5 → -3, 2.4999 → 2)",
+          [matlab_round(v) for v in (2.5, 3.5, -2.5, 2.4999, -0.2)] == [3, 4, -3, 2, 0])
+    check("backlight: num2str matches MATLAB (3.0 → '3', pi → '3.1416', 0.123456 → '0.12346')",
+          [num2str(v) for v in (3.0, 3.14159265, 0.123456, 123.456, "abc")] == ["3", "3.1416", "0.12346", "123.456", "abc"])
+
+    def sent(dev: LEDController) -> bytes:
+        return dev._serial.read(dev._serial.in_waiting)
+
+    with LEDController("loop://", check_status=False) as dev:
+        golden = [
+            (lambda: dev.set_ir_led_power(49.5), b"IR 50\r"),
+            (lambda: dev.set_red_led_power(5), b"RED 5\r"),
+            (lambda: dev.set_red_led_power(5, 0), b"RED 5 0\r"),
+            (lambda: dev.set_red_led_power(5, 2, "1010"), b"RED 5 2 1010\r"),
+            (lambda: dev.set_red_led_power(0, 2, "1010"), b"RED 0 2 1010\r"),
+            (lambda: dev.set_red_led_power(5, 0, ""), b"RED 5 0 \r"),
+            (lambda: dev.set_green_led_power(7), b"GRN 7\r"),
+            (lambda: dev.set_blue_led_power(8, 1), b"BLU 8 1\r"),
+            (dev.set_visible_backlights_off, b"RED 0\rGRN 0\rBLU 0\r"),
+            (dev.turn_on_led, b"ON 0,0\r"),
+            (dev.turn_off_led, b"OFF\r"),
+            (lambda: dev.set_shock_pulse({"onTime": 100, "offTime": 400, "cycles": 3, "delayTime": 0}), b"PULSE 100 500 3 0 0 1 D\r"),
+            (lambda: dev.set_pattern("1111000011110000"), b"ON 1 1111\rON 2 0000\rON 3 1111\rON 4 0000\r"),
+            (dev.stop_shock_pulse, b"STOP\r"),
+        ]
+        bad = []
+        for call, want in golden:
+            call()
+            got = sent(dev)
+            if got != want:
+                bad.append((want, got))
+        check(f"backlight: {len(golden)} driver commands send LEDController.m's exact bytes", not bad, bad)
+        step = dict.fromkeys(STEP_FIELDS, 0) | {"NumStep": 1, "Duration": 1.5, "RedPulseWidth": 5, "GrnIntensity": 50,
+                                                "GrnPulseWidth": 10, "GrnIteration": 1, "Pattern": "1010"}
+        dev.add_one_step(step)
+        line = sent(dev)
+        check("backlight: addOneStep — intensity 0 zeroes its pulse width, %f for fractions, two spaces before Pattern",
+              line.startswith(b"addOneStep 1 0 0 0 0 0 0 50 10 0 0 0 1 ") and line.endswith(b" 0 1.500000  1010\r"), line)
+        check("backlight: addOneStep leaves the caller's dict untouched", step["RedPulseWidth"] == 5)
+        try:
+            dev.add_one_step(step | {"RedIntensity": 10, "RedPulsePeriod": 1000, "RedPulseNum": 40, "RedIteration": 1})
+            check("backlight: an over-long pulse set is refused before anything is sent", False, "no ValueError")
+        except ValueError:
+            check("backlight: an over-long pulse set is refused before anything is sent", sent(dev) == b"")
+    with LEDController("loop://", write_timeout_s=10) as dev:
+        check("backlight: a query returns the reply lines (loop:// echoes the command)", dev.get_experiment_status() == "getExperimentStatus")
+        dev.write_timeout_s = 0.25
+        check("backlight: write_timeout_s reads and sets the port's write timeout", dev.write_timeout_s == 0.25 and dev._serial.write_timeout == 0.25)
+
+    # the plugin vocabulary
+    check("backlight plan: setRedLEDPower with panel + pattern → one line, no warning",
+          plan("setRedLEDPower", {"power": 5, "panel_num": 2, "pattern": "1010"}) == (["RED 5 2 1010"], []))
+    lines, warns = plan("setRedLEDPower", {"power": 5, "pattern": "1010"})
+    check("backlight plan: pattern without panel_num is dropped with a warning (the MATLAB plugin's rule)",
+          lines == ["RED 5"] and any("pattern ignored" in w for w in warns), (lines, warns))
+    lines, warns = plan("setIRLEDPower", {"power": 50, "brightness": 3})
+    check("backlight plan: a parameter the command does not take is ignored with a warning", lines == ["IR 50"] and len(warns) == 1, warns)
+    check("backlight plan: setVisibleBacklightsOff → three lines", plan("setVisibleBacklightsOff")[0] == ["RED 0", "GRN 0", "BLU 0"])
+    check("backlight plan: timeout_s is accepted on any command, without a warning or a line",
+          plan("turnOnLED", {"timeout_s": 2}) == (["ON 0,0"], []) and plan("setIRLEDPower", {"power": 5, "timeout_s": 0.5}) == (["IR 5"], []))
+    bad_timeouts = []
+    for t in (0, -1, "2", True, float("nan"), float("inf")):
+        try:
+            plan("turnOnLED", {"timeout_s": t})
+            bad_timeouts.append(t)
+        except ValueError:
+            pass
+    check("backlight plan: timeout_s must be a positive, finite number (0, -1, '2', true, nan, inf refused)", not bad_timeouts, bad_timeouts)
+    refused = []
+    for command, params, exc_type in (("explode", {}, ValueError), ("setIRLEDPower", {}, ValueError),
+                                      ("setRedLEDPower", {"power": 5, "panel_num": 0, "pattern": 1010}, TypeError)):
+        try:
+            plan(command, params)
+            refused.append((command, "accepted"))
+        except exc_type:
+            pass
+    check("backlight plan: unknown command, missing power and an unquoted pattern are refused", not refused, refused)
+
+
 def test_supervise() -> None:
     from rig_nodes.supervise import SIGKILL, Child, popen_group, port_in_use, preflight, signal_group, split_args, wait_port
 
@@ -287,7 +370,7 @@ def main() -> int:
     tmp = Path(tempfile.mkdtemp(prefix="rig-nodes-pure-"))
     groups = [("envelope", test_envelope), ("fictrac", test_fictrac), ("cdr", test_cdr),
               ("foxglove_json", lambda: test_foxglove_json(tmp)), ("mcap_index", lambda: test_mcap_index(tmp)),
-              ("bias_health", test_bias_health), ("supervise", test_supervise),
+              ("bias_health", test_bias_health), ("backlight", test_backlight), ("supervise", test_supervise),
               ("runtime+zenoh", lambda: test_runtime_and_zenoh_config(tmp))]
     for name, fn in groups:
         try:

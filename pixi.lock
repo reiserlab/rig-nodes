@@ -257,6 +257,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/pyflakes-4.0.3-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pygments-2.21.0-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pyparsing-3.3.3-pyh5ded981_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/pyserial-3.5-pyhcf101f3_2.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pytest-9.1.1-pyhc364b38_2.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pytest-cov-7.1.0-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pytest-repeat-0.9.4-pyhd8ed1ab_0.conda
@@ -497,7 +498,7 @@ environments:
       - conda: https://conda.anaconda.org/robostack-jazzy/linux-64/ros2-zenoh-cpp-vendor-0.2.11-np2py312h815c85b_25.conda
       - conda: https://conda.anaconda.org/robostack-jazzy/linux-64/ros2-zstd-vendor-0.26.11-np2py312h6a0d68b_25.conda
       - conda_source: rig_interfaces[eccbc5ed] @ src/rig_interfaces
-      - conda_source: rig_nodes[938a2a96] @ src/rig_nodes
+      - conda_source: rig_nodes[ec646e92] @ src/rig_nodes
       osx-arm64-macos-14-0:
       - conda: https://conda.anaconda.org/conda-forge/noarch/_python_abi3_support-1.0-hd8ed1ab_3.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/adwaita-icon-theme-51.0-unix_0.conda
@@ -564,6 +565,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/pyflakes-4.0.3-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pygments-2.21.0-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pyparsing-3.3.3-pyh5ded981_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/pyserial-3.5-pyhcf101f3_2.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pytest-9.1.1-pyhc364b38_2.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pytest-cov-7.1.0-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pytest-repeat-0.9.4-pyhd8ed1ab_0.conda
@@ -950,7 +952,7 @@ environments:
       - conda: https://conda.anaconda.org/robostack-jazzy/osx-arm64/ros2-zenoh-cpp-vendor-0.2.11-np2py312h48e1e13_25.conda
       - conda: https://conda.anaconda.org/robostack-jazzy/osx-arm64/ros2-zstd-vendor-0.26.11-np2py312h849b6f6_25.conda
       - conda_source: rig_interfaces[7dc4620f] @ src/rig_interfaces
-      - conda_source: rig_nodes[786aa703] @ src/rig_nodes
+      - conda_source: rig_nodes[bc6645ae] @ src/rig_nodes
       win-64:
       - conda: https://conda.anaconda.org/conda-forge/noarch/_python_abi3_support-1.0-hd8ed1ab_3.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/argcomplete-3.7.2-pyhcf101f3_0.conda
@@ -1009,6 +1011,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/pyflakes-4.0.3-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pygments-2.21.0-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pyparsing-3.3.3-pyh5ded981_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/pyserial-3.5-pyhcf101f3_2.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pytest-9.1.1-pyhc364b38_2.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pytest-cov-7.1.0-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pytest-repeat-0.9.4-pyhd8ed1ab_0.conda
@@ -1376,7 +1379,7 @@ environments:
       - conda: https://conda.anaconda.org/robostack-jazzy/win-64/ros2-zenoh-cpp-vendor-0.2.11-np2py312hbb4efd0_25.conda
       - conda: https://conda.anaconda.org/robostack-jazzy/win-64/ros2-zstd-vendor-0.26.11-np2py312h94542ee_25.conda
       - conda_source: rig_interfaces[80aecc2b] @ src/rig_interfaces
-      - conda_source: rig_nodes[9c5b5a4a] @ src/rig_nodes
+      - conda_source: rig_nodes[c60a5a27] @ src/rig_nodes
   default:
     channels:
     - url: https://conda.anaconda.org/conda-forge/
@@ -1617,6 +1620,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/pyflakes-4.0.3-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pygments-2.21.0-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pyparsing-3.3.3-pyh5ded981_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/pyserial-3.5-pyhcf101f3_2.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pytest-9.1.1-pyhc364b38_2.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pytest-cov-7.1.0-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pytest-repeat-0.9.4-pyhd8ed1ab_0.conda
@@ -1857,7 +1861,7 @@ environments:
       - conda: https://conda.anaconda.org/robostack-jazzy/linux-64/ros2-zenoh-cpp-vendor-0.2.11-np2py312h815c85b_25.conda
       - conda: https://conda.anaconda.org/robostack-jazzy/linux-64/ros2-zstd-vendor-0.26.11-np2py312h6a0d68b_25.conda
       - conda_source: rig_interfaces[eccbc5ed] @ src/rig_interfaces
-      - conda_source: rig_nodes[938a2a96] @ src/rig_nodes
+      - conda_source: rig_nodes[ec646e92] @ src/rig_nodes
       osx-arm64-macos-14-0:
       - conda: https://conda.anaconda.org/conda-forge/noarch/_python_abi3_support-1.0-hd8ed1ab_3.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/adwaita-icon-theme-51.0-unix_0.conda
@@ -1924,6 +1928,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/pyflakes-4.0.3-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pygments-2.21.0-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pyparsing-3.3.3-pyh5ded981_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/pyserial-3.5-pyhcf101f3_2.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pytest-9.1.1-pyhc364b38_2.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pytest-cov-7.1.0-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pytest-repeat-0.9.4-pyhd8ed1ab_0.conda
@@ -2310,7 +2315,7 @@ environments:
       - conda: https://conda.anaconda.org/robostack-jazzy/osx-arm64/ros2-zenoh-cpp-vendor-0.2.11-np2py312h48e1e13_25.conda
       - conda: https://conda.anaconda.org/robostack-jazzy/osx-arm64/ros2-zstd-vendor-0.26.11-np2py312h849b6f6_25.conda
       - conda_source: rig_interfaces[7dc4620f] @ src/rig_interfaces
-      - conda_source: rig_nodes[786aa703] @ src/rig_nodes
+      - conda_source: rig_nodes[bc6645ae] @ src/rig_nodes
       win-64:
       - conda: https://conda.anaconda.org/conda-forge/noarch/_python_abi3_support-1.0-hd8ed1ab_3.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/argcomplete-3.7.2-pyhcf101f3_0.conda
@@ -2369,6 +2374,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/pyflakes-4.0.3-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pygments-2.21.0-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pyparsing-3.3.3-pyh5ded981_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/pyserial-3.5-pyhcf101f3_2.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pytest-9.1.1-pyhc364b38_2.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pytest-cov-7.1.0-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pytest-repeat-0.9.4-pyhd8ed1ab_0.conda
@@ -2736,7 +2742,7 @@ environments:
       - conda: https://conda.anaconda.org/robostack-jazzy/win-64/ros2-zenoh-cpp-vendor-0.2.11-np2py312hbb4efd0_25.conda
       - conda: https://conda.anaconda.org/robostack-jazzy/win-64/ros2-zstd-vendor-0.26.11-np2py312h94542ee_25.conda
       - conda_source: rig_interfaces[80aecc2b] @ src/rig_interfaces
-      - conda_source: rig_nodes[9c5b5a4a] @ src/rig_nodes
+      - conda_source: rig_nodes[c60a5a27] @ src/rig_nodes
   lyrical:
     channels:
     - url: https://conda.anaconda.org/conda-forge/
@@ -2979,6 +2985,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/pyflakes-4.1.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pygments-2.21.0-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pyparsing-3.3.3-pyh5ded981_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/pyserial-3.5-pyhcf101f3_2.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pytest-9.2.0-pyhc364b38_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pytest-cov-7.1.0-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pytest-repeat-0.9.4-pyhd8ed1ab_0.conda
@@ -3216,7 +3223,7 @@ environments:
       - conda: https://conda.anaconda.org/robostack-lyrical/linux-64/ros2-zenoh-cpp-vendor-0.10.6-np2py314hc614d3d_30.conda
       - conda: https://conda.anaconda.org/robostack-lyrical/linux-64/ros2-zstd-cmake-module-0.33.4-np2py314h53a0733_30.conda
       - conda_source: rig_interfaces[96148aa4] @ src/rig_interfaces
-      - conda_source: rig_nodes[6846b625] @ src/rig_nodes
+      - conda_source: rig_nodes[48399889] @ src/rig_nodes
       osx-arm64-macos-14-0:
       - conda: https://conda.anaconda.org/conda-forge/noarch/_python_abi3_support-1.0-hd8ed1ab_3.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/adwaita-icon-theme-51.0-unix_0.conda
@@ -3283,6 +3290,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/pyflakes-4.1.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pygments-2.21.0-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pyparsing-3.3.3-pyh5ded981_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/pyserial-3.5-pyhcf101f3_2.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pytest-9.2.0-pyhc364b38_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pytest-cov-7.1.0-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pytest-repeat-0.9.4-pyhd8ed1ab_0.conda
@@ -3670,7 +3678,7 @@ environments:
       - conda: https://conda.anaconda.org/robostack-lyrical/osx-arm64/ros2-zenoh-cpp-vendor-0.10.6-np2py314h453b95b_30.conda
       - conda: https://conda.anaconda.org/robostack-lyrical/osx-arm64/ros2-zstd-cmake-module-0.33.4-np2py314h40712d6_30.conda
       - conda_source: rig_interfaces[e6f3a51a] @ src/rig_interfaces
-      - conda_source: rig_nodes[b87ac7f6] @ src/rig_nodes
+      - conda_source: rig_nodes[f087e800] @ src/rig_nodes
       win-64:
       - conda: https://conda.anaconda.org/conda-forge/noarch/_python_abi3_support-1.0-hd8ed1ab_3.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/argcomplete-3.7.2-pyhcf101f3_0.conda
@@ -3729,6 +3737,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/pyflakes-4.1.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pygments-2.21.0-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pyparsing-3.3.3-pyh5ded981_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/pyserial-3.5-pyhcf101f3_2.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pytest-9.2.0-pyhc364b38_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pytest-cov-7.1.0-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pytest-repeat-0.9.4-pyhd8ed1ab_0.conda
@@ -4097,7 +4106,7 @@ environments:
       - conda: https://conda.anaconda.org/robostack-lyrical/win-64/ros2-zenoh-cpp-vendor-0.10.6-np2py314hbd028d1_30.conda
       - conda: https://conda.anaconda.org/robostack-lyrical/win-64/ros2-zstd-cmake-module-0.33.4-np2py314hf807026_30.conda
       - conda_source: rig_interfaces[67dae3ec] @ src/rig_interfaces
-      - conda_source: rig_nodes[49f95865] @ src/rig_nodes
+      - conda_source: rig_nodes[14d87312] @ src/rig_nodes
   viz:
     channels:
     - url: https://conda.anaconda.org/conda-forge/
@@ -4380,6 +4389,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/pygments-2.21.0-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pyparsing-3.3.3-pyh5ded981_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pyqt-builder-1.18.2-pyhd8ed1ab_1.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/pyserial-3.5-pyhcf101f3_2.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pytest-9.1.1-pyhc364b38_2.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pytest-cov-7.1.0-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pytest-repeat-0.9.4-pyhd8ed1ab_0.conda
@@ -4637,7 +4647,7 @@ environments:
       - conda: https://conda.anaconda.org/robostack-jazzy/linux-64/ros2-zenoh-cpp-vendor-0.2.11-np2py312h815c85b_25.conda
       - conda: https://conda.anaconda.org/robostack-jazzy/linux-64/ros2-zstd-vendor-0.26.11-np2py312h6a0d68b_25.conda
       - conda_source: rig_interfaces[eccbc5ed] @ src/rig_interfaces
-      - conda_source: rig_nodes[938a2a96] @ src/rig_nodes
+      - conda_source: rig_nodes[ec646e92] @ src/rig_nodes
       osx-arm64-macos-14-0:
       - conda: https://conda.anaconda.org/conda-forge/noarch/_python_abi3_support-1.0-hd8ed1ab_3.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/adwaita-icon-theme-51.0-unix_0.conda
@@ -4707,6 +4717,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/pygments-2.21.0-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pyparsing-3.3.3-pyh5ded981_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pyqt-builder-1.18.2-pyhd8ed1ab_1.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/pyserial-3.5-pyhcf101f3_2.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pytest-9.1.1-pyhc364b38_2.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pytest-cov-7.1.0-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pytest-repeat-0.9.4-pyhd8ed1ab_0.conda
@@ -5130,7 +5141,7 @@ environments:
       - conda: https://conda.anaconda.org/robostack-jazzy/osx-arm64/ros2-zenoh-cpp-vendor-0.2.11-np2py312h48e1e13_25.conda
       - conda: https://conda.anaconda.org/robostack-jazzy/osx-arm64/ros2-zstd-vendor-0.26.11-np2py312h849b6f6_25.conda
       - conda_source: rig_interfaces[7dc4620f] @ src/rig_interfaces
-      - conda_source: rig_nodes[786aa703] @ src/rig_nodes
+      - conda_source: rig_nodes[bc6645ae] @ src/rig_nodes
       win-64:
       - conda: https://conda.anaconda.org/conda-forge/noarch/_python_abi3_support-1.0-hd8ed1ab_3.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/argcomplete-3.7.2-pyhcf101f3_0.conda
@@ -5192,6 +5203,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/pygments-2.21.0-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pyparsing-3.3.3-pyh5ded981_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pyqt-builder-1.18.2-pyhd8ed1ab_1.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/pyserial-3.5-pyhcf101f3_2.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pytest-9.1.1-pyhc364b38_2.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pytest-cov-7.1.0-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pytest-repeat-0.9.4-pyhd8ed1ab_0.conda
@@ -5586,7 +5598,7 @@ environments:
       - conda: https://conda.anaconda.org/robostack-jazzy/win-64/ros2-zenoh-cpp-vendor-0.2.11-np2py312hbb4efd0_25.conda
       - conda: https://conda.anaconda.org/robostack-jazzy/win-64/ros2-zstd-vendor-0.26.11-np2py312h94542ee_25.conda
       - conda_source: rig_interfaces[80aecc2b] @ src/rig_interfaces
-      - conda_source: rig_nodes[9c5b5a4a] @ src/rig_nodes
+      - conda_source: rig_nodes[c60a5a27] @ src/rig_nodes
 packages:
 - conda: https://conda.anaconda.org/conda-forge/linux-64/_openmp_mutex-4.5-20_gnu.conda
   build_number: 20
@@ -10824,6 +10836,17 @@ packages:
   run_exports: {}
   size: 2952282
   timestamp: 1766858321453
+- conda: https://conda.anaconda.org/conda-forge/noarch/pyserial-3.5-pyhcf101f3_2.conda
+  sha256: 8c618e8ca376d73133c9971abe45463a48c9cfb529788d609fd19568764941ba
+  md5: b27a6cd32160c34682ce6053b04c12c6
+  depends:
+  - python >=3.10
+  - python
+  license: BSD-3-Clause
+  license_family: BSD
+  run_exports: {}
+  size: 73910
+  timestamp: 1767289527295
 - conda: https://conda.anaconda.org/conda-forge/noarch/pytest-9.1.1-pyhc364b38_2.conda
   sha256: 430051d80765207a7d782b2b188230ba1489d35c6e75fd9903f76cb9fda4af16
   md5: 64c98a12c4e23eb238bf66bbecafdf3c
@@ -51214,13 +51237,14 @@ packages:
   - conda: https://conda.anaconda.org/robostack-jazzy/linux-64/ros2-service-msgs-2.0.4-np2py312h1bab3cf_25.conda
   - conda: https://conda.anaconda.org/robostack-jazzy/linux-64/ros2-uncrustify-vendor-3.0.1-np2py312h1bab3cf_25.conda
   - conda: https://conda.anaconda.org/robostack-jazzy/linux-64/ros2-unique-identifier-msgs-2.5.1-np2py312h1bab3cf_25.conda
-- conda_source: rig_nodes[49f95865] @ src/rig_nodes
+- conda_source: rig_nodes[14d87312] @ src/rig_nodes
   variants:
     ros2_distro_mutex: 0.19.*|0.22.*
     target_platform: noarch
   depends:
   - mcap >=1.2
   - psutil
+  - pyserial
   - python *
   - python >=3.12
   - ros2-distro-mutex
@@ -51259,13 +51283,14 @@ packages:
   - conda: https://conda.anaconda.org/conda-forge/win-64/vcomp14-14.51.36247-habf1de7_42.conda
   - conda: https://conda.anaconda.org/conda-forge/win-64/zstd-1.5.7-h534d264_7.conda
   - conda: https://conda.anaconda.org/robostack-lyrical/win-64/ros2-distro-mutex-0.22.0-lyrical_30.conda
-- conda_source: rig_nodes[6846b625] @ src/rig_nodes
+- conda_source: rig_nodes[48399889] @ src/rig_nodes
   variants:
     ros2_distro_mutex: 0.19.*|0.22.*
     target_platform: noarch
   depends:
   - mcap >=1.2
   - psutil
+  - pyserial
   - python *
   - python >=3.12
   - ros2-distro-mutex
@@ -51308,13 +51333,14 @@ packages:
   - conda: https://conda.anaconda.org/conda-forge/noarch/trove-classifiers-2026.9.21.13-pyh5ded981_0.conda
   - conda: https://conda.anaconda.org/conda-forge/noarch/tzdata-2026e-h5d301ff_0.conda
   - conda: https://conda.anaconda.org/robostack-lyrical/linux-64/ros2-distro-mutex-0.22.0-lyrical_30.conda
-- conda_source: rig_nodes[786aa703] @ src/rig_nodes
+- conda_source: rig_nodes[bc6645ae] @ src/rig_nodes
   variants:
     ros2_distro_mutex: 0.19.*|0.22.*
     target_platform: noarch
   depends:
   - mcap >=1.2
   - psutil
+  - pyserial
   - python *
   - python >=3.12
   - ros2-distro-mutex
@@ -51351,13 +51377,59 @@ packages:
   - conda: https://conda.anaconda.org/conda-forge/osx-arm64/uv-0.13.5-hbb8eed7_0.conda
   - conda: https://conda.anaconda.org/conda-forge/osx-arm64/zstd-1.5.7-hf451053_7.conda
   - conda: https://conda.anaconda.org/robostack-jazzy/osx-arm64/ros2-distro-mutex-0.19.0-jazzy_26.conda
-- conda_source: rig_nodes[938a2a96] @ src/rig_nodes
+- conda_source: rig_nodes[c60a5a27] @ src/rig_nodes
   variants:
     ros2_distro_mutex: 0.19.*|0.22.*
     target_platform: noarch
   depends:
   - mcap >=1.2
   - psutil
+  - pyserial
+  - python *
+  - python >=3.12
+  - ros2-distro-mutex
+  - ros2-rclpy
+  - ros2-rosbag2-py
+  - ros2-rosbag2-storage-mcap
+  - ros2-rosidl-runtime-py
+  - ros2-std-msgs
+  - websockets >=12
+  license: MIT
+  host_packages:
+  - conda: https://conda.anaconda.org/conda-forge/noarch/ca-certificates-2026.10.23-h4c7d964_0.conda
+  - conda: https://conda.anaconda.org/conda-forge/noarch/editables-0.6-pyhcf101f3_0.conda
+  - conda: https://conda.anaconda.org/conda-forge/noarch/hatchling-1.32.4-pyh5ded981_0.conda
+  - conda: https://conda.anaconda.org/conda-forge/noarch/packaging-26.3-pyhc364b38_0.conda
+  - conda: https://conda.anaconda.org/conda-forge/noarch/pathspec-1.1.1-pyhd8ed1ab_0.conda
+  - conda: https://conda.anaconda.org/conda-forge/noarch/pluggy-1.7.0-pyh5ded981_0.conda
+  - conda: https://conda.anaconda.org/conda-forge/noarch/tomlkit-0.15.2-pyh5ded981_0.conda
+  - conda: https://conda.anaconda.org/conda-forge/noarch/trove-classifiers-2026.9.21.13-pyh5ded981_0.conda
+  - conda: https://conda.anaconda.org/conda-forge/noarch/tzdata-2026e-h5d301ff_0.conda
+  - conda: https://conda.anaconda.org/conda-forge/win-64/bzip2-1.0.8-h0ad9c76_10.conda
+  - conda: https://conda.anaconda.org/conda-forge/win-64/libexpat-2.9.0-hac47afa_0.conda
+  - conda: https://conda.anaconda.org/conda-forge/win-64/libffi-3.7.0-h3d046cb_1.conda
+  - conda: https://conda.anaconda.org/conda-forge/win-64/liblzma-5.8.3-hfd05255_1.conda
+  - conda: https://conda.anaconda.org/conda-forge/win-64/libpython-3.12.16-hfb4101e_0_cpython.conda
+  - conda: https://conda.anaconda.org/conda-forge/win-64/libsqlite-3.54.1-hf5d6505_101.conda
+  - conda: https://conda.anaconda.org/conda-forge/win-64/libzlib-1.3.2-hfd05255_3.conda
+  - conda: https://conda.anaconda.org/conda-forge/win-64/openssl-3.6.5-hf411b9b_0.conda
+  - conda: https://conda.anaconda.org/conda-forge/win-64/python-3.12.16-hb12b558_0_cpython.conda
+  - conda: https://conda.anaconda.org/conda-forge/win-64/tk-8.6.13-h967ab96_4.conda
+  - conda: https://conda.anaconda.org/conda-forge/win-64/ucrt-10.0.26100.0-h57928b3_0.conda
+  - conda: https://conda.anaconda.org/conda-forge/win-64/uv-0.13.5-hf7a7c96_0.conda
+  - conda: https://conda.anaconda.org/conda-forge/win-64/vc-14.5-ha367084_41.conda
+  - conda: https://conda.anaconda.org/conda-forge/win-64/vc14_runtime-14.51.36247-habf1de7_41.conda
+  - conda: https://conda.anaconda.org/conda-forge/win-64/vcomp14-14.51.36247-habf1de7_41.conda
+  - conda: https://conda.anaconda.org/conda-forge/win-64/zstd-1.5.7-h534d264_7.conda
+  - conda: https://conda.anaconda.org/robostack-jazzy/win-64/ros2-distro-mutex-0.19.0-jazzy_26.conda
+- conda_source: rig_nodes[ec646e92] @ src/rig_nodes
+  variants:
+    ros2_distro_mutex: 0.19.*|0.22.*
+    target_platform: noarch
+  depends:
+  - mcap >=1.2
+  - psutil
+  - pyserial
   - python *
   - python >=3.12
   - ros2-distro-mutex
@@ -51401,57 +51473,14 @@ packages:
   - conda: https://conda.anaconda.org/conda-forge/noarch/trove-classifiers-2026.9.21.13-pyh5ded981_0.conda
   - conda: https://conda.anaconda.org/conda-forge/noarch/tzdata-2026e-h5d301ff_0.conda
   - conda: https://conda.anaconda.org/robostack-jazzy/linux-64/ros2-distro-mutex-0.19.0-jazzy_26.conda
-- conda_source: rig_nodes[9c5b5a4a] @ src/rig_nodes
+- conda_source: rig_nodes[f087e800] @ src/rig_nodes
   variants:
     ros2_distro_mutex: 0.19.*|0.22.*
     target_platform: noarch
   depends:
   - mcap >=1.2
   - psutil
-  - python *
-  - python >=3.12
-  - ros2-distro-mutex
-  - ros2-rclpy
-  - ros2-rosbag2-py
-  - ros2-rosbag2-storage-mcap
-  - ros2-rosidl-runtime-py
-  - ros2-std-msgs
-  - websockets >=12
-  license: MIT
-  host_packages:
-  - conda: https://conda.anaconda.org/conda-forge/noarch/ca-certificates-2026.10.23-h4c7d964_0.conda
-  - conda: https://conda.anaconda.org/conda-forge/noarch/editables-0.6-pyhcf101f3_0.conda
-  - conda: https://conda.anaconda.org/conda-forge/noarch/hatchling-1.32.4-pyh5ded981_0.conda
-  - conda: https://conda.anaconda.org/conda-forge/noarch/packaging-26.3-pyhc364b38_0.conda
-  - conda: https://conda.anaconda.org/conda-forge/noarch/pathspec-1.1.1-pyhd8ed1ab_0.conda
-  - conda: https://conda.anaconda.org/conda-forge/noarch/pluggy-1.7.0-pyh5ded981_0.conda
-  - conda: https://conda.anaconda.org/conda-forge/noarch/tomlkit-0.15.2-pyh5ded981_0.conda
-  - conda: https://conda.anaconda.org/conda-forge/noarch/trove-classifiers-2026.9.21.13-pyh5ded981_0.conda
-  - conda: https://conda.anaconda.org/conda-forge/noarch/tzdata-2026e-h5d301ff_0.conda
-  - conda: https://conda.anaconda.org/conda-forge/win-64/bzip2-1.0.8-h0ad9c76_10.conda
-  - conda: https://conda.anaconda.org/conda-forge/win-64/libexpat-2.9.0-hac47afa_0.conda
-  - conda: https://conda.anaconda.org/conda-forge/win-64/libffi-3.7.0-h3d046cb_1.conda
-  - conda: https://conda.anaconda.org/conda-forge/win-64/liblzma-5.8.3-hfd05255_1.conda
-  - conda: https://conda.anaconda.org/conda-forge/win-64/libpython-3.12.16-hfb4101e_0_cpython.conda
-  - conda: https://conda.anaconda.org/conda-forge/win-64/libsqlite-3.54.1-hf5d6505_101.conda
-  - conda: https://conda.anaconda.org/conda-forge/win-64/libzlib-1.3.2-hfd05255_3.conda
-  - conda: https://conda.anaconda.org/conda-forge/win-64/openssl-3.6.5-hf411b9b_0.conda
-  - conda: https://conda.anaconda.org/conda-forge/win-64/python-3.12.16-hb12b558_0_cpython.conda
-  - conda: https://conda.anaconda.org/conda-forge/win-64/tk-8.6.13-h967ab96_4.conda
-  - conda: https://conda.anaconda.org/conda-forge/win-64/ucrt-10.0.26100.0-h57928b3_0.conda
-  - conda: https://conda.anaconda.org/conda-forge/win-64/uv-0.13.5-hf7a7c96_0.conda
-  - conda: https://conda.anaconda.org/conda-forge/win-64/vc-14.5-ha367084_41.conda
-  - conda: https://conda.anaconda.org/conda-forge/win-64/vc14_runtime-14.51.36247-habf1de7_41.conda
-  - conda: https://conda.anaconda.org/conda-forge/win-64/vcomp14-14.51.36247-habf1de7_41.conda
-  - conda: https://conda.anaconda.org/conda-forge/win-64/zstd-1.5.7-h534d264_7.conda
-  - conda: https://conda.anaconda.org/robostack-jazzy/win-64/ros2-distro-mutex-0.19.0-jazzy_26.conda
-- conda_source: rig_nodes[b87ac7f6] @ src/rig_nodes
-  variants:
-    ros2_distro_mutex: 0.19.*|0.22.*
-    target_platform: noarch
-  depends:
-  - mcap >=1.2
-  - psutil
+  - pyserial
   - python *
   - python >=3.12
   - ros2-distro-mutex

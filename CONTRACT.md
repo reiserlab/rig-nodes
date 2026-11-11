@@ -25,7 +25,7 @@ is a bug and this file is the authority. Version: package set 0.4.0 (2026-10-28;
 ## 2. Topics
 
 Names are absolute and fixed. `<src>` is a short lowercase device identity (`fictrac`,
-`kinefly`, `bias`), the same string the envelope carries in `src`. Device nodes kept outside this
+`kinefly`, `bias`, `backlight`), the same string the envelope carries in `src`. Device nodes kept outside this
 repository follow the same rules under their own `<src>` and own their vocabulary there (the 2P
 rig's ScanImage connector, `/scanimage/cmd|reply|status`, moved out in 0.4.0).
 
@@ -72,7 +72,9 @@ device's record into another's fields.
 **Command** on `/<src>/cmd`: `{"id": <any JSON>, "command": <name>, "params": {…}}`. `id` is
 minted by the sender and echoed verbatim; the node never interprets it. `command` is the node's
 own vocabulary (each device node owns it — BIAS: `connect`, `startRecording`, `stopRecording`,
-`startPreview`, `stopCapture`, `getTimestamp`, `disconnect`). The protocol plugin registries in
+`startPreview`, `stopCapture`, `getTimestamp`, `disconnect`; backlight: `setIRLEDPower`,
+`setRedLEDPower`, `setGreenLEDPower`, `setBlueLEDPower`, `turnOnLED`, `turnOffLED`,
+`setVisibleBacklightsOff`). The protocol plugin registries in
 webDisplayTools and MATLAB are clients of that vocabulary, not its source.
 
 **Reply** on `/<src>/reply`, exactly one per command:
@@ -86,7 +88,7 @@ webDisplayTools and MATLAB are clients of that vocabulary, not its source.
 
 | field | meaning |
 |---|---|
-| `outcome` | **closed vocabulary**: `ok` (the device confirmed), `error` (the device or the node refused; `error` says why), `unknown` (a timeout: the command **may have taken effect**) |
+| `outcome` | **closed vocabulary**: `ok` (the device confirmed), `error` (the device or the node refused; `error` says why), `unknown` (a timeout: the command **may have taken effect**). A device that never acknowledges (the backlight controller) reports `ok` once every request was delivered and marks each step `"confirmed": false` |
 | `ok` | `outcome == "ok"` |
 | `value` | the device's answer, opaque to the node (its shape is the device's) |
 | `steps` | the device-level requests the command expanded into, each with its own result and `rtt_ms` |
