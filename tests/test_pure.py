@@ -261,8 +261,8 @@ def test_runtime_and_zenoh_config(tmp: Path) -> None:
     # the Zenoh pair: one shared pair; a distro-specific pair in config/<distro>/ wins only when complete
     shared = zenoh.CONFIG_DIR
     check("zenoh: the shared pair ships in the package", zenoh.ROUTER_CONFIG.is_file() and zenoh.SESSION_CONFIG.is_file(), shared)
-    check("zenoh: jazzy, lyrical and an unset distro all resolve to the shared pair today",
-          all(zenoh.config_dir(d) == shared for d in ("jazzy", "lyrical", "", None)) and zenoh.router_config("lyrical") == zenoh.ROUTER_CONFIG)
+    check("zenoh: lyrical, an unknown distro and an unset distro all resolve to the shared pair today",
+          all(zenoh.config_dir(d) == shared for d in ("lyrical", "rolling", "", None)) and zenoh.router_config("lyrical") == zenoh.ROUTER_CONFIG)
     root = tmp / "zenoh-sets"
     (root / "fake").mkdir(parents=True)
     (root / "fake" / zenoh.ROUTER_NAME).write_text("{}", encoding="utf-8")

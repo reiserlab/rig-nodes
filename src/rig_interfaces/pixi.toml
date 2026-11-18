@@ -5,19 +5,31 @@
 # win-64 / osx-arm64 / linux-64 and publishes it to the channel (.github/workflows/package-set.yml),
 # so a rig installs it as a download (docs/typed-distribution-decision.md).
 #
-# This manifest names NO ROS distribution (2026-11-05, docs/ros-distro-switch.md). pixi-build-ros
-# takes the distro from the first `robostack-<distro>` channel of the environment that builds the
-# package — the workspace's `[feature.jazzy]` or `[feature.lyrical]` — and maps package.xml's
-# ament_cmake / rosidl_default_generators (host) and rosidl_default_runtime (run) to that distro's
-# packages itself; it also adds `python` and the `ros2-distro-mutex` to host and run. The two pins
-# that tie the build to ONE RoboStack set (the 0.2.0 build let each CI runner drift: mutex 0.20 +
-# Python 3.14 on win-64/linux-64, 0.16 + 3.12 on osx-arm64) come from the workspace's
-# `[workspace.build-variants]`, selected by the environment's own mutex + Python pins, and the
-# RoboStack packages' run_exports carry the set into this package's run dependencies
-# (`ros2-distro-mutex >=0.19.0,<0.20.0a0`; CI's inspect step checks it).
+# The RoboStack set (2026-11-18, docs/ros-distro-switch.md: Lyrical only). pixi-build-ros takes the
+# distro from the workspace's `robostack-lyrical` channel and maps package.xml's ament_cmake /
+# rosidl_default_generators (host) and rosidl_default_runtime (run) to that distro's packages itself;
+# it also adds `python` and the `ros2-distro-mutex` to host and run. Three pins tie the build to ONE
+# set (the 0.2.0 build let each CI runner drift: mutex 0.20 + Python 3.14 on win-64/linux-64, 0.16 +
+# 3.12 on osx-arm64):
+# - the mutex BUILD, in the build- and host-dependencies below. It has to be spelled here: from the
+#   nightly 0.7.7.20261117.1613 on, the backend writes `ros2-distro-mutex * lyrical_*` itself, which
+#   is not a bare `*`, so the workspace's `[workspace.build-variants]` mutex value no longer replaces
+#   it (up to 0.7.7.20261117.1120 it wrote a bare name and the variant applied);
+# - Python 3.14, from the workspace's `python` build variant (the backend's `python` is still bare;
+#   robostack-lyrical carries 3.12 and 3.14 builds of the set);
+# - the backend itself, pinned to an exact nightly: backends are not in pixi.lock, and `version = "*"`
+#   is how the change above reached CI unannounced. Bump deliberately, with the CI inspect step green.
+# The RoboStack packages' run_exports carry the set into this package's run dependencies
+# (`ros2-distro-mutex >=0.22.0,<0.23.0a0`, `python_abi 3.14.* *_cp314`; CI's inspect step checks both).
 [package]
 name = "rig_interfaces"
-version = "0.4.0"
+version = "0.5.0"
 
 [package.build]
-backend = { name = "pixi-build-ros", version = "*", channels = ["https://prefix.dev/pixi-build-backends", "https://prefix.dev/conda-forge"] }
+backend = { name = "pixi-build-ros", version = "==0.7.7.20261117.1659.e14419f", channels = ["https://prefix.dev/pixi-build-backends", "https://prefix.dev/conda-forge"] }
+
+[package.build-dependencies]
+ros2-distro-mutex = { version = "0.22.*", build = "lyrical_30" }
+
+[package.host-dependencies]
+ros2-distro-mutex = { version = "0.22.*", build = "lyrical_30" }

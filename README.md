@@ -20,7 +20,7 @@ stays with its application until a consumer asks.
 ## Layout
 
 ```
-pixi.toml                 the SOURCE workspace (RoboStack + rmw_zenoh + the two packages built from src/; the ROS distribution is a feature: `jazzy` default, `lyrical` opt-in)
+pixi.toml                 the SOURCE workspace (RoboStack + rmw_zenoh + the two packages built from src/; one ROS distribution: RoboStack Lyrical, mutex `0.22.* lyrical_30`, Python 3.14)
 src/rig_interfaces/       ament_cmake message package: FicTracFrame, ArenaFrame, ConnectorReply, HostStats (+ DiskStats, NetStats, GpuStats, ProcStats; 0.3.0)  (pixi-build-ros)
 src/rig_nodes/            Python package (pixi-build-python, hatchling); console scripts rig-*
   rig_nodes/_common.py        clocks (precise on Windows), QoS, the adapter envelope, spin, typed-interfaces probe
@@ -41,16 +41,15 @@ src/rig_nodes/            Python package (pixi-build-python, hatchling); console
 channel/                  the published conda channel: README always; payloads only on a tagged release commit
 tests/                    test_pure.py (no graph), test_host_sampler.py (no graph), test_device_nodes.py (sims → nodes → topics → loss accounting)
 bench/                    shm_bench.py, shm_bench_qpc.py, mcap_bench.py, sizing/ (measurements behind docs/)
-docs/                     shm-bench.md, typed-distribution-decision.md, typed-windows.md, host-monitor.md, ros-distro-switch.md (the distro switch + the Lyrical rehearsal)
+docs/                     shm-bench.md, typed-distribution-decision.md, typed-windows.md, host-monitor.md, ros-distro-switch.md (the move from Jazzy to Lyrical: rehearsal, rig results, what remains)
 foxglove/                 generic Foxglove layouts (none yet; the arena layouts stay in webDisplayTools)
-.github/workflows/package-set.yml   build both packages on win-64 / osx-arm64 / linux-64, index the channel, install-test it; the allowed-to-fail `lyrical` job builds + tests the same tree on ROS 2 Lyrical
+.github/workflows/package-set.yml   build both packages on win-64 / osx-arm64 / linux-64, index the channel, install-test it; the `test` job runs the source workspace from pixi.lock
 ```
 
 ## Developing here
 
 ```bash
-pixi install          # solves RoboStack Jazzy and BUILDS src/rig_interfaces + src/rig_nodes in place (pixi-build)
-pixi install -e lyrical   # the same on RoboStack Lyrical (Python 3.14); every task below takes `-e lyrical` (docs/ros-distro-switch.md)
+pixi install          # solves RoboStack Lyrical (Python 3.14) and BUILDS src/rig_interfaces + src/rig_nodes in place (pixi-build)
 pixi run test-pure    # the pure modules, no router needed
 pixi run test-host    # the host sampler on a fake psutil, no router needed
 pixi run test-sim     # the FicTrac simulator (record packing, replay, model fly)
@@ -60,10 +59,11 @@ pixi run graph        # the live graph as Mermaid
 pixi run runtime      # what this environment runs on — the dict the recorder writes into every bag
 ```
 
-The ROS distribution is one switch: a `[feature.<distro>]` in `pixi.toml` (channel, mutex pin,
-Python pin); the package manifests under `src/` name no distro and are built for the set of the
-environment that builds them. `docs/ros-distro-switch.md` is the record (what differs between
-sets, what the Lyrical rehearsal found, what blocks a migration).
+One ROS distribution since package set 0.5.0 (2026-11-18): ROS 2 Lyrical Luth from RoboStack. The
+set is three pins in `pixi.toml` (the `robostack-lyrical` channel, the mutex build `0.22.*
+lyrical_30`, Python 3.14); `rig_interfaces` repeats the mutex pin in its own manifest and both
+pixi-build backends are pinned to an exact version there. `docs/ros-distro-switch.md` is the
+record (what differed from Jazzy, the rehearsal, the ww18 rig results, what remains).
 
 Building `rig_interfaces` from source needs a C/C++ compiler (rosidl generates C typesupport and
 a Python extension): clang on macOS and GCC on Linux come from conda-forge's `cxx-compiler`;
@@ -80,13 +80,18 @@ A consumer's `pixi.toml` adds the channel and pins the package set:
 
 ```toml
 [workspace]
-channels = ["conda-forge", "robostack-jazzy", "https://raw.githubusercontent.com/reiserlab/rig-nodes/v0.4.0/channel"]
+channels = ["conda-forge", "robostack-lyrical", "https://raw.githubusercontent.com/reiserlab/rig-nodes/v0.5.0/channel"]
 
 [dependencies]
-ros2-distro-mutex = "0.19.*"          # the RoboStack set the packages were built against (macOS ≥ 14 for osx-arm64); the channel is Jazzy-only
-rig_nodes = "==0.4.0"
-rig_interfaces = "==0.4.0"            # optional: without it the nodes publish String JSON (`--typed auto`)
+ros2-distro-mutex = { version = "0.22.*", build = "lyrical_30" }   # the RoboStack set the packages were built against
+python = "3.14.*"                     # robostack-lyrical also carries Python 3.12 builds of the set; the packages are 3.14
+rig_nodes = "==0.5.0"
+rig_interfaces = "==0.5.0"            # optional: without it the nodes publish String JSON (`--typed auto`)
 ```
+
+(0.5.0 is the first Lyrical set; `v0.4.0` is the last Jazzy one — mutex `0.19.*`, Python 3.12,
+`robostack-jazzy` — and stays served from its tag for a rig that has not moved yet. A Jazzy node
+and a Lyrical node do not talk on one router: move a rig PC whole.)
 
 and starts nodes with their console scripts (`rig-fictrac-adapter`, `rig-bias-node`, …) or
 `python -m rig_nodes.<module>`; launchers import the supervision primitives from
