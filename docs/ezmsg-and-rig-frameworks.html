@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ezmsg and rig frameworks</title>
+<style>
+  /* Layout: one reading column, two tabs: the ezmsg benchmark (one filled panel for the Windows C++ result) and the wider framework comparison with a practices list. */
+  :root {
+    --bg: #f6f8f9;
+    --surface: #ffffff;
+    --fg: #16212b;
+    --muted: #586574;
+    --rule: #d5dce2;
+    --accent: #0a6b6b;
+    --hl-bg: #dff0ee;
+    --hl-fg: #0b3f40;
+    --ok-bg: #d9efe0;   --ok-fg: #14532d;
+    --part-bg: #fbeccb; --part-fg: #6b4a00;
+    --no-bg: #f7dcd9;   --no-fg: #7a1f17;
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #11161b;
+      --surface: #171e25;
+      --fg: #e5eaef;
+      --muted: #9ba7b4;
+      --rule: #2c3742;
+      --accent: #62c7bf;
+      --hl-bg: #143130;
+      --hl-fg: #d3f1ee;
+      --ok-bg: #173a25;   --ok-fg: #b4e6c4;
+      --part-bg: #3d3010; --part-fg: #f3d995;
+      --no-bg: #44201c;   --no-fg: #f4bdb6;
+      color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.55 var(--font); }
+  main {
+    max-width: 60rem;
+    margin: 0 auto;
+    padding-block: 2.5rem 3.5rem;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    display: flex;
+    flex-direction: column;
+    gap: 2.5rem;
+  }
+  header, section { display: flex; flex-direction: column; gap: 0.9rem; }
+  .eyebrow { font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  h1 { font-size: 2rem; line-height: 1.15; margin: 0; text-wrap: balance; }
+  h2 { font-size: 1.25rem; line-height: 1.3; margin: 0; text-wrap: balance; }
+  h3 { font-size: 1.05rem; line-height: 1.3; margin: 0; }
+  h4 { font-size: 0.8rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin: 0; font-weight: 600; }
+  p { margin: 0; max-width: 68ch; }
+  .lede { font-size: 1.1rem; }
+  a { color: var(--accent); }
+  ul { margin: 0; padding-left: 1.2rem; display: flex; flex-direction: column; gap: 0.4rem; max-width: 68ch; }
+  code { font-family: var(--mono); font-size: 0.9em; }
+  .note { color: var(--muted); font-size: 0.9rem; }
+
+  .table-wrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; min-width: 46rem; font-size: 0.9rem; background: var(--surface); }
+  th, td { text-align: left; padding: 0.5rem 0.7rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  thead th { font-weight: 600; font-size: 0.85rem; border-bottom: 2px solid var(--rule); }
+  tbody th { font-weight: 600; color: var(--muted); font-size: 0.82rem; width: 9.5rem; }
+  th.ours, td.ours { background: var(--hl-bg); color: var(--hl-fg); }
+
+  .system { border-top: 1px solid var(--rule); padding-top: 1.1rem; gap: 0.75rem; }
+  .system .what { color: var(--muted); }
+  .proscons { display: grid; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); gap: 1rem 2rem; }
+  .proscons > div { display: flex; flex-direction: column; gap: 0.5rem; min-width: 0; }
+
+  .practices { list-style: none; padding: 0; max-width: none; gap: 0; }
+  .practices li {
+    display: grid;
+    grid-template-columns: 6.5rem 1fr;
+    gap: 0.3rem 1rem;
+    padding: 0.9rem 0;
+    border-top: 1px solid var(--rule);
+  }
+  .practices li > div { display: flex; flex-direction: column; gap: 0.3rem; min-width: 0; }
+  .practices .from { color: var(--muted); font-size: 0.88rem; }
+  .pill {
+    justify-self: start; align-self: start;
+    font-size: 0.78rem; font-weight: 600; padding: 0.15rem 0.55rem; border-radius: 999px; white-space: nowrap;
+  }
+  .ok { background: var(--ok-bg); color: var(--ok-fg); }
+  .part { background: var(--part-bg); color: var(--part-fg); }
+  .no { background: var(--no-bg); color: var(--no-fg); }
+  @media (max-width: 34rem) { .practices li { grid-template-columns: 1fr; } }
+  .highlight {
+    background: var(--hl-bg);
+    color: var(--hl-fg);
+    border-radius: 6px;
+    padding: 1.5rem;
+    gap: 1.1rem;
+  }
+  .highlight .eyebrow { color: var(--hl-fg); opacity: 0.8; }
+  .figures { display: flex; flex-wrap: wrap; gap: 1.25rem 2.5rem; }
+  .figure { display: flex; flex-direction: column; gap: 0.15rem; min-width: 11rem; }
+  .figure .value {
+    font-size: 2.3rem;
+    line-height: 1.1;
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+  }
+  .figure .label { font-size: 0.92rem; }
+
+  td.num, th.num { text-align: right; white-space: nowrap; }
+  td.best { color: var(--accent); font-weight: 650; }
+  tr.cpp td { background: var(--hl-bg); color: var(--hl-fg); font-weight: 600; }
+  table.narrow { min-width: 0; }
+  .tabs { display: flex; flex-wrap: wrap; gap: 0.25rem; border-bottom: 2px solid var(--rule); }
+  .tabs button {
+    font: inherit; font-weight: 600; color: var(--muted); background: none; border: 0;
+    padding: 0.6rem 1rem; margin-bottom: -2px; border-bottom: 2px solid transparent; cursor: pointer;
+  }
+  .tabs button[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); }
+  .tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .panel { display: flex; flex-direction: column; gap: 2.5rem; }
+  .panel[hidden] { display: none; }
+  footer { color: var(--muted); font-size: 0.88rem; border-top: 1px solid var(--rule); padding-top: 1rem; display: flex; flex-direction: column; gap: 0.5rem; }
+</style>
+</head>
+<body>
+<main>
+
+<header>
+  <div class="eyebrow">Reiser Lab rig software · 2026-11-17</div>
+  <h1>ezmsg and rig frameworks</h1>
+  <p class="lede">We looked at <a href="https://www.ezmsg.org/">ezmsg</a>, a pure-Python message-passing
+  framework for signal processing, as a companion to or replacement for ROS 2 on our rigs. While
+  doing that, we wanted to compare the other related packages in this space.</p>
+  <p>ROS 2 stays the rig graph. ezmsg is at most a library used inside one node. Of the other
+  systems, LSL and Harp each solve a problem we still have open: aligning clocks across machines and devices.</p>
+</header>
+
+<div class="tabs" role="tablist" aria-label="Sections">
+  <button type="button" role="tab" id="tab-ezmsg" aria-controls="ezmsg" aria-selected="true">ezmsg and ROS 2</button>
+  <button type="button" role="tab" id="tab-frameworks" aria-controls="frameworks" aria-selected="false">Related systems and practices</button>
+</div>
+
+<div class="panel" id="ezmsg" role="tabpanel" aria-labelledby="tab-ezmsg">
+<section>
+  <h2>Summary</h2>
+  <ul>
+    <li>ezmsg has no relationship to ROS 2: no shared transport, message format, tools, or bridge.</li>
+    <li>Between two Python processes, ezmsg is 1.2 to 5 times faster than ROS 2 for 1 to 8 MB messages, and about equal for the small messages our rigs send today.</li>
+    <li>The cost on the ROS 2 side is the Python client (rclpy), not the transport. A C++ subscriber on the same transport is faster than ezmsg.</li>
+    <li>Replacing ROS 2 would cost us MCAP recording, Foxglove, the typed message contract, and non-Python clients.</li>
+  </ul>
+</section>
+
+<section class="highlight">
+  <div class="eyebrow">C++ subscriber on the lab Windows PC (ww18)</div>
+  <h2>With shared memory on, the C++ rosbag2 recorder receives an 8 MB message in under 0.2 ms</h2>
+  <div class="figures">
+    <div class="figure">
+      <span class="value">0.18–0.19 ms</span>
+      <span class="label">8 MB at 30 Hz, median (5.2–5.6 ms with shared memory off)</span>
+    </div>
+    <div class="figure">
+      <span class="value">0.11–0.12 ms</span>
+      <span class="label">2 MB at 135 Hz, median (1.3 ms with shared memory off)</span>
+    </div>
+  </div>
+  <p>The 99th percentile stayed at or below 0.4 ms, and nothing was lost below 8 MB at 200 Hz.
+  On the same PC, a Python (rclpy) subscriber took 11–12 ms for the same 8 MB message, about
+  60 times longer. ezmsg's best result between two processes was 0.73 ms, measured on a Mac.</p>
+  <p>So ROS 2 with rmw_zenoh is not the bottleneck for large frames. Where speed matters, a C++
+  node on the existing graph gets it, with no second framework.</p>
+  <p class="note" style="color:inherit;opacity:0.85">ww18: Core Ultra 9 285K, Windows 11 25H2, measured 2026-10-21/22, two runs each.
+  The recorder figure spans rmw publish to recorder receive; the publisher's Python-side
+  conversion is not included.</p>
+</section>
+
+<section>
+  <h2>All subscribers, 8 MB at 30 Hz</h2>
+  <div class="table-wrap">
+  <table class="narrow">
+    <thead>
+      <tr><th>Subscriber</th><th>Machine</th><th class="num">Median latency</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>ezmsg, same process (object passed by reference, no transport)</td><td>Mac</td><td class="num">0.12 ms</td></tr>
+      <tr class="cpp"><td>ROS 2, C++ rosbag2 recorder, shared memory on</td><td>ww18 (Windows)</td><td class="num">0.18–0.19 ms</td></tr>
+      <tr><td>ezmsg, two processes, numpy payload</td><td>Mac</td><td class="num">0.73 ms</td></tr>
+      <tr><td>ezmsg, two processes, <code>bytes</code> payload</td><td>Mac</td><td class="num">2.10 ms</td></tr>
+      <tr><td>ROS 2, rclpy, shared memory on</td><td>Mac</td><td class="num">3.46 ms</td></tr>
+      <tr><td>ROS 2, rclpy, shared memory off</td><td>Mac</td><td class="num">5.45 ms</td></tr>
+      <tr><td>ROS 2, rclpy, shared memory on</td><td>ww18 (Windows)</td><td class="num">11–12 ms</td></tr>
+      <tr><td>ROS 2, rclpy, shared memory off</td><td>ww18 (Windows)</td><td class="num">20–23 ms</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="note">The Mac and ww18 rows come from different machines and dates, so compare them as orders of magnitude.</p>
+</section>
+
+<section>
+  <h2>Python to Python on the Mac</h2>
+  <p>Median latency in ms, publisher to Python subscriber, with the 99th percentile in parentheses.
+  The fastest two-process result in each row is marked.</p>
+  <div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Message</th>
+        <th class="num">ROS 2, shm off</th>
+        <th class="num">ROS 2, shm on</th>
+        <th class="num">ezmsg, <code>bytes</code></th>
+        <th class="num">ezmsg, numpy</th>
+        <th class="num">ezmsg, same process</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>1 kB @ 100 Hz</td><td class="num">0.37 (0.69)</td><td class="num">0.27 (0.71)</td><td class="num best">0.22 (4.03)</td><td class="num">0.24 (2.92)</td><td class="num">0.08 (0.20)</td></tr>
+      <tr><td>64 kB @ 100 Hz</td><td class="num">0.39 (0.84)</td><td class="num">0.30 (0.61)</td><td class="num best">0.19 (2.82)</td><td class="num">0.33 (4.44)</td><td class="num">0.08 (0.18)</td></tr>
+      <tr><td>1 MB @ 30 Hz</td><td class="num">1.28 (2.81)</td><td class="num">0.84 (1.40)</td><td class="num">0.55 (0.86)</td><td class="num best">0.43 (2.59)</td><td class="num">0.10 (0.29)</td></tr>
+      <tr><td>2 MB @ 30 Hz</td><td class="num">2.28 (4.20)</td><td class="num">1.63 (2.37)</td><td class="num">1.06 (1.74)</td><td class="num best">0.51 (0.92)</td><td class="num">0.11 (0.24)</td></tr>
+      <tr><td>8 MB @ 30 Hz</td><td class="num">5.45 (9.04)</td><td class="num">3.46 (5.47)</td><td class="num">2.10 (5.06)</td><td class="num best">0.73 (6.33)</td><td class="num">0.12 (0.22)</td></tr>
+      <tr><td>2 MB @ 135 Hz</td><td class="num">2.18 (3.89)</td><td class="num">0.90 (8.45)</td><td class="num">0.74 (1.38)</td><td class="num best">0.31 (2.80)</td><td class="num">0.08 (0.17)</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <ul>
+    <li>For 1 kB and 64 kB messages the medians are tied, and ezmsg's 99th percentile was worse (2.8–4.4 ms against 0.6–0.7 ms).</li>
+    <li>ezmsg's advantage grows with message size and is largest for numpy arrays.</li>
+    <li>Inside one process, ezmsg hands the object over by reference, so latency is about 0.1 ms at any size.</li>
+    <li>No messages were lost in any cell.</li>
+  </ul>
+  <p class="note">Apple M5 Max, macOS 27.0.1, Python 3.12, one 8-second run per cell. ROS 2 Jazzy with
+  rmw_zenoh, RELIABLE, depth 10, <code>sensor_msgs/Image</code>. ezmsg 3.9.0.</p>
+</section>
+
+<section>
+  <h2>What each framework gives the rig</h2>
+  <div class="table-wrap">
+  <table class="narrow">
+    <thead>
+      <tr><th>Need</th><th>ROS 2 + rmw_zenoh</th><th>ezmsg</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Typed message contract</td><td><code>.msg</code> files, language-neutral</td><td>Pickled Python objects, Python only</td></tr>
+      <tr><td>Recording</td><td>rosbag2 / MCAP</td><td>No MCAP; a simple message logger</td></tr>
+      <tr><td>Live viewing</td><td>Foxglove, <code>ros2 topic</code></td><td>Panel or vispy plots</td></tr>
+      <tr><td>Non-Python clients (Studio gateway, MATLAB, C++)</td><td>Supported</td><td>Only through websocket or ZeroMQ units</td></tr>
+      <tr><td>Separately supervised device nodes</td><td>The native model</td><td>Possible, but built around one launched pipeline</td></tr>
+      <tr><td>Install on a rig PC</td><td>RoboStack plus our CI-built channel</td><td><code>pip install</code>, no compiler</td></tr>
+      <tr><td>Community</td><td>The ROS ecosystem</td><td>About 30 GitHub stars; JHU, JHU APL, Wyss Center, Blackrock Neurotech</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section>
+  <h2>Limits of the measurement</h2>
+  <ul>
+    <li>The ezmsg runs are from one Mac, one run per cell. They were not repeated on a Windows rig PC.</li>
+    <li>Each cell is one publisher and one subscriber on an otherwise idle machine, and the subscriber only checks the message length.</li>
+    <li>The C++ recorder was not measured on the Mac, and ezmsg was not measured on ww18.</li>
+  </ul>
+</section>
+</div>
+
+<div class="panel" id="frameworks" role="tabpanel" aria-labelledby="tab-frameworks">
+<section>
+  <h2>At a glance</h2>
+  <div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th></th>
+        <th class="ours">ROS 2 + rmw_zenoh (ours)</th>
+        <th>LSL</th>
+        <th>Bonsai + Harp</th>
+        <th>ezmsg</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><th>What it is</th><td class="ours">General robotics middleware: independent processes on a typed pub/sub graph</td><td>Streaming and recording of time series across a lab network</td><td>Visual reactive language for experiments (Bonsai), plus a hardware protocol with a shared clock (Harp)</td><td>Pure-Python pipeline framework for signal processing</td></tr>
+      <tr><th>Languages</th><td class="ours">C++, Python, others through bridges</td><td>C, C++, Python, Java, C#, MATLAB</td><td>Visual workflows on .NET; C# and scripting for extensions</td><td>Python only</td></tr>
+      <tr><th>Platforms</th><td class="ours">Linux, Windows, macOS (through RoboStack)</td><td>Windows, Linux, macOS, Android, iOS</td><td>Windows first</td><td>Any with Python 3.10+</td></tr>
+      <tr><th>Message model</th><td class="ours">Typed structured messages (<code>.msg</code>)</td><td>Flat numeric or string channels with an XML header</td><td>Typed .NET streams; Harp register messages</td><td>Python objects (pickled between processes)</td></tr>
+      <tr><th>Commands to devices</th><td class="ours">Yes (command and reply topics)</td><td>No, data streams only</td><td>Yes (Harp commands and events)</td><td>Not a built-in pattern</td></tr>
+      <tr><th>Large frames</th><td class="ours">Shared memory; fastest with C++ nodes</td><td>TCP only</td><td>In-process, so no transport cost</td><td>Shared memory between processes; by reference in-process</td></tr>
+      <tr><th>Clock alignment</th><td class="ours">Single host only today</td><td>Built in: offsets between machines measured every few seconds</td><td>Harp devices share one hardware clock, tens of microseconds</td><td>None of its own</td></tr>
+      <tr><th>Recording</th><td class="ours">One MCAP file per run</td><td>One XDF file per session (LabRecorder)</td><td>Each workflow chooses its own writers</td><td>A simple message logger</td></tr>
+      <tr><th>Community</th><td class="ours">Large, mostly robotics</td><td>Large in EEG and human neuroscience; many vendor apps</td><td>Large in systems neuroscience and behavior</td><td>Small, brain-computer interface labs</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section>
+  <h2>System by system</h2>
+
+  <div class="system" style="display:flex;flex-direction:column">
+    <h3>ROS 2 with rmw_zenoh</h3>
+    <p class="what">What every Reiser Lab rig runs today, packaged in rig-nodes.</p>
+    <div class="proscons">
+      <div><h4>Strengths</h4><ul>
+        <li>A written, typed contract between independently started device nodes.</li>
+        <li>MCAP recording and Foxglove viewing with no code of ours.</li>
+        <li>C++ subscribers are very fast: 8 MB in under 0.2 ms on the lab Windows PC.</li>
+        <li>Commands, replies, and status follow one pattern for every device.</li>
+      </ul></div>
+      <div><h4>Weaknesses</h4><ul>
+        <li>Heavy to install; we solved this with a CI-built package channel.</li>
+        <li>The Python client is slow for large frames (11–12 ms for 8 MB on Windows).</li>
+        <li>No built-in clock alignment across machines.</li>
+        <li>Few neuroscience devices ship a ROS driver, so we write adapters.</li>
+      </ul></div>
+    </div>
+  </div>
+
+  <div class="system" style="display:flex;flex-direction:column">
+    <h3>LSL (Lab Streaming Layer)</h3>
+    <p class="what">A C++ library with bindings in six languages, a recorder app, and the XDF file format.</p>
+    <div class="proscons">
+      <div><h4>Strengths</h4><ul>
+        <li>Time synchronization is built in and designed for sub-millisecond accuracy on a local network.</li>
+        <li>Raw timestamps and every clock-offset measurement are stored, so alignment can be redone offline.</li>
+        <li>Many vendors ship LSL apps for EEG, eye tracking, motion capture, and audio.</li>
+        <li>Light to install and available from MATLAB.</li>
+      </ul></div>
+      <div><h4>Weaknesses</h4><ul>
+        <li>Data streams only: no commands, replies, or device control.</li>
+        <li>No structured message types, only flat channels.</li>
+        <li>TCP transport with no shared memory, so it is a poor fit for camera or imaging frames.</li>
+        <li>XDF is less widely supported by viewers than MCAP.</li>
+      </ul></div>
+    </div>
+  </div>
+
+  <div class="system" style="display:flex;flex-direction:column">
+    <h3>Bonsai and Harp</h3>
+    <p class="what">Bonsai is a visual language built on reactive programming (.NET). Harp is a
+    binary protocol, a set of common device registers, and a clock synchronization protocol for
+    microcontroller devices.</p>
+    <div class="proscons">
+      <div><h4>Strengths</h4><ul>
+        <li>Fast to assemble a camera-tracking or closed-loop behavior experiment without writing code.</li>
+        <li>Packages for cameras, microcontrollers, and open hardware.</li>
+        <li>Harp devices timestamp every event in hardware on a shared clock, so data is aligned without post-processing.</li>
+        <li>Workflows can run from the command line, and connect to other programs through sockets or C#.</li>
+      </ul></div>
+      <div><h4>Weaknesses</h4><ul>
+        <li>One workflow in one process on one PC is the normal shape; it is not a multi-process graph.</li>
+        <li>Windows and .NET first, which does not match our Python and MATLAB code.</li>
+        <li>Visual workflows are harder to review, diff, and test than text.</li>
+        <li>Harp's clock guarantee covers Harp devices only; cameras and vendor programs still need another method.</li>
+      </ul></div>
+    </div>
+  </div>
+
+  <div class="system" style="display:flex;flex-direction:column">
+    <h3>ezmsg</h3>
+    <p class="what">A pure-Python pub/sub framework for signal-processing pipelines, derived from labgraph.</p>
+    <div class="proscons">
+      <div><h4>Strengths</h4><ul>
+        <li>Installs with <code>pip</code>, with no compiler.</li>
+        <li>Faster than ROS 2's Python client for 1 to 8 MB arrays (1.2 to 5 times in our test).</li>
+        <li>Inside one process, messages pass by reference in about 0.1 ms at any size.</li>
+        <li>Ready-made signal-processing units and an LSL bridge.</li>
+      </ul></div>
+      <div><h4>Weaknesses</h4><ul>
+        <li>Python only, with no typed cross-language contract.</li>
+        <li>No MCAP recording and no Foxglove.</li>
+        <li>No advantage for small messages, and worse tail latency in our test.</li>
+        <li>A small project (about 30 GitHub stars).</li>
+      </ul></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Also looked at</h2>
+  <p>Two more Python packages came up. Neither changes the picture, so they are not in the table above.</p>
+  <div class="system" style="display:flex;flex-direction:column">
+    <h3>Timeflux</h3>
+    <p class="what">A Python framework for acquiring and processing biosignals (EEG, ECG, EMG) in real time, aimed at brain-computer interfaces and biofeedback.</p>
+    <ul>
+      <li><strong>Relevant, modestly popular.</strong> It sits in the same niche as ezmsg: about 190 GitHub stars, MIT license, runs on Linux, macOS, and Windows.</li>
+      <li><strong>Quiet.</strong> The last release (0.17.2) was in December 2024.</li>
+      <li><strong>For our rigs:</strong> it offers nothing that ezmsg or LSL does not, and it shares their limits (Python only, no typed contract, no MCAP).</li>
+    </ul>
+  </div>
+  <div class="system" style="display:flex;flex-direction:column">
+    <h3>streamz</h3>
+    <p class="what">A Python library for building pipelines over continuous streams of data, with branching, joining, flow control, and back pressure. It can work with pandas dataframes.</p>
+    <ul>
+      <li><strong>Popular, but a different kind of tool.</strong> About 1,300 GitHub stars, BSD license, latest release 0.6.6 in April 2026 after no releases between 2022 and late 2025.</li>
+      <li><strong>It is a library for processing inside one Python program.</strong> It does not connect devices or programs, align clocks, or record. Its closest relative here is the reactive core of Bonsai.</li>
+      <li><strong>For our rigs:</strong> it could be used inside a single node for stream logic, like any other library. It is not a candidate for the rig graph.</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <h2>Similarities and differences</h2>
+  <ul>
+    <li><strong>All four are publish/subscribe.</strong> A source produces a stream and any number of consumers read it. The ideas transfer even where the code does not.</li>
+    <li><strong>They differ in where the boundary sits.</strong> ROS 2 and LSL connect separate programs, possibly on separate machines. Bonsai and ezmsg mainly connect steps inside one program.</li>
+    <li><strong>They differ in what they treat as the hard problem.</strong> ROS 2: a typed contract between many processes. LSL: time alignment and one recording. Harp: hardware timestamps. Bonsai: fast assembly of an experiment. ezmsg: array throughput in Python.</li>
+    <li><strong>Only ROS 2 and Harp handle device control.</strong> LSL and ezmsg move data and leave commands to you.</li>
+    <li><strong>Each has its own recording format.</strong> None writes NWB, the standard format for sharing neurophysiology data, so a conversion step is needed in every case.</li>
+    <li><strong>They combine at the edges.</strong> An LSL stream, a Harp device, or a Bonsai workflow can be brought onto a ROS 2 graph by a small adapter, the same way our FicTrac and Kinefly adapters work.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>Practices to adopt</h2>
+  <p>Each practice is marked with where our rigs stand today, based on the rig-nodes contract
+  (<code>CONTRACT.md</code>, package set 0.4.0).</p>
+  <ul class="practices">
+    <li>
+      <span class="pill ok">In place</span>
+      <div><strong>Stamp data at the source and keep every clock.</strong>
+      <span>Each record keeps the device's own timestamp and the adapter's wall and monotonic receive times. No timestamp is rewritten.</span>
+      <span class="from">Shared with LSL and Harp. Contract §3 and §6 (three clock domains).</span></div>
+    </li>
+    <li>
+      <span class="pill ok">In place</span>
+      <div><strong>Record the raw device output beside the parsed form.</strong>
+      <span>The adapters publish each device record untouched, so a parsing error can be fixed after the experiment.</span>
+      <span class="from">Contract §2 (<code>/&lt;src&gt;/raw</code>).</span></div>
+    </li>
+    <li>
+      <span class="pill ok">In place</span>
+      <div><strong>Version the message contract and record the version with every run.</strong>
+      <span>One package-set version covers the messages and the nodes, and a consumer records it with each run.</span>
+      <span class="from">Contract §7.</span></div>
+    </li>
+    <li>
+      <span class="pill ok">In place</span>
+      <div><strong>Give every device a simulator and a conformance test.</strong>
+      <span>FicTrac, Kinefly, and BIAS each have a simulator, and the device-node test runs them through the real nodes.</span>
+      <span class="from">Common in ROS projects; rare in the neuroscience tools above.</span></div>
+    </li>
+    <li>
+      <span class="pill part">Partly</span>
+      <div><strong>Bring other ecosystems in through adapters, not a second framework.</strong>
+      <span>This is how FicTrac, Kinefly, and BIAS join the graph. The same pattern should cover a future LSL stream, Harp device, or Bonsai workflow. No such adapter exists yet.</span>
+      <span class="from">Avoids two contracts and two recordings.</span></div>
+    </li>
+    <li>
+      <span class="pill part">Partly</span>
+      <div><strong>Put speed where it is needed: C++ or in-process, not new middleware.</strong>
+      <span>Measured: a C++ subscriber on our graph beats ezmsg, and in-process hand-off beats both. No rig node uses either yet, because current traffic is small messages.</span>
+      <span class="from">From the ezmsg comparison and the ww18 benchmarks.</span></div>
+    </li>
+    <li>
+      <span class="pill no">Not yet</span>
+      <div><strong>Measure and log clock offsets between machines; align offline.</strong>
+      <span>Our graph is limited to one host until this exists. LSL's method is the model: exchange short packets every few seconds, store every offset measurement in the recording, and fit the mapping afterwards.</span>
+      <span class="from">From LSL. Contract §1 names this as open (checklist item 7).</span></div>
+    </li>
+    <li>
+      <span class="pill no">Not yet</span>
+      <div><strong>Use a shared hardware signal as ground truth for timing.</strong>
+      <span>A pulse or clock line recorded by every acquisition system lets software alignment be checked, and corrects devices that software cannot reach. The contract does not yet require one.</span>
+      <span class="from">From Harp (shared clock line) and LSL's own guidance (shared pulse).</span></div>
+    </li>
+    <li>
+      <span class="pill no">Not yet</span>
+      <div><strong>Record each device's known constant latency as metadata.</strong>
+      <span>A fixed lag, such as camera exposure to timestamp, belongs in the recording so analysis can subtract it.</span>
+      <span class="from">From LSL (a header field for constant lag).</span></div>
+    </li>
+    <li>
+      <span class="pill no">Not yet</span>
+      <div><strong>Describe each device in a machine-readable file.</strong>
+      <span>Harp defines common registers for every device. Our message files cover data, but commands and status are JSON described in prose.</span>
+      <span class="from">From Harp.</span></div>
+    </li>
+    <li>
+      <span class="pill no">Not yet</span>
+      <div><strong>Plan the conversion to NWB for sharing.</strong>
+      <span>NWB is the common format for archiving neurophysiology data and the route into the DANDI archive. MCAP stays the rig format; a converter is the missing step.</span>
+      <span class="from">Community standard, independent of the framework.</span></div>
+    </li>
+  </ul>
+</section>
+</div>
+
+<footer>
+  <span>Sources checked for this page: <a href="https://www.ezmsg.org/">ezmsg.org</a>,
+  <a href="https://github.com/ezmsg-org/ezmsg">ezmsg on GitHub</a>,
+  <a href="https://labstreaminglayer.readthedocs.io/info/intro.html">LSL introduction</a> and
+  <a href="https://labstreaminglayer.readthedocs.io/info/time_synchronization.html">time synchronization</a>,
+  <a href="https://bonsai-rx.org/">bonsai-rx.org</a>,
+  <a href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4389726/">the Bonsai paper (2015)</a>,
+  <a href="https://harp-tech.org/">harp-tech.org</a>,
+  <a href="https://nwb-overview.readthedocs.io/en/latest/intro_to_nwb/1_intro_to_nwb.html">NWB overview</a>,
+  <a href="https://github.com/timeflux/timeflux">Timeflux on GitHub</a>,
+  <a href="https://github.com/python-streamz/streamz">streamz on GitHub</a>.</span>
+  <span>Not checked against a source: Bonsai's recording behavior, its usual single-process shape,
+  and the community-size descriptions. These are from general knowledge.</span>
+  <span>Benchmark details are in the rig-nodes repository: <code>docs/shm-bench.md</code> (ww18 results),
+  <code>docs/ezmsg-bench.md</code> (the ezmsg comparison), and <code>bench/ez_bench.py</code> (the ezmsg benchmark).</span>
+</footer>
+
+</main>
+<script>
+(function () {
+  var tabs = Array.prototype.slice.call(document.querySelectorAll('.tabs [role="tab"]'));
+  function show(id, setHash) {
+    var found = tabs.some(function (t) { return t.getAttribute('aria-controls') === id; });
+    if (!found) { id = 'ezmsg'; }
+    tabs.forEach(function (t) {
+      var on = t.getAttribute('aria-controls') === id;
+      t.setAttribute('aria-selected', on ? 'true' : 'false');
+      document.getElementById(t.getAttribute('aria-controls')).hidden = !on;
+    });
+    if (setHash) { try { history.replaceState(null, '', '#' + id); } catch (e) { location.hash = id; } }
+  }
+  tabs.forEach(function (t) {
+    t.addEventListener('click', function () { show(t.getAttribute('aria-controls'), true); });
+  });
+  window.addEventListener('hashchange', function () { show(location.hash.slice(1), false); });
+  show(location.hash.slice(1), false);
+})();
+</script>
+</body>
+</html>
