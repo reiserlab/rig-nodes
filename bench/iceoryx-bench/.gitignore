@@ -1,0 +1,11 @@
+# pixi environments
+.pixi/
+# upstream sources fetched by bench/fetch.sh
+ws/src/iceoryx/
+ws/src/rmw_iceoryx/
+# colcon outputs
+ws/build/
+ws/install/
+ws/log/
+# scratch file of bench/ez_run.sh
+bench/.ez_cell.json
