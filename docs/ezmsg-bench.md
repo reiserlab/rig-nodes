@@ -5,9 +5,20 @@ pipelines (JHU / JHU APL / Wyss Center / Blackrock Neurotech, MIT, derived from 
 no relationship to ROS 2: no shared transport, message format, tools or bridge. The question was
 whether it should sit beside ROS 2 on a rig, or replace it for the simplest ones.
 
-**Decision: ROS 2 stays the rig graph. ezmsg is at most a library inside one node** (a multi-stage
-online signal chain whose results the node publishes as ROS topics). Nothing in this repository
-depends on it. **rmw_iceoryx**, a zero-copy transport for ROS 2 that Frank measured beside both
+**Decision: ROS 2 stays the rig graph, and ezmsg is not used on the rigs for now,** also not as a
+library inside one node (2026-11-19, on Frank's recommendation; an earlier version of this note
+said "at most a library inside one node"). Nothing in this repository depends on it.
+
+- **The stable ezmsg release dictates the Python version.** ezmsg 3.9.0 needs Python 3.13 or
+  older; the workspace is on 3.14 (callout below).
+- **Every package in the environment shares that Python,** so the workspace would have to follow
+  ezmsg. The ways around it are a pre-release on a rig PC or a second ROS 2 install for one node.
+- **The benefit does not cover a rig need.** ezmsg's gain is for large arrays between Python
+  processes. The rigs send small messages, where it is tied, and a C++ node on the existing graph
+  is faster for large frames (`shm-bench.md`).
+- **Revisit** when a stable ezmsg release runs on the workspace's Python.
+
+**rmw_iceoryx**, a zero-copy transport for ROS 2 that Frank measured beside both
 (below), does not help the rigs as they are either: its fast path needs fixed-size messages and
 C++ nodes, and it is single-host.
 
@@ -36,7 +47,7 @@ C++ nodes, and it is single-host.
 >   with it. RoboStack Lyrical has builds for Python 3.12 and 3.14 only, so it means 3.12, and
 >   the two rig packages would have to be built for 3.12.
 > - **ezmsg in its own environment,** as in the benchmarks here. That environment has no ROS 2,
->   so "a library inside one node" would need a second ROS 2 install on Python 3.12 for that node.
+>   so ezmsg as a library inside one node would need a second ROS 2 install on Python 3.12 for that node.
 >
 > Checked on 2026-11-19 (Linux, Python 3.13.18, 3.14.10 and 3.15.2): one 3 s cell of 64 kB
 > @ 100 Hz with `bench/iceoryx-bench/bench/ez_pubsub.py`, two processes and same process. This
@@ -83,8 +94,8 @@ ezmsg 3.9.0: a dataclass with the payload as `bytes` or a numpy `uint8` array.
   against 0.6–0.7 ms).
 - **Large arrays between processes:** ezmsg is 1.2 to 5 times faster at the median, most with
   numpy payloads (out-of-band pickle buffers). Its 8 MB p99 is no better than rmw_zenoh's.
-- **Same process:** the object is handed over by reference, about 0.1 ms at any size. This is the
-  case for a signal chain inside one node.
+- **Same process:** the object is handed over by reference, about 0.1 ms at any size. This would be
+  the case for a signal chain inside one node, which is not planned (see the decision).
 - **Shared memory off:** ezmsg over TCP is no faster than rmw_zenoh with shared memory off.
 - **Subscriber CPU**, shared-memory cells: 1–3 % of a core (ezmsg) against 2–12 % (rclpy).
 

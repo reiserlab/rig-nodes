@@ -137,7 +137,7 @@
   <p class="lede">We looked at <a href="https://www.ezmsg.org/">ezmsg</a>, a pure-Python message-passing
   framework for signal processing, as a companion to or replacement for ROS 2 on our rigs. While
   doing that, we wanted to compare the other related packages in this space.</p>
-  <p>ROS 2 stays the rig graph. ezmsg is at most a library used inside one node. Of the other
+  <p>ROS 2 stays the rig graph. We do not plan to use ezmsg on the rigs for now. Of the other
   systems, LSL and Harp each solve a problem we still have open: aligning clocks across machines and devices.</p>
 </header>
 
@@ -154,6 +154,7 @@
     <li>Between two Python processes, ezmsg is 1.2 to 5 times faster than ROS 2 for 1 to 8 MB messages, and about equal for the small messages our rigs send today.</li>
     <li>The cost on the ROS 2 side is the Python client (rclpy), not the transport. A C++ subscriber on the same transport is faster than ezmsg.</li>
     <li>Replacing ROS 2 would cost us MCAP recording, Foxglove, the typed message contract, and non-Python clients.</li>
+    <li><strong>We do not plan to use ezmsg on the rigs for now,</strong> also not as a library inside one node. The stable release does not run on the workspace's Python (below), and its gain is for large arrays between Python processes, which is not a rig need. We can revisit this when a stable ezmsg release runs on the workspace's Python.</li>
     <li>rmw_iceoryx, a zero-copy transport for ROS 2, would not help our rigs as they are. Its zero-copy path is fast (0.13 ms for 8 MB) but needs fixed-size messages and C++ nodes. For <code>sensor_msgs/Image</code>, which we send from Python, it was 2.5 to 5.3 times slower than rmw_zenoh at 1 MB and above.</li>
   </ul>
   <div class="callout" role="note">
@@ -534,6 +535,7 @@
         <li>Python only, with no typed cross-language contract.</li>
         <li>No MCAP recording and no Foxglove.</li>
         <li>No advantage for small messages, and worse tail latency in our test.</li>
+        <li>The stable release (3.9.0) does not run on Python 3.14, the Python of our rig workspace.</li>
         <li>A small project (about 30 GitHub stars).</li>
       </ul></div>
     </div>
