@@ -1,6 +1,62 @@
 # The ROS 2 distribution is one switch
 
-**Status 2026-11-05.** The rigs run ROS 2 **Jazzy** from RoboStack (mutex 0.19, Python 3.12); that
+**Status 2026-11-18: Lyrical only.** Michael Reiser decided to move everything to ROS 2 **Lyrical**
+(Lyrical Luth; RoboStack mutex `0.22.* lyrical_30`, Python 3.14) and drop Jazzy: the arena rig is the
+only system in use, its Lyrical bench passed on ww18 (§8a: harness 63/63, a real FicTrac closed loop,
+an 8 h soak with a clean exit), and the other consumers move afterwards. Package set **0.5.0** is the
+first Lyrical set (LAB-355). Sections 1–8 below are the record of the switch as it was built and
+rehearsed on 2026-11-05, when Jazzy was the default; they are kept as written, so "the rigs run
+Jazzy" there is history. What changed in this repository on 2026-11-18:
+
+- `pixi.toml`: no `[feature.jazzy]` / `[feature.lyrical]` and no `lyrical` environment. The channel
+  (`robostack-lyrical`), the mutex build and Python 3.14 are the workspace's own pins; `default`,
+  `bench` and `viz` are the environments (`viz` is spelled `ros-lyrical-*`).
+- The set pin for the package builds (§2 described a mutex build variant `0.19.*|0.22.*`). That
+  variant stopped reaching `rig_interfaces`: the pixi-build-ros nightly `0.7.7.20261117.1613` began
+  writing its own host requirement `ros2-distro-mutex * <distro>_*`, and a build variant only
+  replaces a bare `*` (bisected locally on 2026-11-18: nightlies up to `0.7.7.20261117.1120` emit the
+  bare name and the variant applies; `…1613` and `…1659` do not). With the backend declared
+  `version = "*"`, every Jazzy build from 2026-11-17 on took mutex 0.20 + Python 3.14 and failed the
+  inspect step (first seen in run 44304731607; run 42917404563 on 2026-11-10 still passed). The
+  CI logs do not print the backend version, so the versions come from the bisect and the channel's
+  upload times, not from the logs. Now: `rig_interfaces` pins `ros2-distro-mutex 0.22.* lyrical_30`
+  in its own build- and host-dependencies, the workspace variants are `0.22.* lyrical_30` (reaches
+  `rig_nodes`) and `python 3.14.*` (reaches both; robostack-lyrical has carried Python 3.12 builds
+  of the `_30` set since 2026-11-05, so §1's "the only Python" no longer holds), and both backends
+  are pinned exactly (`pixi-build-ros ==0.7.7.20261117.1659.e14419f`, `pixi-build-python
+  ==0.8.8.20261117.1659.e14419f`).
+- CI (§5): build → channel → accept run on Lyrical; the allowed-to-fail `lyrical` job became the
+  required `test` job (`pixi install --locked` + the four test tasks). The macOS jobs had been
+  cancelled with zero steps since 2026-11-06 because GitHub retired the `macos-14` images on
+  2026-11-02 ("The configuration 'macos-14-arm64-us-default' is not supported"), which also skipped
+  `channel` and `accept` on every run since; the jobs moved to `macos-15`.
+- Code: the recorder always passes rosbag2_py's stamps by keyword (§7 item 7; the positional
+  fallback for Jazzy's binding is gone, and `rig_nodes` requires `ros2-rosbag2-py >=0.33`). Kept on
+  purpose: `rig_nodes.zenoh.config_dir`'s `config/<ROS_DISTRO>/` lookup (§3; consumers import the
+  module, and it is where a re-derived rmw_zenoh 0.10.8 pair can be staged), the precise Windows
+  clocks in `_common.py` (written for Python 3.12; redundant on 3.14 but not re-measured), and
+  everything that reads a bag: `cdr`, `mcap_index` and `foxglove_json` do not depend on the distro
+  that wrote the bag, and `runtime_info` still reports whatever `ROS_DISTRO` says.
+
+What remains:
+
+1. **Release 0.5.0**: build, commit the channel payload on the release commit, tag `v0.5.0`
+   (README "Releasing a package set"). Not done by the change that wrote this block.
+2. **Consumers** (each pins a Jazzy set today and keeps working from the `v0.4.0` tag until it moves):
+   webDisplayTools `rig/pixi.toml` (make its `lyrical` / `lyrical-viz` environments the default,
+   pin `v0.5.0`, drop its `0.19.*|0.22.*` variant); LED-Display_pyDisplayTools; the private 2P rig
+   nodes in `scanimage-2026-bergamo/2p-rig-nodes` (Jazzy-spelled manifest).
+3. **Rig PCs move whole** (§7 item 4): ww18 has run the Lyrical bench but its default environment
+   is Jazzy; ww14 and the Bergamo PC have not run Lyrical at all.
+4. **Untested on hardware under Lyrical**: BIAS on the real Atlas10 camera (the soaks used the
+   simulator), and the viz tools — rqt not at all, foxglove_bridge only from webDisplayTools'
+   `lyrical-viz` on ww18, never from this workspace's `viz` environment.
+5. **rmw_zenoh 0.10.8** (§3, §7 item 3): re-derive the Zenoh pair when RoboStack rebuilds onto it.
+6. **Re-pinning**: robostack-lyrical already carries `_31`–`_34` rebuilds of single packages inside
+   the 0.22 set; a new mutex build means changing the pin in `pixi.toml` (twice), in
+   `src/rig_interfaces/pixi.toml` and in the CI matrix, then re-locking.
+
+**Status 2026-11-05 (superseded by the block above).** The rigs run ROS 2 **Jazzy** from RoboStack (mutex 0.19, Python 3.12); that
 is the default of every workspace and the only set the channel publishes. **Lyrical** (ROS 2
 Lyrical Luth, RoboStack mutex 0.22, Python 3.14) is an opt-in environment and an allowed-to-fail
 CI job: the same source tree built and tested on the next distribution, so a migration is a

@@ -70,7 +70,7 @@ def main(argv: list[str] | None = None) -> int:
     node.destroy_node()
     try:
         rclpy.try_shutdown()
-    except Exception:  # rclpy's own SIGINT handler may already have shut the context down (races in Jazzy)
+    except Exception:  # rclpy's own SIGINT handler may already have shut the context down (a race first seen on Jazzy; not re-checked on Lyrical)
         pass
     if not got:
         print(f"[bias-cmd] no reply within {args.timeout:g}s (is `pixi run bias-node` running?)", file=sys.stderr)

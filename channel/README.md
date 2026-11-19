@@ -10,11 +10,14 @@ a compiler** installs typed messages as a download (decision: `../docs/typed-dis
 **The package payload is not in the tree between releases.** The `<subdir>/` directories are
 committed ONCE, on the tagged release commit (README "Releasing a package set"), and removed again
 in the next commit; git history serves the pinned URL. This README stays as the record of what was
-built. Every published package is built for the RoboStack set the rigs run (Jazzy, mutex 0.19, Python 3.12) —
-one set on every platform, never two (the 0.2.0 lesson below). From the next release on, `rig_interfaces`
-carries that pin (`>=0.19.0,<0.20.0a0`, from the ROS packages' run_exports) and `rig_nodes` names the mutex
-bare and follows the consumer's pin through its distro-neutral `ros2-*` dependencies
-(`../docs/ros-distro-switch.md`). The channel is Jazzy-only; the Lyrical rehearsal in CI publishes nothing.
+built. Every published package is built for ONE RoboStack set on every platform, never two (the 0.2.0 lesson
+below). Through 0.4.0 that set is Jazzy (mutex 0.19, Python 3.12). **From 0.5.0 on it is Lyrical** (mutex
+`0.22.* lyrical_30`, Python 3.14; decided 2026-11-18, `../docs/ros-distro-switch.md`): `rig_interfaces`
+carries the pin (`>=0.22.0,<0.23.0a0` and `python_abi 3.14.* *_cp314`, from the ROS packages' run_exports)
+and `rig_nodes` names the mutex bare and follows the consumer's pin through its distro-neutral `ros2-*`
+dependencies (`ros2-rosbag2-py >=0.33` keeps it off a Jazzy set). 0.5.0 is not built or tagged yet: its row
+is added to the table below by the release. The Jazzy tags (`v0.2.1`–`v0.4.0`) keep serving their channel
+from git history for a rig that has not moved.
 
 ## Releases
 
