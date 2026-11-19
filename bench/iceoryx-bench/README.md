@@ -18,9 +18,9 @@ ws/src/bench_msgs        fixed-size messages (64 kB, 2 MB, 8 MB) for the loaned-
 ws/src/bench_cpp         sub_image (C++ subscriber of sensor_msgs/Image), fixed (C++ loan publisher / subscriber)
 ```
 
-**ezmsg 3.9.0 did not run on Python 3.14,** the Python of the default environment. That is why it
-has its own `ezmsg` environment on Python 3.12. Putting it into the default environment would
-hold ROS 2 and everything else there at Python 3.12.
+**ezmsg 3.9.0 does not run on Python 3.14,** the Python of the default environment: it installs
+there but fails when a pipeline starts. That is why it has its own `ezmsg` environment on
+Python 3.12. `docs/ezmsg-bench.md` lists the Python versions checked.
 
 ## Running it
 

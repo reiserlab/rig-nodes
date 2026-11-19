@@ -157,10 +157,16 @@
     <li>rmw_iceoryx, a zero-copy transport for ROS 2, would not help our rigs as they are. Its zero-copy path is fast (0.13 ms for 8 MB) but needs fixed-size messages and C++ nodes. For <code>sensor_msgs/Image</code>, which we send from Python, it was 2.5 to 5.3 times slower than rmw_zenoh at 1 MB and above.</li>
   </ul>
   <div class="callout" role="note">
-    <p><strong>ezmsg does not run on the newest Python yet, and that affects everything installed beside it.</strong></p>
-    <p>ezmsg 3.9.0 did not run on Python 3.14 in the Linux test. Every ezmsg figure on this page was measured in a separate Python 3.12 environment.</p>
-    <p>An environment has one Python version. <strong>Installing ezmsg into the rig environment would hold all other software in it at Python 3.12:</strong> ROS 2, rmw_zenoh, our rig packages, and every other Python package. Our rig packages are built for Python 3.14 (RoboStack Lyrical).</p>
-    <p>Kept in its own environment, ezmsg cannot be imported by a ROS node. So using ezmsg as a library inside one node is not possible on the current rig software until ezmsg supports Python 3.14.</p>
+    <p><strong>ezmsg 3.9.0, the latest stable release, is not compatible with our rig workspace as it is defined.</strong></p>
+    <p>The workspace pins Python 3.14 (RoboStack Lyrical). ezmsg 3.9.0 fails on Python 3.14 and on 3.15, the newest Python, as soon as a pipeline starts. It runs on Python 3.12 and 3.13. Every ezmsg figure on this page was measured on Python 3.12.</p>
+    <p><strong>The install does not warn.</strong> <code>pip</code> installs ezmsg 3.9.0 on Python 3.14 and downgrades nothing. The failure comes at run time.</p>
+    <p>The fix is only in the 3.10.0 pre-releases. 3.10.0b5 ran on Python 3.14 and 3.15 in a short check on 2026-11-19.</p>
+    <p>Using ezmsg with the rig software today means one of three things:</p>
+    <ul>
+      <li>An ezmsg pre-release in the workspace.</li>
+      <li><strong>The workspace on Python 3.12. This affects all other installed software:</strong> ROS 2, rmw_zenoh, our rig packages, and every other package would move with it.</li>
+      <li>ezmsg in its own environment, which has no ROS 2. A node that uses ezmsg would then need a second ROS 2 install on Python 3.12.</li>
+    </ul>
   </div>
 </section>
 
@@ -260,7 +266,7 @@
       <tr><td>Live viewing</td><td>Foxglove, <code>ros2 topic</code></td><td><code>ros2 topic</code> and rqt are listed as working; Foxglove not checked</td><td>Panel or vispy plots</td></tr>
       <tr><td>Non-Python clients (Studio gateway, MATLAB, C++)</td><td>Supported</td><td>The same ROS clients, but only on the same host</td><td>Only through websocket or ZeroMQ units</td></tr>
       <tr><td>Separately supervised device nodes</td><td>The native model</td><td>Yes, plus a daemon (RouDi) that must start before any node</td><td>Possible, but built around one launched pipeline</td></tr>
-      <tr><td>Install on a rig PC</td><td>RoboStack plus our CI-built channel</td><td>Built from source together with an older iceoryx; no RoboStack package, not tried on Windows</td><td><code>pip install</code>, no compiler. <strong>Did not run on Python 3.14 (ezmsg 3.9.0), so it cannot share an environment with the rig software, which is on Python 3.14.</strong></td></tr>
+      <tr><td>Install on a rig PC</td><td>RoboStack plus our CI-built channel</td><td>Built from source together with an older iceoryx; no RoboStack package, not tried on Windows</td><td><code>pip install</code>, no compiler. <strong>3.9.0 installs on the workspace's Python 3.14 but fails at start.</strong></td></tr>
       <tr><td>Community</td><td>The ROS ecosystem</td><td>193 GitHub stars; README says "under heavy development"</td><td>About 30 GitHub stars; JHU, JHU APL, Wyss Center, Blackrock Neurotech</td></tr>
     </tbody>
   </table>
@@ -280,7 +286,7 @@
     <li><strong>Our rigs use that slow path.</strong> They send <code>sensor_msgs/Image</code>, a variable-size type, from Python nodes. Reaching the fast path means a new fixed-size frame message and C++ nodes on both ends.</li>
     <li><strong>rmw_iceoryx is one host only.</strong> iceoryx is shared memory between processes on one machine. rmw_zenoh can also cross the network, which the clock-alignment work assumes.</li>
     <li><strong>rmw_iceoryx did not build as shipped.</strong> RoboStack has no package, and the <code>jazzy</code> branch (last commit January 2024) does not compile against the iceoryx 2.95.8 that RoboStack Jazzy provides. We built iceoryx 2.0.6 from source beside it.</li>
-    <li><strong>ezmsg 3.9.0 did not run on Python 3.14,</strong> the version RoboStack Jazzy installs here, so it ran in its own Python 3.12 environment. <strong>Installed beside ROS 2, it would force ROS 2 and every other package in that environment down to Python 3.12.</strong></li>
+    <li><strong>ezmsg 3.9.0 did not run on Python 3.14,</strong> the version RoboStack Jazzy installs here, so it ran in its own Python 3.12 environment. <strong>ezmsg 3.9.0 is therefore not compatible with our Python 3.14 workspace;</strong> the fix is only in the 3.10.0 pre-releases.</li>
     <li><strong>rmw_iceoryx has gaps in ROS features.</strong> Its README lists <code>ros2 param list</code> and pub/sub events as unsupported, and <code>ros2 bag</code> as untested. We did not test recording.</li>
   </ul>
 

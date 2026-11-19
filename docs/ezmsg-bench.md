@@ -12,16 +12,35 @@ depends on it. **rmw_iceoryx**, a zero-copy transport for ROS 2 that Frank measu
 C++ nodes, and it is single-host.
 
 > [!WARNING]
-> **ezmsg does not run on the newest Python yet, and that affects everything installed beside
-> it.** ezmsg 3.9.0 did not run on Python 3.14 in the Linux test (below); every ezmsg figure in
-> this note was measured in a separate Python 3.12 environment.
+> **ezmsg 3.9.0, the latest stable release, is not compatible with this workspace as it is
+> defined.** `pixi.toml` pins `python = "3.14.*"` (RoboStack Lyrical), and ezmsg 3.9.0 fails on
+> Python 3.14 and 3.15 as soon as a pipeline starts.
 >
-> An environment has one Python version. **Installing ezmsg into the rig environment would hold
-> all other software in it at Python 3.12:** ROS 2, rmw_zenoh, `rig_nodes`, `rig_interfaces` and
-> every other Python package. The rig packages are built for Python 3.14 (RoboStack Lyrical).
+> **The install does not warn.** ezmsg 3.9.0 declares `requires_python >=3.10`, so `pip` installs
+> it on Python 3.14 and nothing else is downgraded. The failure comes at run time:
+> `AttributeError: '_DaemonThreadPoolExecutor' object has no attribute '_initializer'`.
 >
-> Kept in its own environment, ezmsg cannot be imported by a ROS node. So "a library inside one
-> node" is **not possible on the current rig software** until ezmsg supports Python 3.14.
+> | Python | ezmsg 3.9.0 (latest stable) | ezmsg 3.10.0b5 (pre-release) |
+> |---|---|---|
+> | 3.12 | runs (every measurement in this note) | not tried |
+> | 3.13 | runs | not tried |
+> | **3.14 (this workspace)** | **fails at start** | runs |
+> | 3.15 (newest Python) | fails at start | runs |
+>
+> Using ezmsg with the rig software today therefore means one of three things:
+>
+> - **An ezmsg pre-release in the workspace.** The fix (upstream issue #235, PR #249) is only in
+>   the 3.10.0 pre-releases. Upstream still has an open Python 3.14 issue (#264).
+> - **The workspace on an older Python.** This is the choice that affects all other installed
+>   software: ROS 2, rmw_zenoh, `rig_nodes`, `rig_interfaces` and every other package would move
+>   with it. RoboStack Lyrical has builds for Python 3.12 and 3.14 only, so it means 3.12, and
+>   the two rig packages would have to be built for 3.12.
+> - **ezmsg in its own environment,** as in the benchmarks here. That environment has no ROS 2,
+>   so "a library inside one node" would need a second ROS 2 install on Python 3.12 for that node.
+>
+> Checked on 2026-11-19 (Linux, Python 3.13.18, 3.14.10 and 3.15.2): one 3 s cell of 64 kB
+> @ 100 Hz with `bench/iceoryx-bench/bench/ez_pubsub.py`, two processes and same process. This
+> shows whether ezmsg starts and delivers; it is not a latency measurement.
 
 ## Why not instead of ROS 2
 
@@ -32,7 +51,7 @@ C++ nodes, and it is single-host.
 | viewing | Foxglove, `ros2 topic`, `graph_dump` | Panel / vispy plots, Mermaid / Graphviz graph dumps |
 | non-Python clients (Studio gateway, MATLAB, C++) | supported | only through websocket or ZeroMQ units |
 | independently supervised device nodes | the native model | possible, but built around one launched pipeline |
-| install on a rig PC | RoboStack + the CI-built channel (solved, `typed-distribution-decision.md`) | `pip install`, no compiler; **did not run on Python 3.14 (3.9.0), so not in the rig's environment** |
+| install on a rig PC | RoboStack + the CI-built channel (solved, `typed-distribution-decision.md`) | `pip install`, no compiler; **3.9.0 installs on the workspace's Python 3.14 but fails at start** |
 | community | the ROS ecosystem | about 30 GitHub stars, a few institutional backers |
 
 The rig's traffic is small messages (FicTrac frames, JSON commands, 1 Hz host statistics), where
@@ -43,7 +62,7 @@ the measurement below shows no advantage for ezmsg.
 `bench/ez_bench.py` repeats the cells of `bench/shm_bench_qpc.py` (same sizes, rates, 8 s per
 cell after 1 s of warmup, the same latency span: stamp before publish → Python subscriber
 entered). ezmsg is not in the pixi workspace; the script's docstring gives the `uv run` line.
-**Do not add ezmsg to the workspace:** it would pull the whole workspace down to Python 3.12.
+**Do not add ezmsg 3.9.0 to the workspace:** it installs on Python 3.14 but does not run there.
 
 Mac (Apple M5 Max, macOS 27.0.1, Python 3.12), 2026-11-17, one run each, nothing lost in any
 cell. Median latency in ms (p99 in parentheses):
@@ -109,10 +128,10 @@ rmw_zenoh ranges cover shared memory off and on.
   source. Its README lists `ros2 param list` and pub/sub events as unsupported and `ros2 bag` as
   untested; recording was not tested here.
 - **ezmsg 3.9.0 did not run on Python 3.14** in this setup and ran in its own Python 3.12
-  environment. A Lyrical-only rig is Python 3.14. **Installing ezmsg there would force ROS 2 and
-  every other package in the environment down to Python 3.12;** a separate environment cannot
-  host a ROS node. ezmsg inside a node therefore waits for an ezmsg release that runs on 3.14.
-  Why 3.9.0 failed was not recorded, and no newer release was tried.
+  environment. A Lyrical-only rig is Python 3.14, so **ezmsg 3.9.0 is not compatible with the
+  workspace as defined.** The cause is known upstream (issue #235, fixed by PR #249) and the fix
+  is only in the 3.10.0 pre-releases; the callout at the top lists what was checked and the
+  options.
 - Turning shared memory on in rmw_zenoh made no clear difference on this machine, and it was not
   confirmed to be in use. The 63 MB shared-memory limit shaped every setup (four buffers at 8 MB
   for rmw_iceoryx and ezmsg, a 48 MB rmw_zenoh pool).

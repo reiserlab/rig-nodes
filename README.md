@@ -40,7 +40,7 @@ src/rig_nodes/            Python package (pixi-build-python, hatchling); console
   rig_nodes/runtime.py         what this process runs on (ROS distro, rmw, RoboStack set, Python, package set) — the recorder writes it into every bag's metadata
 channel/                  the published conda channel: README always; payloads only on a tagged release commit
 tests/                    test_pure.py (no graph), test_host_sampler.py (no graph), test_device_nodes.py (sims → nodes → topics → loss accounting)
-bench/                    shm_bench.py, shm_bench_qpc.py, mcap_bench.py, ez_bench.py (ezmsg comparison, own Python 3.12 environment: ezmsg 3.9.0 did not run on Python 3.14), iceoryx-bench/ (rmw_iceoryx beside rmw_zenoh and ezmsg on Linux, own pixi project), sizing/ (measurements behind docs/)
+bench/                    shm_bench.py, shm_bench_qpc.py, mcap_bench.py, ez_bench.py (ezmsg comparison, own Python 3.12 environment: ezmsg 3.9.0 does not run on the workspace's Python 3.14), iceoryx-bench/ (rmw_iceoryx beside rmw_zenoh and ezmsg on Linux, own pixi project), sizing/ (measurements behind docs/)
 docs/                     shm-bench.md, ezmsg-bench.md, ezmsg-and-rig-frameworks.html (the shareable summary), typed-distribution-decision.md, typed-windows.md, host-monitor.md, ros-distro-switch.md (the move from Jazzy to Lyrical: rehearsal, rig results, what remains)
 foxglove/                 generic Foxglove layouts (none yet; the arena layouts stay in webDisplayTools)
 .github/workflows/package-set.yml   build both packages on win-64 / osx-arm64 / linux-64, index the channel, install-test it; the `test` job runs the source workspace from pixi.lock
