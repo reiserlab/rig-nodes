@@ -1,5 +1,5 @@
 [workspace]
-authors = ["Agent Sandbox Agent <agent-sandbox@example.invalid>"]
+authors = ["Frank Loesche <loeschef@janelia.hhmi.org>"]
 channels = ["robostack-jazzy", "conda-forge"]
 name = "iceoryx-bench"
 platforms = ["linux-64"]
