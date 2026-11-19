@@ -113,7 +113,9 @@ not see each other, so a rig moves whole, private nodes and helper tools (foxglo
 - The stock Zenoh IPv6 router config is unverified; the shipped loopback config is IPv4.
 
 **Linux** (CI only so far): the package-set workflow installs and tests on `ubuntu-24.04`
-every push (the Lyrical release path + the source-workspace tests); no lab rig runs Linux yet.
+every push (the Lyrical release path + the source-workspace tests); `ubuntu-26.04` additionally
+builds the packages and runs the source-workspace tests (its packages are not published to the
+channel); no lab rig runs Linux yet.
 
 ## Host table
 
