@@ -13,6 +13,8 @@ payloads: bytes   = a `bytes` field, pickled in-band (what shm_bench's msg.data 
           ndarray = a numpy uint8 array, pickle protocol 5 out-of-band buffer
 
 ezmsg is NOT a dependency of this workspace (it is not on conda-forge and nothing here uses it).
+ezmsg 3.9.0 did NOT run on Python 3.14 (Linux, 2026-11-18). Do not add it to the workspace: it
+would hold ROS 2 and every other package there at Python 3.12.
 Run the bench from a throwaway environment:
 
     uv run --no-project --python 3.12 --with ezmsg==3.9.0 --with numpy bench/ez_bench.py run --modes proc,tcp,local --out ez.json
