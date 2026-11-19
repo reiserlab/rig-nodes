@@ -1,4 +1,4 @@
-# ezmsg beside rmw_zenoh: a measurement, not a migration (2026-11-17)
+# ezmsg beside rmw_zenoh: a measurement, not a migration (2026-11-17, Linux and rmw_iceoryx added 2026-11-19)
 
 [ezmsg](https://www.ezmsg.org/) is a pure-Python pub/sub framework for signal-processing
 pipelines (JHU / JHU APL / Wyss Center / Blackrock Neurotech, MIT, derived from labgraph). It has
@@ -7,7 +7,9 @@ whether it should sit beside ROS 2 on a rig, or replace it for the simplest ones
 
 **Decision: ROS 2 stays the rig graph. ezmsg is at most a library inside one node** (a multi-stage
 online signal chain whose results the node publishes as ROS topics). Nothing in this repository
-depends on it.
+depends on it. **rmw_iceoryx**, a zero-copy transport for ROS 2 that Frank measured beside both
+(below), does not help the rigs as they are either: its fast path needs fixed-size messages and
+C++ nodes, and it is single-host.
 
 ## Why not instead of ROS 2
 
@@ -54,13 +56,63 @@ ezmsg 3.9.0: a dataclass with the payload as `bytes` or a numpy `uint8` array.
 - **Shared memory off:** ezmsg over TCP is no faster than rmw_zenoh with shared memory off.
 - **Subscriber CPU**, shared-memory cells: 1–3 % of a core (ezmsg) against 2–12 % (rclpy).
 
+## Linux: rmw_iceoryx, rmw_zenoh and ezmsg on one machine (Frank, 2026-11-18)
+
+[rmw_iceoryx](https://github.com/ros2/rmw_iceoryx) is not a framework but another transport under
+ROS 2, in the slot rmw_zenoh fills on our rigs: the publisher writes into shared memory and the
+subscriber reads the same memory. Frank built it under Jazzy and measured it, rmw_zenoh and ezmsg
+on one Linux machine with the cells above. The full tables (Python → Python, Python → C++, C++
+loan → C++) are in `ezmsg-and-rig-frameworks.html`; his benchmark scripts and raw results
+(`iceoryx-bench/`) are **not in this repository yet**.
+
+AMD Ryzen 7 7840U, Fedora 44 container on Linux 6.18 with shared memory limited to 63 MB, one
+8 s run per cell. ROS 2 Jazzy from RoboStack on Python 3.14.10, rmw_zenoh 0.2.11, rmw_iceoryx
+`jazzy` branch with iceoryx 2.0.6, RELIABLE, depth 10; ezmsg 3.9.0 on Python 3.12.16. Median
+latency at 8 MB @ 30 Hz:
+
+| path | nodes | median |
+|---|---|---|
+| ezmsg, same process | Python | 0.13 ms |
+| rmw_iceoryx, fixed-size message, C++ loan → C++ (zero copy) | C++ | 0.13 ms |
+| ezmsg, two processes, numpy | Python | 1.33 ms |
+| ezmsg, two processes, `bytes` | Python | 2.62 ms |
+| rmw_zenoh, fixed-size message, C++ → C++ | C++ | 6.2–6.8 ms |
+| rmw_zenoh, `sensor_msgs/Image`, Python → C++ | Python, C++ | 6.5–7.8 ms |
+| rmw_zenoh, `sensor_msgs/Image`, Python → Python | Python | 9.3–9.5 ms |
+| rmw_iceoryx, `sensor_msgs/Image`, Python → C++ | Python, C++ | 34.1 ms (publisher fell behind) |
+| rmw_iceoryx, `sensor_msgs/Image`, Python → Python | Python | 40.4 ms (publisher fell behind) |
+
+rmw_zenoh ranges cover shared memory off and on.
+
+- **rmw_iceoryx's zero-copy path is 0.09–0.14 ms from 64 kB to 8 MB** (fixed-size type, C++ loan
+  API), against 2.0–6.8 ms for rmw_zenoh between the same C++ nodes at 2 and 8 MB.
+- **For `sensor_msgs/Image` it is the slowest of the three from 64 kB up:** 2.5 to 5.3 times
+  slower than rmw_zenoh at 1 MB and above, and the publisher could not hold 8 MB @ 30 Hz or
+  2 MB @ 135 Hz. That is the path our rigs use (a variable-size type from Python nodes).
+- **ezmsg between two Python processes was 4 to 7 times faster than rmw_zenoh** for 1 to 8 MB
+  numpy arrays (1.2 to 5 times on the Mac).
+- **rmw_iceoryx is one host only,** needs the RouDi daemon before any node, has no RoboStack
+  package, and its `jazzy` branch (last commit January 2024) needed iceoryx 2.0.6 built from
+  source. Its README lists `ros2 param list` and pub/sub events as unsupported and `ros2 bag` as
+  untested; recording was not tested here.
+- **ezmsg 3.9.0 did not run on Python 3.14** in this setup and ran in its own Python 3.12
+  environment. A Lyrical-only rig is Python 3.14, so ezmsg inside a node would need a newer ezmsg
+  or a separate environment.
+- Turning shared memory on in rmw_zenoh made no clear difference on this machine, and it was not
+  confirmed to be in use. The 63 MB shared-memory limit shaped every setup (four buffers at 8 MB
+  for rmw_iceoryx and ezmsg, a 48 MB rmw_zenoh pool).
+- These figures run from the publisher's timestamp to a typed subscriber callback, so they are
+  not comparable with the ww18 recorder figure, which starts at the rmw publish call.
+
 ## Limits
 
 - **Python subscribers only.** The gap is mostly rclpy's message conversion, not the Zenoh
   transport: on ww18 the C++ rosbag2 recorder received 8 MB in 0.18–0.19 ms (`shm-bench.md`),
   faster than ezmsg between processes here.
-- **Mac only, one run per cell.** Not repeated on a Windows rig PC, where rclpy was 3–4 times
-  slower than on the Mac.
+- **One Mac and one Linux container, one run per cell.** Not repeated on a Windows rig PC, where
+  rclpy was 3–4 times slower than on the Mac. Compare columns within a machine, not across.
+- **rmw_iceoryx was not tried on Windows,** and the C++ rosbag2 recorder was not measured on the
+  Mac or the Linux machine.
 - **Unloaded:** one publisher, one subscriber, and the subscriber only checks the payload length.
 - ezmsg applies backpressure instead of dropping; no cell here reached the point where the two
   policies differ (every achieved rate equals the requested one).

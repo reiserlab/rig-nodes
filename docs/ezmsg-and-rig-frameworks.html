@@ -130,7 +130,7 @@
 <main>
 
 <header>
-  <div class="eyebrow">Reiser Lab rig software · 2026-11-17</div>
+  <div class="eyebrow">Reiser Lab rig software · 2026-11-18</div>
   <h1>ezmsg and rig frameworks</h1>
   <p class="lede">We looked at <a href="https://www.ezmsg.org/">ezmsg</a>, a pure-Python message-passing
   framework for signal processing, as a companion to or replacement for ROS 2 on our rigs. While
@@ -152,6 +152,7 @@
     <li>Between two Python processes, ezmsg is 1.2 to 5 times faster than ROS 2 for 1 to 8 MB messages, and about equal for the small messages our rigs send today.</li>
     <li>The cost on the ROS 2 side is the Python client (rclpy), not the transport. A C++ subscriber on the same transport is faster than ezmsg.</li>
     <li>Replacing ROS 2 would cost us MCAP recording, Foxglove, the typed message contract, and non-Python clients.</li>
+    <li>rmw_iceoryx, a zero-copy transport for ROS 2, would not help our rigs as they are. Its zero-copy path is fast (0.13 ms for 8 MB) but needs fixed-size messages and C++ nodes. For <code>sensor_msgs/Image</code>, which we send from Python, it was 2.5 to 5.3 times slower than rmw_zenoh at 1 MB and above.</li>
   </ul>
 </section>
 
@@ -173,7 +174,7 @@
   60 times longer. ezmsg's best result between two processes was 0.73 ms, measured on a Mac.</p>
   <p>So ROS 2 with rmw_zenoh is not the bottleneck for large frames. Where speed matters, a C++
   node on the existing graph gets it, with no second framework.</p>
-  <p class="note" style="color:inherit;opacity:0.85">ww18: Core Ultra 9 285K, Windows 11 25H2, measured 2026-10-21/22, two runs each.
+  <p class="note" style="color:inherit;opacity:0.85"><strong>Test system:</strong> ww18, Intel Core Ultra 9 285K, Windows 11 25H2, measured 2026-10-21/22, two runs each.
   The recorder figure spans rmw publish to recorder receive; the publisher's Python-side
   conversion is not included.</p>
 </section>
@@ -197,7 +198,9 @@
     </tbody>
   </table>
   </div>
-  <p class="note">The Mac and ww18 rows come from different machines and dates, so compare them as orders of magnitude.</p>
+  <p class="note"><strong>Test systems:</strong> Mac: Apple M5 Max, macOS 27.0.1, Python 3.12, ROS 2 Jazzy with rmw_zenoh, ezmsg 3.9.0.
+  ww18: Intel Core Ultra 9 285K, Windows 11 25H2, measured 2026-10-21/22. The Mac and ww18 rows come from
+  different machines and dates, so compare them as orders of magnitude.</p>
 </section>
 
 <section>
@@ -232,36 +235,162 @@
     <li>Inside one process, ezmsg hands the object over by reference, so latency is about 0.1 ms at any size.</li>
     <li>No messages were lost in any cell.</li>
   </ul>
-  <p class="note">Apple M5 Max, macOS 27.0.1, Python 3.12, one 8-second run per cell. ROS 2 Jazzy with
+  <p class="note"><strong>Test system:</strong> Apple M5 Max, macOS 27.0.1, Python 3.12, one 8-second run per cell. ROS 2 Jazzy with
   rmw_zenoh, RELIABLE, depth 10, <code>sensor_msgs/Image</code>. ezmsg 3.9.0.</p>
 </section>
 
 <section>
   <h2>What each framework gives the rig</h2>
   <div class="table-wrap">
-  <table class="narrow">
+  <table>
     <thead>
-      <tr><th>Need</th><th>ROS 2 + rmw_zenoh</th><th>ezmsg</th></tr>
+      <tr><th>Need</th><th>ROS 2 + rmw_zenoh</th><th>ROS 2 + rmw_iceoryx</th><th>ezmsg</th></tr>
     </thead>
     <tbody>
-      <tr><td>Typed message contract</td><td><code>.msg</code> files, language-neutral</td><td>Pickled Python objects, Python only</td></tr>
-      <tr><td>Recording</td><td>rosbag2 / MCAP</td><td>No MCAP; a simple message logger</td></tr>
-      <tr><td>Live viewing</td><td>Foxglove, <code>ros2 topic</code></td><td>Panel or vispy plots</td></tr>
-      <tr><td>Non-Python clients (Studio gateway, MATLAB, C++)</td><td>Supported</td><td>Only through websocket or ZeroMQ units</td></tr>
-      <tr><td>Separately supervised device nodes</td><td>The native model</td><td>Possible, but built around one launched pipeline</td></tr>
-      <tr><td>Install on a rig PC</td><td>RoboStack plus our CI-built channel</td><td><code>pip install</code>, no compiler</td></tr>
-      <tr><td>Community</td><td>The ROS ecosystem</td><td>About 30 GitHub stars; JHU, JHU APL, Wyss Center, Blackrock Neurotech</td></tr>
+      <tr><td>Typed message contract</td><td><code>.msg</code> files, language-neutral</td><td>The same <code>.msg</code> files; zero copy only for fixed-size types</td><td>Pickled Python objects, Python only</td></tr>
+      <tr><td>Recording</td><td>rosbag2 / MCAP</td><td><code>ros2 bag</code> is marked untested in its README</td><td>No MCAP; a simple message logger</td></tr>
+      <tr><td>Live viewing</td><td>Foxglove, <code>ros2 topic</code></td><td><code>ros2 topic</code> and rqt are listed as working; Foxglove not checked</td><td>Panel or vispy plots</td></tr>
+      <tr><td>Non-Python clients (Studio gateway, MATLAB, C++)</td><td>Supported</td><td>The same ROS clients, but only on the same host</td><td>Only through websocket or ZeroMQ units</td></tr>
+      <tr><td>Separately supervised device nodes</td><td>The native model</td><td>Yes, plus a daemon (RouDi) that must start before any node</td><td>Possible, but built around one launched pipeline</td></tr>
+      <tr><td>Install on a rig PC</td><td>RoboStack plus our CI-built channel</td><td>Built from source together with an older iceoryx; no RoboStack package, not tried on Windows</td><td><code>pip install</code>, no compiler</td></tr>
+      <tr><td>Community</td><td>The ROS ecosystem</td><td>193 GitHub stars; README says "under heavy development"</td><td>About 30 GitHub stars; JHU, JHU APL, Wyss Center, Blackrock Neurotech</td></tr>
     </tbody>
   </table>
   </div>
 </section>
 
 <section>
+  <h2>rmw_iceoryx, rmw_zenoh, and ezmsg on one Linux machine</h2>
+  <p><a href="https://github.com/ros2/rmw_iceoryx">rmw_iceoryx</a> is not a framework. It is another
+  transport under ROS 2, in the slot rmw_zenoh fills on our rigs, built on Eclipse iceoryx. The
+  publisher writes a message into shared memory and the subscriber reads the same memory. We built
+  it under ROS 2 Jazzy and measured it, rmw_zenoh, and ezmsg on the same Linux machine with the same message sizes.</p>
+  <ul>
+    <li><strong>rmw_iceoryx with fixed-size messages and the C++ loan API takes 0.09–0.14 ms at any size.</strong> That matches ezmsg inside one process, and rmw_zenoh took 2.0–6.8 ms for the same 2 MB and 8 MB messages between the same C++ nodes.</li>
+    <li><strong>ezmsg is the fastest way to move a large array between two Python processes.</strong> With numpy arrays of 1 to 8 MB it was 4 to 7 times faster than rmw_zenoh, and it was also ahead at 64 kB.</li>
+    <li><strong>rmw_iceoryx with <code>sensor_msgs/Image</code> is the slowest of the three from 64 kB up.</strong> At 1 MB and above it took 2.5 to 5.3 times as long as rmw_zenoh, and the publisher could not hold 8 MB at 30 Hz or 2 MB at 135 Hz.</li>
+    <li><strong>Our rigs use that slow path.</strong> They send <code>sensor_msgs/Image</code>, a variable-size type, from Python nodes. Reaching the fast path means a new fixed-size frame message and C++ nodes on both ends.</li>
+    <li><strong>rmw_iceoryx is one host only.</strong> iceoryx is shared memory between processes on one machine. rmw_zenoh can also cross the network, which the clock-alignment work assumes.</li>
+    <li><strong>rmw_iceoryx did not build as shipped.</strong> RoboStack has no package, and the <code>jazzy</code> branch (last commit January 2024) does not compile against the iceoryx 2.95.8 that RoboStack Jazzy provides. We built iceoryx 2.0.6 from source beside it.</li>
+    <li><strong>ezmsg 3.9.0 did not run on Python 3.14,</strong> the version RoboStack Jazzy installs here, so it ran in its own Python 3.12 environment.</li>
+    <li><strong>rmw_iceoryx has gaps in ROS features.</strong> Its README lists <code>ros2 param list</code> and pub/sub events as unsupported, and <code>ros2 bag</code> as untested. We did not test recording.</li>
+  </ul>
+
+  <h3>All paths, 8 MB at 30 Hz</h3>
+  <div class="table-wrap">
+  <table class="narrow">
+    <thead>
+      <tr><th>Path</th><th>Nodes</th><th class="num">Median latency</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>ezmsg, same process (object passed by reference, no transport)</td><td>Python</td><td class="num">0.13 ms</td></tr>
+      <tr class="cpp"><td>ROS 2 + rmw_iceoryx, fixed-size message, C++ loan to C++ (zero copy)</td><td>C++</td><td class="num">0.13 ms</td></tr>
+      <tr><td>ezmsg, two processes, numpy payload</td><td>Python</td><td class="num">1.33 ms</td></tr>
+      <tr><td>ezmsg, two processes, <code>bytes</code> payload</td><td>Python</td><td class="num">2.62 ms</td></tr>
+      <tr><td>ROS 2 + rmw_zenoh, fixed-size message, C++ to C++</td><td>C++</td><td class="num">6.2–6.8 ms</td></tr>
+      <tr><td>ROS 2 + rmw_zenoh, <code>sensor_msgs/Image</code>, Python to C++</td><td>Python, C++</td><td class="num">6.5–7.8 ms</td></tr>
+      <tr><td>ROS 2 + rmw_zenoh, <code>sensor_msgs/Image</code>, Python to Python</td><td>Python</td><td class="num">9.3–9.5 ms</td></tr>
+      <tr><td>ROS 2 + rmw_iceoryx, <code>sensor_msgs/Image</code>, Python to C++&nbsp;*</td><td>Python, C++</td><td class="num">34.1 ms</td></tr>
+      <tr><td>ROS 2 + rmw_iceoryx, <code>sensor_msgs/Image</code>, Python to Python&nbsp;*</td><td>Python</td><td class="num">40.4 ms</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="note">* With rmw_iceoryx the publisher fell behind the requested rate: it sent 222 (Python subscriber) and 236 (C++ subscriber) of
+  240 messages at 8 MB, and 877 and 872 of 1080 at 2 MB and 135 Hz. Every message that was sent arrived, in every cell.</p>
+  <p class="note"><strong>Test system:</strong> AMD Ryzen 7 7840U (8 cores, 16 threads), 60 GB RAM, Fedora 44
+  container on Linux 6.18, shared memory limited to 63 MB. Measured 2026-11-18, one 8-second run per cell,
+  one publisher and one subscriber. ROS 2 Jazzy from RoboStack (Python 3.14.10), rmw_zenoh 0.2.11, rmw_iceoryx <code>jazzy</code> branch with iceoryx 2.0.6, RELIABLE, depth 10. ezmsg 3.9.0 on Python 3.12.16, numpy 2.5.5. Ranges cover rmw_zenoh with shared memory off and on.</p>
+
+  <h3>Python to Python, all three</h3>
+  <p>Median latency in ms, with the 99th percentile in parentheses. The ROS 2 columns send
+  <code>sensor_msgs/Image</code>, as our rigs do. The fastest two-process result in each row is marked.</p>
+  <div class="table-wrap">
+  <table style="min-width:54rem">
+    <thead>
+      <tr>
+        <th>Message</th>
+        <th class="num">rmw_zenoh, shm off</th>
+        <th class="num">rmw_zenoh, shm on</th>
+        <th class="num">rmw_iceoryx</th>
+        <th class="num">ezmsg, <code>bytes</code></th>
+        <th class="num">ezmsg, numpy</th>
+        <th class="num">ezmsg, same process</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>1 kB @ 100 Hz</td><td class="num">0.86 (1.13)</td><td class="num">0.72 (1.22)</td><td class="num best">0.42 (1.09)</td><td class="num">0.57 (1.00)</td><td class="num">0.52 (0.94)</td><td class="num">0.10 (0.20)</td></tr>
+      <tr><td>64 kB @ 100 Hz</td><td class="num">1.06 (1.33)</td><td class="num">0.82 (1.33)</td><td class="num">1.22 (1.98)</td><td class="num best">0.46 (0.88)</td><td class="num">0.62 (0.95)</td><td class="num">0.10 (0.22)</td></tr>
+      <tr><td>1 MB @ 30 Hz</td><td class="num">3.18 (4.14)</td><td class="num">3.26 (4.74)</td><td class="num">8.41 (10.18)</td><td class="num best">0.75 (1.69)</td><td class="num">0.78 (1.53)</td><td class="num">0.13 (0.19)</td></tr>
+      <tr><td>2 MB @ 30 Hz</td><td class="num">5.54 (7.55)</td><td class="num">4.71 (6.64)</td><td class="num">13.63 (16.77)</td><td class="num">0.97 (2.49)</td><td class="num best">0.75 (1.62)</td><td class="num">0.13 (0.21)</td></tr>
+      <tr><td>8 MB @ 30 Hz</td><td class="num">9.50 (14.69)</td><td class="num">9.26 (11.68)</td><td class="num">40.45 (64.36)&nbsp;*</td><td class="num">2.62 (5.39)</td><td class="num best">1.33 (3.36)</td><td class="num">0.13 (0.24)</td></tr>
+      <tr><td>2 MB @ 135 Hz</td><td class="num">4.06 (6.02)</td><td class="num">4.26 (6.28)</td><td class="num">12.12 (13.85)&nbsp;*</td><td class="num">0.76 (1.50)</td><td class="num best">0.69 (1.38)</td><td class="num">0.10 (0.29)</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="note">* With rmw_iceoryx the publisher fell behind the requested rate: it sent 222 (Python subscriber) and 236 (C++ subscriber) of
+  240 messages at 8 MB, and 877 and 872 of 1080 at 2 MB and 135 Hz. Every message that was sent arrived, in every cell.</p>
+  <p class="note"><strong>Test system:</strong> AMD Ryzen 7 7840U (8 cores, 16 threads), 60 GB RAM, Fedora 44
+  container on Linux 6.18, shared memory limited to 63 MB. Measured 2026-11-18, one 8-second run per cell,
+  one publisher and one subscriber. ROS 2 Jazzy from RoboStack (Python 3.14.10), rmw_zenoh 0.2.11, rmw_iceoryx <code>jazzy</code> branch with iceoryx 2.0.6, RELIABLE, depth 10. ezmsg 3.9.0 on Python 3.12.16, numpy 2.5.5.</p>
+
+  <h3><code>sensor_msgs/Image</code>, Python publisher to C++ subscriber</h3>
+  <p>Median latency in ms, with the 99th percentile in parentheses. ezmsg has no C++ client, so it has no column here.</p>
+  <div class="table-wrap">
+  <table class="narrow">
+    <thead>
+      <tr><th>Message</th><th class="num">rmw_zenoh, shm off</th><th class="num">rmw_zenoh, shm on</th><th class="num">rmw_iceoryx</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>1 kB @ 100 Hz</td><td class="num">0.59 (0.80)</td><td class="num">0.49 (0.77)</td><td class="num best">0.23 (0.60)</td></tr>
+      <tr><td>64 kB @ 100 Hz</td><td class="num">0.64 (1.01)</td><td class="num best">0.62 (0.84)</td><td class="num">0.96 (1.31)</td></tr>
+      <tr><td>1 MB @ 30 Hz</td><td class="num best">1.51 (2.45)</td><td class="num">1.60 (2.63)</td><td class="num">6.79 (8.29)</td></tr>
+      <tr><td>2 MB @ 30 Hz</td><td class="num">2.48 (3.74)</td><td class="num best">2.38 (3.86)</td><td class="num">9.92 (12.69)</td></tr>
+      <tr><td>8 MB @ 30 Hz</td><td class="num">7.84 (11.00)</td><td class="num best">6.48 (9.42)</td><td class="num">34.12 (39.88)&nbsp;*</td></tr>
+      <tr><td>2 MB @ 135 Hz</td><td class="num best">2.06 (2.93)</td><td class="num">2.15 (3.41)</td><td class="num">9.09 (10.85)&nbsp;*</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="note">* With rmw_iceoryx the publisher fell behind the requested rate: it sent 222 (Python subscriber) and 236 (C++ subscriber) of
+  240 messages at 8 MB, and 877 and 872 of 1080 at 2 MB and 135 Hz. Every message that was sent arrived, in every cell.</p>
+  <p class="note"><strong>Test system:</strong> AMD Ryzen 7 7840U (8 cores, 16 threads), 60 GB RAM, Fedora 44
+  container on Linux 6.18, shared memory limited to 63 MB. Measured 2026-11-18, one 8-second run per cell,
+  one publisher and one subscriber. ROS 2 Jazzy from RoboStack (Python 3.14.10), rmw_zenoh 0.2.11, rmw_iceoryx <code>jazzy</code> branch with iceoryx 2.0.6, RELIABLE, depth 10.</p>
+
+  <h3>Fixed-size message, C++ publisher with loan to C++ subscriber</h3>
+  <p>Median latency in ms, with the 99th percentile in parentheses. This is rmw_iceoryx's zero-copy path.</p>
+  <div class="table-wrap">
+  <table class="narrow">
+    <thead>
+      <tr><th>Message</th><th class="num">rmw_zenoh, shm off</th><th class="num">rmw_zenoh, shm on</th><th class="num">rmw_iceoryx</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>64 kB @ 100 Hz</td><td class="num">0.36 (0.75)</td><td class="num">0.43 (0.71)</td><td class="num best">0.09 (0.25)</td></tr>
+      <tr><td>2 MB @ 30 Hz</td><td class="num">2.12 (4.20)</td><td class="num">2.13 (3.64)</td><td class="num best">0.14 (0.19)</td></tr>
+      <tr><td>2 MB @ 135 Hz</td><td class="num">1.98 (2.80)</td><td class="num">1.98 (3.20)</td><td class="num best">0.12 (0.23)</td></tr>
+      <tr><td>8 MB @ 30 Hz</td><td class="num">6.15 (9.52)</td><td class="num">6.84 (10.77)</td><td class="num best">0.13 (0.19)</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="note"><strong>Test system:</strong> AMD Ryzen 7 7840U (8 cores, 16 threads), 60 GB RAM, Fedora 44
+  container on Linux 6.18, shared memory limited to 63 MB. Measured 2026-11-18, one 8-second run per cell,
+  one publisher and one subscriber. ROS 2 Jazzy from RoboStack (Python 3.14.10), rmw_zenoh 0.2.11, rmw_iceoryx <code>jazzy</code> branch with iceoryx 2.0.6, RELIABLE, depth 10.</p>
+
+  <ul>
+    <li>Turning shared memory on in rmw_zenoh made no clear difference on this machine. We did not confirm that it was in use.</li>
+    <li>The 63 MB shared-memory limit shaped the setup: iceoryx was built with lower publisher and subscriber limits, the 8 MB cases had four buffers in rmw_iceoryx and in ezmsg, ezmsg had eight buffers at 1 and 2 MB, and rmw_zenoh's pool was 48 MB.</li>
+    <li>These figures are not comparable with the ww18 result above. Here the latency runs from the publisher's timestamp to a typed subscriber callback, so it includes the publisher's and subscriber's conversion work. The ww18 recorder figure starts at the rmw publish call.</li>
+    <li>A successor, <a href="https://github.com/ekxide/rmw_iceoryx2">rmw_iceoryx2</a>, exists as an early release; we did not evaluate it.</li>
+  </ul>
+</section>
+
+<section>
   <h2>Limits of the measurement</h2>
   <ul>
-    <li>The ezmsg runs are from one Mac, one run per cell. They were not repeated on a Windows rig PC.</li>
+    <li>The ezmsg runs are from one Mac and one Linux machine, one run per cell. They were not repeated on a Windows rig PC.</li>
     <li>Each cell is one publisher and one subscriber on an otherwise idle machine, and the subscriber only checks the message length.</li>
     <li>The C++ recorder was not measured on the Mac, and ezmsg was not measured on ww18.</li>
+    <li>The Linux tables come from a third machine, a container with 63 MB of shared memory, with a benchmark written for this page. Compare their columns with each other, not with the Mac or ww18 tables.</li>
+    <li>rmw_iceoryx was not tried on Windows, and recording with <code>ros2 bag</code> was not tested.</li>
   </ul>
 </section>
 </div>
@@ -270,26 +399,27 @@
 <section>
   <h2>At a glance</h2>
   <div class="table-wrap">
-  <table>
+  <table style="min-width:58rem">
     <thead>
       <tr>
         <th></th>
         <th class="ours">ROS 2 + rmw_zenoh (ours)</th>
+        <th>ROS 2 + rmw_iceoryx</th>
         <th>LSL</th>
         <th>Bonsai + Harp</th>
         <th>ezmsg</th>
       </tr>
     </thead>
     <tbody>
-      <tr><th>What it is</th><td class="ours">General robotics middleware: independent processes on a typed pub/sub graph</td><td>Streaming and recording of time series across a lab network</td><td>Visual reactive language for experiments (Bonsai), plus a hardware protocol with a shared clock (Harp)</td><td>Pure-Python pipeline framework for signal processing</td></tr>
-      <tr><th>Languages</th><td class="ours">C++, Python, others through bridges</td><td>C, C++, Python, Java, C#, MATLAB</td><td>Visual workflows on .NET; C# and scripting for extensions</td><td>Python only</td></tr>
-      <tr><th>Platforms</th><td class="ours">Linux, Windows, macOS (through RoboStack)</td><td>Windows, Linux, macOS, Android, iOS</td><td>Windows first</td><td>Any with Python 3.10+</td></tr>
-      <tr><th>Message model</th><td class="ours">Typed structured messages (<code>.msg</code>)</td><td>Flat numeric or string channels with an XML header</td><td>Typed .NET streams; Harp register messages</td><td>Python objects (pickled between processes)</td></tr>
-      <tr><th>Commands to devices</th><td class="ours">Yes (command and reply topics)</td><td>No, data streams only</td><td>Yes (Harp commands and events)</td><td>Not a built-in pattern</td></tr>
-      <tr><th>Large frames</th><td class="ours">Shared memory; fastest with C++ nodes</td><td>TCP only</td><td>In-process, so no transport cost</td><td>Shared memory between processes; by reference in-process</td></tr>
-      <tr><th>Clock alignment</th><td class="ours">Single host only today</td><td>Built in: offsets between machines measured every few seconds</td><td>Harp devices share one hardware clock, tens of microseconds</td><td>None of its own</td></tr>
-      <tr><th>Recording</th><td class="ours">One MCAP file per run</td><td>One XDF file per session (LabRecorder)</td><td>Each workflow chooses its own writers</td><td>A simple message logger</td></tr>
-      <tr><th>Community</th><td class="ours">Large, mostly robotics</td><td>Large in EEG and human neuroscience; many vendor apps</td><td>Large in systems neuroscience and behavior</td><td>Small, brain-computer interface labs</td></tr>
+      <tr><th>What it is</th><td class="ours">General robotics middleware: independent processes on a typed pub/sub graph</td><td>The same ROS 2 graph on a different transport: zero-copy shared memory (Eclipse iceoryx)</td><td>Streaming and recording of time series across a lab network</td><td>Visual reactive language for experiments (Bonsai), plus a hardware protocol with a shared clock (Harp)</td><td>Pure-Python pipeline framework for signal processing</td></tr>
+      <tr><th>Languages</th><td class="ours">C++, Python, others through bridges</td><td>C++ for the zero-copy path; Python nodes work, without zero copy</td><td>C, C++, Python, Java, C#, MATLAB</td><td>Visual workflows on .NET; C# and scripting for extensions</td><td>Python only</td></tr>
+      <tr><th>Platforms</th><td class="ours">Linux, Windows, macOS (through RoboStack)</td><td>Built and run by us on Linux; not tried on Windows</td><td>Windows, Linux, macOS, Android, iOS</td><td>Windows first</td><td>Any with Python 3.10+</td></tr>
+      <tr><th>Message model</th><td class="ours">Typed structured messages (<code>.msg</code>)</td><td>The same <code>.msg</code> types; zero copy only for fixed-size ones</td><td>Flat numeric or string channels with an XML header</td><td>Typed .NET streams; Harp register messages</td><td>Python objects (pickled between processes)</td></tr>
+      <tr><th>Commands to devices</th><td class="ours">Yes (command and reply topics)</td><td>Yes (the same ROS topics and services)</td><td>No, data streams only</td><td>Yes (Harp commands and events)</td><td>Not a built-in pattern</td></tr>
+      <tr><th>Large frames</th><td class="ours">Shared memory; fastest with C++ nodes</td><td>Zero copy for fixed-size types through the C++ loan API (8 MB in 0.13 ms); slower than rmw_zenoh for <code>sensor_msgs/Image</code></td><td>TCP only</td><td>In-process, so no transport cost</td><td>Shared memory between processes; by reference in-process</td></tr>
+      <tr><th>Clock alignment</th><td class="ours">Single host only today</td><td>Single host by design</td><td>Built in: offsets between machines measured every few seconds</td><td>Harp devices share one hardware clock, tens of microseconds</td><td>None of its own</td></tr>
+      <tr><th>Recording</th><td class="ours">One MCAP file per run</td><td>MCAP through rosbag2 in principle; <code>ros2 bag</code> is marked untested</td><td>One XDF file per session (LabRecorder)</td><td>Each workflow chooses its own writers</td><td>A simple message logger</td></tr>
+      <tr><th>Community</th><td class="ours">Large, mostly robotics</td><td>Small (193 GitHub stars)</td><td>Large in EEG and human neuroscience; many vendor apps</td><td>Large in systems neuroscience and behavior</td><td>Small, brain-computer interface labs</td></tr>
     </tbody>
   </table>
   </div>
@@ -313,6 +443,25 @@
         <li>The Python client is slow for large frames (11–12 ms for 8 MB on Windows).</li>
         <li>No built-in clock alignment across machines.</li>
         <li>Few neuroscience devices ship a ROS driver, so we write adapters.</li>
+      </ul></div>
+    </div>
+  </div>
+
+  <div class="system" style="display:flex;flex-direction:column">
+    <h3>ROS 2 with rmw_iceoryx</h3>
+    <p class="what">An alternative transport for the same ROS 2 graph, built on Eclipse iceoryx:
+    publisher and subscriber share one block of memory, with no copy. Measured by us on one Linux machine.</p>
+    <div class="proscons">
+      <div><h4>Strengths</h4><ul>
+        <li>True zero copy: 0.09–0.14 ms from 64 kB to 8 MB between C++ nodes, against 2.0–6.8 ms with rmw_zenoh for 2 MB and 8 MB.</li>
+        <li>Keeps the ROS 2 contract: the same <code>.msg</code> files, nodes, and most <code>ros2</code> tools.</li>
+        <li>Switching is a setting (<code>RMW_IMPLEMENTATION</code>), not a rewrite, for nodes that do not need zero copy.</li>
+      </ul></div>
+      <div><h4>Weaknesses</h4><ul>
+        <li>Zero copy needs fixed-size message types and the C++ loan API. For <code>sensor_msgs/Image</code> from a Python node it was 2.5 to 5.3 times slower than rmw_zenoh at 1 MB and above.</li>
+        <li>One host only, which closes the path to a multi-machine rig.</li>
+        <li>Needs the RouDi daemon running before any node starts.</li>
+        <li>Incomplete and quiet: no <code>ros2 param list</code>, no pub/sub events, <code>ros2 bag</code> untested, last commit January 2024. The <code>jazzy</code> branch needed an older iceoryx built from source.</li>
       </ul></div>
     </div>
   </div>
@@ -363,7 +512,7 @@
     <div class="proscons">
       <div><h4>Strengths</h4><ul>
         <li>Installs with <code>pip</code>, with no compiler.</li>
-        <li>Faster than ROS 2's Python client for 1 to 8 MB arrays (1.2 to 5 times in our test).</li>
+        <li>Faster than ROS 2's Python client for 1 to 8 MB arrays (1.2 to 5 times on the Mac, 4 to 7 times on Linux).</li>
         <li>Inside one process, messages pass by reference in about 0.1 ms at any size.</li>
         <li>Ready-made signal-processing units and an LSL bridge.</li>
       </ul></div>
@@ -404,6 +553,7 @@
   <h2>Similarities and differences</h2>
   <ul>
     <li><strong>All four are publish/subscribe.</strong> A source produces a stream and any number of consumers read it. The ideas transfer even where the code does not.</li>
+    <li><strong>rmw_iceoryx is not a fifth framework.</strong> It is ROS 2 with a different transport, so it shares ROS 2's contract and tools and differs only in how bytes move: zero copy on one host, against shared memory plus network with rmw_zenoh.</li>
     <li><strong>They differ in where the boundary sits.</strong> ROS 2 and LSL connect separate programs, possibly on separate machines. Bonsai and ezmsg mainly connect steps inside one program.</li>
     <li><strong>They differ in what they treat as the hard problem.</strong> ROS 2: a typed contract between many processes. LSL: time alignment and one recording. Harp: hardware timestamps. Bonsai: fast assembly of an experiment. ezmsg: array throughput in Python.</li>
     <li><strong>Only ROS 2 and Harp handle device control.</strong> LSL and ezmsg move data and leave commands to you.</li>
@@ -450,7 +600,7 @@
     <li>
       <span class="pill part">Partly</span>
       <div><strong>Put speed where it is needed: C++ or in-process, not new middleware.</strong>
-      <span>Measured: a C++ subscriber on our graph beats ezmsg, and in-process hand-off beats both. No rig node uses either yet, because current traffic is small messages.</span>
+      <span>Measured: a C++ subscriber on our graph beats ezmsg, and in-process hand-off beats both. No rig node uses either yet, because current traffic is small messages. A zero-copy transport such as rmw_iceoryx only pays off once the nodes are C++ and the frame type is fixed-size; measured, it then delivers 8 MB in 0.13 ms.</span>
       <span class="from">From the ezmsg comparison and the ww18 benchmarks.</span></div>
     </li>
     <li>
@@ -497,11 +647,12 @@
   <a href="https://harp-tech.org/">harp-tech.org</a>,
   <a href="https://nwb-overview.readthedocs.io/en/latest/intro_to_nwb/1_intro_to_nwb.html">NWB overview</a>,
   <a href="https://github.com/timeflux/timeflux">Timeflux on GitHub</a>,
-  <a href="https://github.com/python-streamz/streamz">streamz on GitHub</a>.</span>
+  <a href="https://github.com/python-streamz/streamz">streamz on GitHub</a>,
+  <a href="https://github.com/ros2/rmw_iceoryx">rmw_iceoryx on GitHub</a> (README, read 2026-11-18).</span>
   <span>Not checked against a source: Bonsai's recording behavior, its usual single-process shape,
-  and the community-size descriptions. These are from general knowledge.</span>
+  the community-size descriptions, and for rmw_iceoryx the single-host limit. These are from general knowledge.</span>
   <span>Benchmark details are in the rig-nodes repository: <code>docs/shm-bench.md</code> (ww18 results),
-  <code>docs/ezmsg-bench.md</code> (the ezmsg comparison), and <code>bench/ez_bench.py</code> (the ezmsg benchmark).</span>
+  <code>docs/ezmsg-bench.md</code> (the ezmsg comparison), and <code>bench/ez_bench.py</code> (the ezmsg benchmark). The Linux measurements (rmw_iceoryx, rmw_zenoh, ezmsg) are Frank's, summarized in <code>docs/ezmsg-bench.md</code>; his benchmark scripts and raw results (<code>iceoryx-bench/</code>) are not in the repository yet.</span>
 </footer>
 
 </main>
