@@ -262,27 +262,27 @@ jobs:
       matrix:
         include:
           - { os: windows-2022, subdir: win-64 }    # VS 2022 → conda-forge vs2022 finds v143
-          - { os: macos-14,     subdir: osx-arm64 }
+          - { os: macos-15,     subdir: osx-arm64 }
           - { os: ubuntu-24.04, subdir: linux-64 }
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v5
-      - uses: prefix-dev/setup-pixi@v0     # pin an exact version + pixi-version: v0.80.0
+      - uses: actions/checkout@v7
+      - uses: prefix-dev/setup-pixi@v0.11.3     # pin an exact version + pixi-version: v0.83.0
         with: { run-install: false }
       - if: runner.os == 'Windows'           # D:\a\webDisplayTools\webDisplayTools\ros2-poc is 45 chars: at the limit
         working-directory: ros2-poc
         run: pixi config set --local detached-environments C:\px
       - working-directory: ros2-poc
         run: pixi build --path interfaces/arena_interfaces/pixi.toml --output-dir ../dist
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         with: { name: arena_interfaces-${{ matrix.subdir }}, path: dist/*.conda }
   publish:                                   # all three or nothing: see "partial channel" below
     needs: build
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/download-artifact@v5
+      - uses: actions/download-artifact@v8
         with: { path: dist, merge-multiple: true }
-      - uses: prefix-dev/setup-pixi@v0
+      - uses: prefix-dev/setup-pixi@v0.11.3
         with: { run-install: false }
       # trusted publishing: check the OIDC flag/behaviour of the rattler-build version you pin
       - run: pixi exec rattler-build upload prefix --channel <lab-channel> dist/*.conda

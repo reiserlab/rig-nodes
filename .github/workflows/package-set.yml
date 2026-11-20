@@ -40,7 +40,7 @@ env:
 
 jobs:
     build:
-        name: build (${{ matrix.subdir }}, ${{ matrix.distro }})
+        name: build (${{ matrix.subdir }}, ${{ matrix.distro }}${{ matrix.os == 'ubuntu-26.04' && ', ubuntu-26.04' || '' }})
         strategy:
             fail-fast: false
             matrix:
@@ -55,6 +55,9 @@ jobs:
                     - { os: windows-2022, subdir: win-64, distro: lyrical, mutex: '0.22', python: '3.14' }
                     - { os: macos-15, subdir: osx-arm64, distro: lyrical, mutex: '0.22', python: '3.14' }
                     - { os: ubuntu-24.04, subdir: linux-64, distro: lyrical, mutex: '0.22', python: '3.14' }
+                    # ubuntu-26.04: build + inspect only, as a second Linux host. Its packages are NOT uploaded:
+                    # the channel takes exactly one linux-64 build, from ubuntu-24.04.
+                    - { os: ubuntu-26.04, subdir: linux-64, distro: lyrical, mutex: '0.22', python: '3.14', skip_upload: true }
         runs-on: ${{ matrix.os }}
         defaults:
             run:
@@ -63,7 +66,7 @@ jobs:
             - uses: actions/checkout@v7
               with:
                   persist-credentials: false
-            - uses: prefix-dev/setup-pixi@v0.10.2
+            - uses: prefix-dev/setup-pixi@v0.11.3
               with:
                   pixi-version: ${{ env.PIXI_VERSION }}
                   run-install: false
@@ -144,7 +147,8 @@ jobs:
                   sys.exit(0 if ok else 1)
                   EOF
                   find dist -type f | sort
-            - uses: actions/upload-artifact@v5
+            - if: ${{ !matrix.skip_upload }}
+              uses: actions/upload-artifact@v7
               with:
                   name: packages-${{ matrix.subdir }}
                   path: dist/**/*.conda
@@ -156,13 +160,13 @@ jobs:
         needs: build
         runs-on: ubuntu-24.04
         steps:
-            - uses: prefix-dev/setup-pixi@v0.10.2
+            - uses: prefix-dev/setup-pixi@v0.11.3
               with:
                   pixi-version: ${{ env.PIXI_VERSION }}
                   run-install: false
             # One artifact per build platform → channel/<pkg subdir>/<pkg>.conda (the subdir
             # directories were created by the inspect step from each package's own metadata).
-            - uses: actions/download-artifact@v5
+            - uses: actions/download-artifact@v8
               with:
                   pattern: packages-*
                   path: artifacts
@@ -181,7 +185,7 @@ jobs:
                       for name, rec in pk.items():
                           print(rd.parent.name, name, rec["sha256"], [d for d in rec["depends"] if d.startswith(("ros2-distro-mutex", "python"))])
                   EOF
-            - uses: actions/upload-artifact@v5
+            - uses: actions/upload-artifact@v7
               with:
                   name: rig-nodes-channel
                   path: channel
@@ -216,11 +220,11 @@ jobs:
               with:
                   persist-credentials: false
                   path: src-tree
-            - uses: prefix-dev/setup-pixi@v0.10.2
+            - uses: prefix-dev/setup-pixi@v0.11.3
               with:
                   pixi-version: ${{ env.PIXI_VERSION }}
                   run-install: false
-            - uses: actions/download-artifact@v5
+            - uses: actions/download-artifact@v8
               with:
                   name: rig-nodes-channel
                   path: channel
@@ -274,7 +278,7 @@ jobs:
         # and packages rig_nodes in place for the locked RoboStack set, then the pure, host-sampler,
         # FicTrac-simulator and device-node conformance tests (simulators only, no hardware) run on
         # it. Required since 2026-11-18. No channel payload comes out of it.
-        name: test (${{ matrix.subdir }}, source workspace)
+        name: test (${{ matrix.subdir }}, source workspace${{ matrix.os == 'ubuntu-26.04' && ', ubuntu-26.04' || '' }})
         timeout-minutes: 90
         strategy:
             fail-fast: false
@@ -283,6 +287,7 @@ jobs:
                     - { os: windows-2022, subdir: win-64 }
                     - { os: macos-15, subdir: osx-arm64 }
                     - { os: ubuntu-24.04, subdir: linux-64 }
+                    - { os: ubuntu-26.04, subdir: linux-64 }
         runs-on: ${{ matrix.os }}
         defaults:
             run:
@@ -291,7 +296,7 @@ jobs:
             - uses: actions/checkout@v7
               with:
                   persist-credentials: false
-            - uses: prefix-dev/setup-pixi@v0.10.2
+            - uses: prefix-dev/setup-pixi@v0.11.3
               with:
                   pixi-version: ${{ env.PIXI_VERSION }}
                   run-install: false
