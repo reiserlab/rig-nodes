@@ -110,8 +110,10 @@ executor policy, never node policy). Typed replies use `rig_interfaces/Connector
 Device fields are passed through under the device's names (BIAS: `connected`, `capturing`,
 `logging`, `frameCount`, `framesPerSec`, `videoFile`). A counter the device does not
 report is **absent**, never 0. The UVC camera node has no commands; its status is `device`, `mode`,
-`size`, `fps_requested`, `frames`, `bytes` and, from the second status on, `fps_measured` (frames
-counted against the host clock over the last status interval).
+`size`, `fps_requested`, `frames`, `bytes`, `dropped` (camera frames ffmpeg discarded before the
+node read them, so they are on no topic), in MJPEG mode `malformed` (stretches of ffmpeg's output
+that were not a JPEG) and, from the second status on, `fps_measured` (frames counted against the
+host clock over the last status interval).
 
 ## 5. `/arena/frame`
 

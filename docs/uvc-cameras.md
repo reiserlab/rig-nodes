@@ -12,6 +12,9 @@ pixi run uvc-camera -- --device "Arducam OV9281 USB Camera" --src ov9281 --size 
 pixi run uvc-camera -- --device "Arducam ezBOX VGA GS Mono" --src ezbox --size 640x480 --fps 200
 ```
 
+`--sim` replaces the camera and ffmpeg with `rig_nodes.sims.uvc_sim` and runs on any OS:
+`pixi run uvc-camera -- --sim --src camera --fps 60` (a 64x48 test picture, whatever `--size` says).
+
 Needs an `ffmpeg` executable: `--ffmpeg`, `$RIG_FFMPEG`, `PATH`, then `C:\msys64\ucrt64\bin`.
 One node per camera, each with its own `--src` (CONTRACT §2: one node per `<src>`).
 
@@ -42,6 +45,11 @@ JPEG; `/ezbox/image_raw` 61 Hz.
 - **The rate you get is not always the rate you ask for, and nothing says so.** The camera picks a
   rate it has; ffmpeg reports the one you asked for. The node's `/<src>/status` carries
   `fps_measured`, and the node warns once when it is more than 5 % off.
+- **A frame can be lost before the node sees it, and the messages do not show it.** When the node
+  reads ffmpeg's pipe too slowly (a publish held up by a slow RELIABLE subscriber), ffmpeg's
+  buffer overflows and it discards camera frames. `sensor_msgs` images carry no frame counter, so
+  the node counts ffmpeg's "frame dropped" lines in `dropped` in `/<src>/status` and warns in its
+  log. Not provoked on a real camera yet; the simulator's line is copied from ffmpeg's source.
 - **Driver timestamps are synthetic**: they step by exactly the nominal interval, whatever arrives.
   They cannot show drops or the real rate, so the node does not use them.
 - **Stamps are host arrival times, in bursts.** ffmpeg's DirectShow reader hands frames over about
@@ -54,5 +62,5 @@ JPEG; `/ezbox/image_raw` 61 Hz.
 ## Not covered
 
 Exposure and gain (ffmpeg's DirectShow input cannot set them; the camera keeps its defaults),
-exposure-accurate timestamps, Linux and macOS, runs longer than a few seconds, and a recorded bag
+exposure-accurate timestamps, real cameras on Linux and macOS, runs longer than a few seconds, and a recorded bag
 with these topics.

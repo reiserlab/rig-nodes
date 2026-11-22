@@ -43,7 +43,7 @@ from sensor_msgs.msg import CompressedImage, Image
 from std_msgs.msg import String
 
 from rig_nodes._common import RELIABLE_QOS, raise_timer_resolution, spin, wall_ms, wall_ns
-from rig_nodes.uvc import MODES, JpegSplitter, ffmpeg_argv, find_ffmpeg, parse_size, rate_note
+from rig_nodes.uvc import MODES, JpegSplitter, ffmpeg_argv, find_ffmpeg, is_drop_line, parse_size, rate_note
 
 # Uncompressed frames are large (307 KB at 640x480): a shorter queue than the 200 of RELIABLE_QOS.
 RAW_IMAGE_QOS = QoSProfile(reliability=QoSReliabilityPolicy.RELIABLE, history=QoSHistoryPolicy.KEEP_LAST,
@@ -59,7 +59,8 @@ def _child_env(ffmpeg: str) -> dict:
 
 
 class UvcCameraNode(Node):
-    def __init__(self, ffmpeg: str, device: str, src: str, size: str, fps: float, mode: str, status_every_s: float) -> None:
+    def __init__(self, ffmpeg: list[str], device: str, src: str, size: str, fps: float, mode: str, status_every_s: float) -> None:
+        """`ffmpeg` is the command that starts it: [executable], or the simulator's [python, -m, …]."""
         super().__init__(f"{src}_camera")
         self.device, self.src, self.size, self.fps, self.mode = device, src, size, fps, mode
         self.width, self.height = parse_size(size)
@@ -72,16 +73,21 @@ class UvcCameraNode(Node):
         self.status_pub = self.create_publisher(String, f"/{src}/status", RELIABLE_QOS)
         self.frames = 0
         self.bytes = 0
+        self.dropped = 0  # frames ffmpeg discarded before the pipe (its "frame dropped" lines)
+        self.malformed = 0  # mjpeg: stretches of the pipe that were not a JPEG
         self.error = ""
         self._stop = threading.Event()
-        self.proc = subprocess.Popen(ffmpeg_argv(ffmpeg, device, size, fps, mode), stdout=subprocess.PIPE,
-                                     stdin=subprocess.DEVNULL, env=_child_env(ffmpeg))
+        self._drop_warned = 0.0
+        self.proc = subprocess.Popen(ffmpeg + ffmpeg_argv("", device, size, fps, mode)[1:], stdout=subprocess.PIPE,
+                                     stderr=subprocess.PIPE, stdin=subprocess.DEVNULL, env=_child_env(ffmpeg[0]))
         self._thread = threading.Thread(target=self._read_loop, name="ffmpeg-read", daemon=True)
         self._thread.start()
+        threading.Thread(target=self._stderr_loop, name="ffmpeg-stderr", daemon=True).start()
         self.get_logger().info(f"{device!r} {size} @{fps:g} {mode} → {self.topic}")
         self._last = (0, time.monotonic())
         self.fps_measured: float | None = None
         self._warned = False
+        self._had_window = False
         self.create_timer(0.5, self._watch)
         if status_every_s > 0:
             self.create_timer(status_every_s, self._status)
@@ -101,7 +107,9 @@ class UvcCameraNode(Node):
                     chunk = out.read1(1 << 16)  # what is there; never wait to fill the buffer
                     if not chunk:
                         break
-                    for jpeg in split.feed(chunk):
+                    frames = split.feed(chunk)
+                    self.malformed = split.malformed
+                    for jpeg in frames:
                         msg = CompressedImage(format="jpeg")
                         self._stamp(msg)
                         msg.data = jpeg
@@ -130,10 +138,30 @@ class UvcCameraNode(Node):
                 rc = None
             self.error = f"ffmpeg ended (exit {rc}): camera busy, unplugged, or a size/rate it does not offer"
 
+    def _stderr_loop(self) -> None:
+        """ffmpeg's messages. A "frame dropped" line means its buffer overflowed because this node
+        read the pipe too slowly (a publish that blocked on a slow subscriber): the frame never
+        reached the pipe, so the count is the only trace of it."""
+        for raw in self.proc.stderr:
+            line = raw.decode("utf-8", errors="replace").rstrip()
+            if not line:
+                continue
+            if is_drop_line(line):
+                self.dropped += 1
+                now = time.monotonic()
+                if now - self._drop_warned >= 5.0:  # ffmpeg writes one line per frame: do not flood the log
+                    self._drop_warned = now
+                    self.get_logger().warning(f"ffmpeg dropped a camera frame ({self.dropped} so far): {line}")
+            else:
+                self.get_logger().warning(f"ffmpeg: {line}")
+
     # ── status ──────────────────────────────────────────────────────────────────────────
     def _publish_status(self, extra: dict) -> None:
         body = {"reachable": not self.error, "t_ms": wall_ms(), "device": self.device, "mode": self.mode,
-                "size": self.size, "fps_requested": self.fps, "frames": self.frames, "bytes": self.bytes}
+                "size": self.size, "fps_requested": self.fps, "frames": self.frames, "bytes": self.bytes,
+                "dropped": self.dropped}
+        if self.mode == "mjpeg":
+            body["malformed"] = self.malformed
         if self.fps_measured is not None:  # CONTRACT §4: a counter not yet known is absent, never 0
             body["fps_measured"] = round(self.fps_measured, 2)
         body.update(extra)
@@ -142,12 +170,16 @@ class UvcCameraNode(Node):
     def _status(self) -> None:
         n0, t0 = self._last
         now = time.monotonic()
-        self.fps_measured = (self.frames - n0) / max(1e-9, now - t0)
+        rate = (self.frames - n0) / max(1e-9, now - t0)
         self._last = (self.frames, now)
+        first = not self._had_window  # the first window includes ffmpeg's start-up: not a rate
+        self._had_window = True
+        if not first:
+            self.fps_measured = rate
         self._publish_status({})
-        self.get_logger().info(f"{self.frames} frames ({self.fps_measured:.1f}/s, {self.bytes / 1e6:.1f} MB)")
-        note = rate_note(self.fps, self.fps_measured)
-        if note and n0 > 0 and not self._warned:  # skip the first window: it includes start-up
+        self.get_logger().info(f"{self.frames} frames ({'starting' if first else f'{rate:.1f}/s'}, {self.bytes / 1e6:.1f} MB)")
+        note = "" if first else rate_note(self.fps, rate)
+        if note and not self._warned:
             self._warned = True
             self.get_logger().warning(note)
 
@@ -188,16 +220,23 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--ffmpeg", help="ffmpeg executable (default: $RIG_FFMPEG, PATH, then C:\\msys64\\ucrt64\\bin)")
     p.add_argument("--status-every", type=float, default=5.0, help="/<src>/status + rate line interval in s; 0 = off (default: 5)")
     p.add_argument("--list", action="store_true", help="list the cameras (or, with --device, its modes) and exit")
+    p.add_argument("--sim", action="store_true",
+                   help="no camera and no ffmpeg: frames from rig_nodes.sims.uvc_sim, on any OS (tests, a graph without hardware)")
     args, ros_args = p.parse_known_args(argv)
-    ffmpeg = find_ffmpeg(args.ffmpeg)
-    if not ffmpeg:
-        raise SystemExit("no ffmpeg found: pass --ffmpeg, set RIG_FFMPEG, or put it on PATH")
-    if os.name != "nt":
-        raise SystemExit("rig-uvc-camera reads cameras through DirectShow: Windows only for now")
-    if args.list:
-        return list_devices(ffmpeg, args.device)
-    if not args.device:
-        p.error("--device is required (try --list)")
+    if args.sim:
+        ffmpeg = [sys.executable, "-m", "rig_nodes.sims.uvc_sim"]
+        args.device = args.device or "rig-uvc-sim"
+    else:
+        if os.name != "nt":
+            raise SystemExit("rig-uvc-camera reads cameras through DirectShow: Windows only for now (--sim runs anywhere)")
+        found = find_ffmpeg(args.ffmpeg)
+        if not found:
+            raise SystemExit("no ffmpeg found: pass --ffmpeg, set RIG_FFMPEG, or put it on PATH")
+        if args.list:
+            return list_devices(found, args.device)
+        if not args.device:
+            p.error("--device is required (try --list)")
+        ffmpeg = [found]
     parse_size(args.size)
     raise_timer_resolution()
     rclpy.init(args=ros_args)

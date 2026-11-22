@@ -5,6 +5,7 @@ splitter and the rate check. No ROS, no camera; tests/test_pure.py covers all of
 from __future__ import annotations
 
 import os
+import re
 import shutil
 
 SOI = b"\xff\xd8"  # JPEG start of image
@@ -62,26 +63,43 @@ def parse_size(size: str) -> tuple[int, int]:
     return w, h
 
 
+# Inside a scan a 0xFF is followed by 0x00 (a stuffed data byte) or by RST0–RST7; anything else
+# starts a marker. One C-level search finds the end of the scan.
+_SCAN_END = re.compile(rb"\xff[^\x00\xd0-\xd7\xff]")
+_NO_LENGTH = frozenset((0x01, *range(0xD0, 0xD8)))  # TEM, RST0–RST7: markers without a length
+MAX_JPEG_BYTES = 32 << 20  # a "frame" that grows past this is not a JPEG: resynchronize
+
+
 class JpegSplitter:
     """Cut a concatenated MJPEG byte stream into whole JPEGs.
 
-    `feed(chunk)` returns the JPEGs completed by that chunk, each from SOI through EOI. Bytes
-    before the first SOI are discarded (and counted in `skipped`). Inside entropy-coded data a
-    0xFF is always followed by 0x00, so EOI cannot appear there; a JPEG that embeds another one
-    in an APPn segment (an EXIF thumbnail) would be cut short — UVC cameras do not send those.
+    `feed(chunk)` returns the JPEGs completed by that chunk, each from SOI through EOI. The
+    splitter follows the JPEG structure: marker segments are skipped by their length, so the
+    bytes FF D9 inside a table, an APPn segment or a comment do not end a frame, and EOI is
+    looked for only where a marker can stand. Bytes before an SOI are discarded and counted in
+    `skipped`; a stream that stops being a JPEG (no marker where one must be, a nested SOI, a
+    frame beyond MAX_JPEG_BYTES) is counted in `malformed` and the search restarts at the next SOI.
     """
 
     def __init__(self) -> None:
         self._buf = bytearray()
-        self._scan = 0  # where the search for EOI resumes (never rescans a chunk)
+        self._pos = 0  # next byte to look at; 0 = no SOI yet (a chunk is never rescanned)
+        self._in_scan = False
         self.skipped = 0
+        self.malformed = 0
+
+    def _resync(self, drop: int) -> None:
+        self.malformed += 1
+        self.skipped += drop
+        del self._buf[:drop]
+        self._pos, self._in_scan = 0, False
 
     def feed(self, chunk: bytes) -> list[bytes]:
         buf = self._buf
         buf += chunk
         out: list[bytes] = []
         while True:
-            if self._scan == 0:
+            if self._pos == 0:
                 s = buf.find(SOI)
                 if s < 0:
                     keep = 1 if buf[-1:] == b"\xff" else 0  # an SOI may be split across chunks
@@ -91,14 +109,54 @@ class JpegSplitter:
                 if s:
                     self.skipped += s
                     del buf[:s]
-                self._scan = 2
-            e = buf.find(EOI, self._scan)
-            if e < 0:
-                self._scan = max(2, len(buf) - 1)
+                self._pos, self._in_scan = 2, False
+            if len(buf) > MAX_JPEG_BYTES:
+                self._resync(2)
+                continue
+            pos = self._pos
+            if self._in_scan:
+                m = _SCAN_END.search(buf, pos)
+                if m is None:
+                    self._pos = max(pos, len(buf) - 1)  # the last byte may be the 0xFF of a marker
+                    return out
+                self._pos, self._in_scan = m.start(), False
+                continue
+            if len(buf) < pos + 2:
                 return out
-            out.append(bytes(buf[: e + 2]))
-            del buf[: e + 2]
-            self._scan = 0
+            if buf[pos] != 0xFF:
+                self._resync(2)  # drop this SOI; the next one starts a new attempt
+                continue
+            marker = buf[pos + 1]
+            if marker == 0xFF:  # fill byte before a marker
+                self._pos = pos + 1
+            elif marker == 0xD9:
+                out.append(bytes(buf[: pos + 2]))
+                del buf[: pos + 2]
+                self._pos = 0
+            elif marker == 0xD8:  # a new image inside an unfinished one: the first was cut off
+                self._resync(pos)
+            elif marker in _NO_LENGTH:
+                self._pos = pos + 2
+            else:
+                if len(buf) < pos + 4:
+                    return out
+                length = (buf[pos + 2] << 8) | buf[pos + 3]
+                if length < 2:
+                    self._resync(2)
+                    continue
+                if len(buf) < pos + 2 + length:
+                    return out
+                self._pos = pos + 2 + length
+                self._in_scan = marker == 0xDA  # SOS: entropy-coded data follows its header
+
+
+FRAME_DROPPED = "frame dropped"  # ffmpeg's dshow input: "real-time buffer [...] too full ...! frame dropped!"
+
+
+def is_drop_line(line: str) -> bool:
+    """True for the line ffmpeg's DirectShow input writes when its real-time buffer overflowed
+    and it discarded a camera frame (the reader behind the pipe was too slow)."""
+    return FRAME_DROPPED in line
 
 
 def rate_note(requested: float, measured: float, tolerance: float = 0.05) -> str:

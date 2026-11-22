@@ -281,20 +281,37 @@ def test_runtime_and_zenoh_config(tmp: Path) -> None:
 
 
 def test_uvc() -> None:
-    from rig_nodes.uvc import JpegSplitter, ffmpeg_argv, parse_size, rate_note
+    from rig_nodes.uvc import JpegSplitter, ffmpeg_argv, is_drop_line, parse_size, rate_note
 
-    a = b"\xff\xd8" + b"\x01\x02\xff\x00\x03" + b"\xff\xd9"
-    b = b"\xff\xd8" + b"\x09" * 5000 + b"\xff\xd9"
-    stream = b"junk" + a + b + a
+    def seg(marker: int, payload: bytes) -> bytes:
+        return bytes([0xFF, marker]) + (len(payload) + 2).to_bytes(2, "big") + payload
+
+    def jpeg(scan: bytes, extra: bytes = b"") -> bytes:  # SOI, APP0, a table, [extra], SOS + scan data, EOI
+        return b"\xff\xd8" + seg(0xE0, b"JFIF\x00") + seg(0xDB, b"\x00" + bytes(64)) + extra + seg(0xDA, b"\x01\x01\x00\x00\x3f\x00") + scan + b"\xff\xd9"
+
+    a = jpeg(b"\x01\x02\xff\x00\x03\xff\xd0\x04")  # a stuffed 0xFF and a restart marker inside the scan
+    b = jpeg(b"\x09" * 5000, extra=seg(0xFE, b"comment \xff\xd9 inside") + seg(0xDB, b"\x00" + b"\xff\xd9" * 32))  # FF D9 in a comment and in a table
+    c = jpeg(b"\x05\x06\xff")  # a fill byte before EOI: the stream reads FF FF D9
+    stream = b"junk" + a + b + c + a
     for step in (1, 2, 3, 7, 4096, len(stream)):  # every chunking gives the same frames, markers split or not
         sp = JpegSplitter()
         got = [f for i in range(0, len(stream), step) for f in sp.feed(stream[i:i + step])]
-        if not check(f"uvc: splitter, {step}-byte chunks → 3 whole JPEGs", got == [a, b, a] and sp.skipped == 4, (len(got), sp.skipped)):
+        if not check(f"uvc: splitter, {step}-byte chunks → 4 whole JPEGs (FF D9 inside segments does not cut one)", got == [a, b, c, a] and sp.skipped == 4 and sp.malformed == 0, (len(got), sp.skipped, sp.malformed)):
             break
     sp = JpegSplitter()
     check("uvc: splitter holds an unfinished JPEG back", sp.feed(a[:-1]) == [] and sp.feed(a[-1:]) == [a])
     sp = JpegSplitter()
     check("uvc: splitter discards bytes with no SOI, keeps a trailing 0xFF", sp.feed(b"\x00" * 10 + b"\xff") == [] and sp.feed(a[1:]) == [a] and sp.skipped == 10, sp.skipped)
+    sp = JpegSplitter()
+    check("uvc: a JPEG cut off by the next SOI is counted malformed, the next one is whole", sp.feed(a[:40] + b + a) == [b, a] and sp.malformed == 1 and sp.skipped == 40, (sp.malformed, sp.skipped))
+    sp = JpegSplitter()
+    check("uvc: SOI followed by no marker is counted malformed, the next JPEG is whole", sp.feed(b"\xff\xd8\x01\x02\x03" + a) == [a] and sp.malformed == 1 and sp.skipped == 5, (sp.malformed, sp.skipped))
+    from rig_nodes.sims.uvc_sim import DROP_LINE, frame_number, jpeg_frame
+    sp = JpegSplitter()
+    sim = [jpeg_frame(n) for n in (1, 2, 300)]
+    check("uvc: the simulator's frames (FF D9 in a comment) split whole and carry their number",
+          sp.feed(b"".join(sim)) == sim and [frame_number(f) for f in sim] == [1, 2, 300] and frame_number(a) is None)
+    check("uvc: ffmpeg's frame-dropped line is recognized, other lines are not", is_drop_line(DROP_LINE) and not is_drop_line("[dshow] Could not set video options"))
 
     m = ffmpeg_argv("ffmpeg", "Cam A", "1280x800", 120, "mjpeg")
     check("uvc: mjpeg argv stream-copies the camera's JPEGs", m[m.index("-i") + 1] == "video=Cam A" and m[m.index("-c") + 1] == "copy" and m[-3:] == ["-f", "mjpeg", "-"] and "1280x800" in m and "120" in m, m)
