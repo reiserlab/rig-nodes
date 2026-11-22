@@ -4,17 +4,20 @@
 # Pure Python (hatchling wheel via the pixi-build-python backend); the ROS 2 dependencies are
 # conda packages, declared below, never pip.
 #
-# This manifest names NO ROS distribution (2026-11-05, docs/ros-distro-switch.md). The RoboStack
-# set comes from the environment that builds the package: `ros2-distro-mutex = "*"` and
-# `python = "*"` in host are pinned by the workspace's `[workspace.build-variants]` through the
-# environment's own pins (0.19 + 3.12 for Jazzy, 0.22 + 3.14 for Lyrical), and the mutex's
-# run_exports carry that set into the run dependencies (`ros2-distro-mutex >=0.19.0,<0.20.0a0`).
+# The RoboStack set (2026-11-18, docs/ros-distro-switch.md: Lyrical only) comes from the workspace:
+# `ros2-distro-mutex = "*"` and `python = "*"` in host are replaced by `[workspace.build-variants]`
+# (`0.22.* lyrical_30`, Python 3.14). The package is noarch and pixi-build-python carries no
+# run_exports, so its run dependencies name the mutex bare and take the set from the consumer's own
+# mutex pin through the distro-neutral `ros2-*` names; `ros2-rosbag2-py >=0.33` keeps it off a Jazzy
+# set (the recorder passes rosbag2_py's stamps by keyword, which Jazzy's binding does not name).
+# The backend is pinned to an exact nightly (backends are not in pixi.lock); bump it together with
+# pixi-build-ros in src/rig_interfaces/pixi.toml.
 [package]
 name = "rig_nodes"
-version = "0.4.0"
+version = "0.5.0"
 
 [package.build]
-backend = { name = "pixi-build-python", version = "*", channels = ["https://prefix.dev/pixi-build-backends", "https://prefix.dev/conda-forge"] }
+backend = { name = "pixi-build-python", version = "==0.8.8.20261117.1659.e14419f", channels = ["https://prefix.dev/pixi-build-backends", "https://prefix.dev/conda-forge"] }
 
 [package.host-dependencies]
 python = "*"
@@ -26,12 +29,12 @@ python = ">=3.12"
 # rclpy + std_msgs for the nodes; rosbag2_py + the MCAP storage plugin for the recorder;
 # rosidl_runtime_py for graph_dump's type lookup. Spelled with RoboStack's distro-NEUTRAL names:
 # `ros-<distro>-rclpy` is a 2 KiB shim that depends on `ros2-rclpy ==<that distro's version>` plus
-# the set's mutex, in robostack-jazzy (0.19 set) and robostack-lyrical alike (checked 2026-11-05),
-# so one manifest builds for either set and the mutex pin decides which versions resolve. Should
+# the set's mutex (checked in robostack-lyrical 2026-11-18), so the consumer's mutex pin decides
+# which versions resolve. Should
 # RoboStack rename them, this list is the only place.
 ros2-rclpy = "*"
 ros2-std-msgs = "*"
-ros2-rosbag2-py = "*"
+ros2-rosbag2-py = ">=0.33"
 ros2-rosbag2-storage-mcap = "*"
 ros2-rosidl-runtime-py = "*"
 ros2-distro-mutex = "*"

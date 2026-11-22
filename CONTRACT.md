@@ -8,11 +8,14 @@ item 1(b) of the cross-repository checklist in webDisplayTools'
 `telemetry-logging-reference.md` plays for the arena run-log rows. The message definitions
 themselves are `src/rig_interfaces/msg/*.msg`; the envelope is `rig_nodes._common.wrap_line`;
 the FicTrac line grammar is `rig_nodes.fictrac`. Where this file and the code disagree, the code
-is a bug and this file is the authority. Version: package set 0.4.0 (2026-10-28; 0.3.0 earlier the same day).
+is a bug and this file is the authority. Version: package set 0.5.0 (2026-11-18: the middleware moved to ROS 2 Lyrical, §1; no topic, field or message changed. 0.4.0 was 2026-10-28).
 
 ## 1. Middleware
 
-- ROS 2 Jazzy (RoboStack), `rmw_zenoh_cpp`. One Zenoh router per host on `tcp/127.0.0.1:7447`
+- ROS 2 Lyrical Luth (RoboStack set `ros2-distro-mutex 0.22.* lyrical_30`, Python 3.14), `rmw_zenoh_cpp` ≥ 0.10.6
+  (Jazzy, mutex 0.19 + Python 3.12, through package set 0.4.0). A Jazzy node and a Lyrical node on one router do
+  not see each other (Zenoh wire protocol and rmw_zenoh key expressions differ), so every process on a host,
+  private nodes included, runs the same set. One Zenoh router per host on `tcp/127.0.0.1:7447`
   (`rig_nodes/config/zenoh-router.json5`); sessions connect to it (`rig_nodes/config/zenoh-session.json5`); `rig_nodes.zenoh` applies them to the environment. Both
   configs are the stock rmw_zenoh files with only the endpoint lines changed to loopback, so a
   rig's graph is **not reachable from the lab network**. The graph is **single-host**: no
@@ -199,13 +202,12 @@ these, not the absence of a message.
    release that says so.
 4. **The `outcome` vocabulary is closed** (`ok | error | unknown`). A node that cannot express a
    result in it reports `error` with a message rather than inventing a fourth value.
-5. **One RoboStack set per platform.** The set is pinned by `ros2-distro-mutex` (0.19 and Python 3.12 on all three
-   platforms as of 0.2.1; macOS ≥ 14): `rig_interfaces` carries the pin of the set it was compiled against,
+5. **One RoboStack set per platform.** The set is pinned by `ros2-distro-mutex` (0.22 build `lyrical_30` and Python 3.14 on
+   all three platforms as of 0.5.0; 0.19 and Python 3.12 from 0.2.1 through 0.4.0; macOS ≥ 14): `rig_interfaces` carries the pin of the set it was compiled against,
    `rig_nodes` (noarch Python) takes the consumer's pin through its distro-neutral `ros2-*` dependencies
-   (since 2026-11-05). Moving the pin is a package-set release and every rig re-locks. The distribution itself
-   is one switch — a `[feature.<distro>]` in each workspace (`jazzy` today, `lyrical` as the CI rehearsal;
-   `docs/ros-distro-switch.md`); the packages name no distro and are built for the set of the environment that
-   builds them, so the published set is whatever the release workflow's distro feature says.
+   (since 2026-11-05). Moving the pin is a package-set release and every rig re-locks. There is one
+   distribution: the source workspace, the release workflow and the channel are Lyrical only since 0.5.0
+   (`docs/ros-distro-switch.md` is the record of the move), and a rig moves whole (§1).
 6. **One package-set version.** `rig_interfaces` and `rig_nodes` are released together under one
    tag (`vX.Y.Z`), tested together; a consumer pins that version and records it with every run
    (checklist item 7, done in the consumer).

@@ -1,0 +1,36 @@
+[workspace]
+authors = ["Frank Loesche <loeschef@janelia.hhmi.org>"]
+channels = ["robostack-jazzy", "conda-forge"]
+name = "iceoryx-bench"
+platforms = ["linux-64"]
+version = "0.1.0"
+
+[tasks]
+
+[dependencies]
+ros-jazzy-ros-base = ">=0.11.0,<0.12"
+ros-jazzy-rmw-zenoh-cpp = ">=0.2.11,<0.3"
+ros-jazzy-rosbag2-storage-mcap = ">=0.26.11,<0.27"
+ros-jazzy-iceoryx-posh = ">=2.95.8,<3"
+ros-jazzy-iceoryx-hoofs = ">=2.95.8,<3"
+ros-jazzy-iceoryx-binding-c = ">=2.95.8,<3"
+ros-jazzy-ament-cmake = ">=2.5.6,<3"
+ros-jazzy-rosidl-default-generators = ">=1.6.1,<2"
+ros-jazzy-sensor-msgs = ">=5.3.8,<6"
+colcon-common-extensions = ">=0.3.0,<0.4"
+cxx-compiler = ">=2.0.0,<3"
+c-compiler = ">=2.0.0,<3"
+cmake = ">=4.5.0,<5"
+ninja = ">=1.13.2,<2"
+make = ">=4.4.1,<5"
+iceoryx = ">=2.95.8,<3"
+
+[feature.ezmsg.dependencies]
+python = "3.12.*"
+numpy = "*"
+
+[feature.ezmsg.pypi-dependencies]
+ezmsg = "==3.9.0"
+
+[environments]
+ezmsg = { features = ["ezmsg"], no-default-feature = true }

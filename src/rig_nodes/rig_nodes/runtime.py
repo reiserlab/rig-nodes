@@ -60,7 +60,7 @@ def _conda_meta(name: str, prefix: str | os.PathLike | None = None) -> dict | No
 def runtime_info(prefix: str | os.PathLike | None = None) -> dict[str, str]:
     """The flat string dict described in the module docstring. Keys (each present only when known):
     ros_distro, ros_version, rmw_implementation, rmw (the rmw package's version), rclpy, rosbag2_py,
-    rosbag2_storage_mcap, ros2_distro_mutex (`<version> <build>`, e.g. `0.19.0 jazzy_26`),
+    rosbag2_storage_mcap, ros2_distro_mutex (`<version> <build>`, e.g. `0.22.0 lyrical_30`),
     robostack_channel, python, platform, rig_nodes, rig_interfaces."""
     out: dict[str, str] = {}
     for key, env in (("ros_distro", "ROS_DISTRO"), ("ros_version", "ROS_VERSION"), ("rmw_implementation", "RMW_IMPLEMENTATION")):

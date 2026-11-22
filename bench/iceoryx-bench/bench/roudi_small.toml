@@ -1,0 +1,17 @@
+# RouDi memory pools sized to fit this container's 63 MB /dev/shm.
+[general]
+version = 1
+
+[[segment]]
+
+[[segment.mempool]]
+size = 4096
+count = 256
+
+[[segment.mempool]]
+size = 131072
+count = 16
+
+[[segment.mempool]]
+size = 2200000
+count = 12

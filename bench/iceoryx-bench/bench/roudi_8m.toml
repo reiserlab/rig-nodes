@@ -1,0 +1,13 @@
+# RouDi memory pools for the 8 MB cases; four large chunks is all a 63 MB /dev/shm allows.
+[general]
+version = 1
+
+[[segment]]
+
+[[segment.mempool]]
+size = 4096
+count = 256
+
+[[segment.mempool]]
+size = 8500000
+count = 4

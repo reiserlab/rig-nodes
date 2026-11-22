@@ -3,7 +3,7 @@
 * `wrap_line`  — THE adapter envelope (CONTRACT.md "Envelope"). One definition, so a field
                  added for one source cannot silently differ for another.
 * `RELIABLE_QOS` — reliable / keep-last 200: a run record must hold every frame.
-* `spin`       — rclpy.spin + the Jazzy shutdown boilerplate (Ctrl-C raises
+* `spin`       — rclpy.spin + the shutdown boilerplate (Ctrl-C raises
                  ExternalShutdownException from spin, and rclpy's own handler may already
                  have shut the context down, so try_shutdown can raise too).
 * `wall_ns` / `wall_ms` / `mono_ns` / `raise_timer_resolution` — sub-ms clocks on Windows too.
@@ -32,7 +32,9 @@ from rig_nodes.zenoh import apply_env_defaults
 apply_env_defaults()
 
 # ── clocks ───────────────────────────────────────────────────────────────────────────────
-# Python 3.12 on Windows (RoboStack Jazzy pins it): time.time() is GetSystemTimeAsFileTime,
+# Written for Python 3.12 on Windows (the RoboStack Jazzy set, until package set 0.4.0); kept on
+# Lyrical's Python 3.14, where the stdlib clocks are already precise, because removing it has not
+# been measured on a rig. On 3.12: time.time() is GetSystemTimeAsFileTime,
 # which advances once per timer interrupt — 15.625 ms unless some process has raised the rate —
 # and time.monotonic() is GetTickCount64, 15.625 ms always. Measured on ww18 2026-10-15: idle
 # PC, run-log `ms` stamps would come in 15.6 ms steps, 2.3 ms behind the true time.
