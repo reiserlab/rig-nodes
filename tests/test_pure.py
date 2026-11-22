@@ -289,6 +289,28 @@ def test_backlight() -> None:
         except exc_type:
             pass
     check("backlight plan: unknown command, missing power and an unquoted pattern are refused", not refused, refused)
+    bad = []
+    for params, exc in (({"power": 5, "panel_num": 2, "pattern": "1010\rRESET"}, ValueError),  # a second command inside a pattern
+                        ({"power": 5, "panel_num": 2, "pattern": "10a0"}, ValueError),
+                        ({"power": 5, "panel_num": 2, "pattern": ""}, ValueError),
+                        ({"power": 5, "pattern": "1010\rRESET"}, ValueError),  # refused even where it would be dropped
+                        ({"power": 5, "panel_num": "2\rRESET"}, TypeError),
+                        ({"power": 5, "panel_num": True}, TypeError),
+                        ({"power": 5, "panel_num": float("nan")}, TypeError)):
+        try:
+            plan("setRedLEDPower", params)
+            bad.append(params)
+        except exc:
+            pass
+    check("backlight plan: a pattern that is not 0s and 1s and a non-numeric panel_num are refused", not bad, bad)
+    check("backlight plan: a fractional panel_num is still a number (MATLAB num2str form)", plan("setBlueLEDPower", {"power": 5, "panel_num": 2.0}) == (["BLU 5 2"], []))
+    from rig_nodes.backlight import LEDController
+    with LEDController("loop://") as dev:
+        try:
+            dev.marker_led_on("red\rRESET")
+            check("backlight driver: a control character in a text argument is refused before the write", False)
+        except ValueError:
+            check("backlight driver: a control character in a text argument is refused before the write", dev._serial.in_waiting == 0)
 
 
 def test_supervise() -> None:

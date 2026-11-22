@@ -391,6 +391,24 @@ def judge_backlight(L: Listener, start) -> None:
     rc, rep = cmd("setIRLEDPower", "--power", "0")
     check("backlight: device back → the node reopens the port by itself; power 0 is sent, not dropped",
           got and rc == 0 and [x.get("command") for x in rep.get("steps", [])] == ["IR 0"], rep)
+    # straight onto the topic, past the command tool: JSON that is not a command, and a pattern that hides a second command
+    from std_msgs.msg import String
+
+    from rig_nodes._common import RELIABLE_QOS
+
+    pub = L.node.create_publisher(String, "/backlight/cmd", RELIABLE_QOS)
+    time.sleep(1.0 * SCALE)  # discovery
+    n_before = L.count("/backlight/reply")
+    pub.publish(String(data="[1, 2]"))
+    pub.publish(String(data=json.dumps({"id": "inject", "command": "setRedLEDPower", "params": {"power": 5, "panel_num": 2, "pattern": "1010\rRESET"}})))
+    sent[0] += 2
+    wait_for(lambda: L.count("/backlight/reply") - n_before >= 2, 5.0)
+    direct = L.take("/backlight/reply")[n_before:]
+    check("backlight: JSON that is not an object → one error reply (id null), not silence",
+          any(r.get("id") is None and r.get("outcome") == "error" and "JSON object" in r.get("error", "") for r in direct), direct)
+    check("backlight: a pattern carrying a second command is refused and nothing is written",
+          any(r.get("id") == "inject" and r.get("outcome") == "error" and r.get("steps") == [] for r in direct), direct)
+    L.node.destroy_publisher(pub)
     got = wait_for(lambda: L.count("/backlight/reply") - replies_before >= sent[0], 3.0)
     replies = L.take("/backlight/reply")[replies_before:]
     check(f"backlight: exactly one reply per command on /backlight/reply ({sent[0]} sent)", got and len(replies) == sent[0], len(replies))

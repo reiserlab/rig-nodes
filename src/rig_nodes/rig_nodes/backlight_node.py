@@ -95,7 +95,8 @@ class BacklightNode(Node):
         except json.JSONDecodeError:
             self._publish(self.reply_pub, {"id": None, "ok": False, "outcome": "error", "error": "command is not JSON"})
             return
-        if not isinstance(req, dict):
+        if not isinstance(req, dict):  # JSON, but not a command: still one reply (CONTRACT §4)
+            self._publish(self.reply_pub, {"id": None, "ok": False, "outcome": "error", "error": "command must be a JSON object"})
             return
         self._q.put(("cmd", req))
 

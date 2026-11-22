@@ -156,6 +156,23 @@ def color_line(prefix: str, power, panel_num=None, pattern=None) -> str:
 # ── the plugin vocabulary ───────────────────────────────────────────────────────────────────
 
 
+def panel_param(value):
+    """A plugin `panel_num`: a finite number (the controller reads it by position). A string is
+    refused: MATLAB's num2str would pass it through, and its text would reach the controller."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+        raise TypeError(f"panel_num must be a number, got {type(value).__name__} {value!r}")
+    return value
+
+
+def pattern_param(value) -> str:
+    """A plugin `pattern`: a string of 0 and 1 ("1010", LEDControllerPlugin.m's only form). Anything
+    else is refused before it is written: a carriage return in it would start a second command."""
+    text = _require_str(value, "pattern")
+    if not text or set(text) - {"0", "1"}:
+        raise ValueError(f"pattern must be a string of 0 and 1 (like \"1010\"), got {value!r}")
+    return text
+
+
 def timeout_param(params: Mapping) -> float | None:
     """The command's `timeout_s` in seconds, None when absent. Raises ValueError unless it is a
     positive, finite number."""
@@ -170,8 +187,8 @@ def timeout_param(params: Mapping) -> float | None:
 def plan(command: str, params: Mapping | None = None) -> tuple[list[str], list[str]]:
     """Plugin command → (controller lines, warnings), as LEDControllerPlugin.m maps it.
 
-    Raises ValueError for an unknown command, a missing `power` or an invalid `timeout_s`,
-    TypeError for a non-string pattern. Kept from the MATLAB plugin: a pattern without panel_num
+    Raises ValueError for an unknown command, a missing `power`, an invalid `timeout_s` or a
+    pattern that is not 0s and 1s, TypeError for a non-string pattern or a non-numeric panel_num. Kept from the MATLAB plugin: a pattern without panel_num
     is dropped (warning), and parameters a command does not take are ignored (warning).
     EXECUTOR_PARAMS (`timeout_s`) are accepted on every command and produce no line."""
     params = params or {}
@@ -186,6 +203,10 @@ def plan(command: str, params: Mapping | None = None) -> tuple[list[str], list[s
         return [ir_line(params["power"])], warnings
     if command in COLOR_PREFIX:
         panel_num, pattern = params.get("panel_num"), params.get("pattern")
+        if panel_num is not None:
+            panel_param(panel_num)
+        if pattern is not None:
+            pattern_param(pattern)
         if pattern is not None and panel_num is None:
             warnings.append("pattern ignored because panel_num was not given")
             pattern = None
@@ -255,7 +276,10 @@ class LEDController:
     # ── wire ──
 
     def send_line(self, line: str) -> None:
-        """Write one command line plus CR."""
+        """Write one command line plus CR. The line must be printable ASCII: a control character
+        (a CR or LF inside a text argument) would end it early and start another command."""
+        if not line.isascii() or not line.isprintable():
+            raise ValueError(f"controller line must be printable ASCII, got {line!r}")
         with self._lock:
             log.debug("-> %r", line)
             self._serial.write(line.encode("ascii") + TERMINATOR)
