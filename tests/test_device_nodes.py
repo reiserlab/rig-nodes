@@ -22,6 +22,9 @@ Checks (one Zenoh graph, ≈ 40 s):
   BIAS      bias_sim → bias_node ← bias_cmd: connect / startRecording (artifact) / getTimestamp /
             stopRecording all `ok`; status carries reachable + the device snapshot; sim killed →
             reply outcome `error`, status reachable false
+  UVC       uvc_sim (in ffmpeg's place) → uvc_camera_node: every JPEG whole and in order on
+            /<src>/image/compressed, mono8 frames on /<src>/image_raw; status carries the measured
+            rate and ffmpeg's dropped-frame count; the camera gone → status reachable false, exit 1
   Recorder  in-process Recorder: raw CDR + JSON records into a crashsafe bag, closed → indexed;
             counts match; records written while closed are counted as dropped
 Exit 0 when all checks pass. Process logs are kept with --keep.
@@ -141,8 +144,16 @@ class Listener:
         self.msgs: dict[str, list] = {}
         self.lock = threading.Lock()
         self.typed = typed
-        for topic in ("/fictrac/raw", "/kinefly/raw", "/bias/reply", "/bias/status"):
+        for topic in ("/fictrac/raw", "/kinefly/raw", "/bias/reply", "/bias/status", "/uvcsim/status", "/uvcgray/status"):
             self.node.create_subscription(String, topic, self._cb(topic, lambda m: json.loads(m.data)), RELIABLE_QOS)
+        from sensor_msgs.msg import CompressedImage, Image
+        self.node.create_subscription(CompressedImage, "/uvcsim/image/compressed",
+                                      self._cb("/uvcsim/image/compressed", lambda m: {"format": m.format, "frame_id": m.header.frame_id,
+                                                                                      "stamp_ns": m.header.stamp.sec * 1_000_000_000 + m.header.stamp.nanosec,
+                                                                                      "data": bytes(m.data)}), RELIABLE_QOS)
+        self.node.create_subscription(Image, "/uvcgray/image_raw",
+                                      self._cb("/uvcgray/image_raw", lambda m: {"encoding": m.encoding, "width": m.width, "height": m.height, "step": m.step,
+                                                                                "frame_id": m.header.frame_id, "data": bytes(m.data)}), RELIABLE_QOS)
         if typed is not None:
             _ArenaFrame, FicTracFrame = typed
             self.node.create_subscription(FicTracFrame, "/fictrac/frame",
@@ -322,6 +333,50 @@ def judge_bias(L: Listener, start, work: Path) -> None:
     node.stop()
 
 
+def judge_uvc(L: Listener, start) -> None:
+    from rig_nodes.sims.uvc_sim import frame_number
+
+    def node(name: str, src: str, extra: list[str], **env: str) -> Proc:
+        os.environ.update(env)  # the simulator reads its quirks from the environment it inherits
+        try:
+            return start(name, [PY, "-m", "rig_nodes.uvc_camera_node", "--sim", "--src", src, "--status-every", "1", *extra])
+        finally:
+            for k in env:
+                os.environ.pop(k, None)
+
+    # asked for 60 fps, the "camera" delivers 100, ffmpeg reports two dropped frames, gone after 600 frames
+    cam = node("uvc-mjpeg", "uvcsim", ["--fps", "60"], RIG_UVC_SIM_RATE="100", RIG_UVC_SIM_DROP_AT="300,301", RIG_UVC_SIM_FRAMES="600")
+    wait_for(lambda: not cam.alive(), 20.0)
+    time.sleep(0.5 * SCALE)
+    frames = L.take("/uvcsim/image/compressed")
+    nums = [frame_number(f["data"]) for f in frames]
+    check("uvc: ≥ 300 JPEGs on /uvcsim/image/compressed, format jpeg, frame_id = src", len(frames) >= 300 and all(f["format"] == "jpeg" and f["frame_id"] == "uvcsim" for f in frames), (len(frames), cam.text()[-300:]))
+    check("uvc: every JPEG is whole (SOI…EOI) with FF D9 inside its comment", all(f["data"][:2] == b"\xff\xd8" and f["data"][-2:] == b"\xff\xd9" and f["data"].count(b"\xff\xd9") == 2 for f in frames))
+    check("uvc: frame numbers consecutive, none lost or cut between the pipe and the topic", bool(nums) and None not in nums and nums == list(range(nums[0], nums[0] + len(nums))), nums[:5])
+    now_ns = time.time_ns()
+    stamps = [f["stamp_ns"] for f in frames]
+    check("uvc: header.stamp is the host wall clock at arrival, non-decreasing", bool(stamps) and stamps == sorted(stamps) and abs(now_ns - stamps[-1]) < 60e9, stamps[-1:])
+    st = L.take("/uvcsim/status")
+    live = [s for s in st if s.get("reachable")]
+    check("uvc: status carries device, mode, size, fps_requested, frames, bytes, dropped, malformed (contract §4)",
+          bool(live) and all(k in live[-1] for k in ("t_ms", "device", "mode", "size", "fps_requested", "frames", "bytes", "dropped", "malformed")), live[-1:] or st[-1:])
+    check("uvc: the first status has no fps_measured (absent, never 0); later ones do", bool(live) and "fps_measured" not in live[0] and all("fps_measured" in s for s in live[1:]) and len(live) >= 2, [sorted(s) for s in live[:2]])
+    rates = [s["fps_measured"] for s in live[2:] if "fps_measured" in s]
+    check("uvc: fps_measured is the delivered rate (≈ 100), not the requested 60", bool(rates) and all(80 <= r <= 120 for r in rates), [s.get("fps_measured") for s in live])
+    check("uvc: the node warns that the camera delivers another rate than asked", "asked for 60 fps" in cam.text(), cam.text()[-300:])
+    check("uvc: ffmpeg's dropped frames are counted in status (2) with no malformed JPEG", bool(st) and st[-1].get("dropped") == 2 and st[-1].get("malformed") == 0, st[-1:])
+    check("uvc: camera gone → last status reachable false with an error, node exits 1", bool(st) and st[-1].get("reachable") is False and st[-1].get("error") and cam.p.returncode == 1, (st[-1:], cam.p.returncode))
+
+    gray = node("uvc-gray", "uvcgray", ["--mode", "gray", "--size", "32x24", "--fps", "50"])
+    got = wait_for(lambda: L.count("/uvcgray/image_raw") >= 60, 15.0)
+    raw = L.take("/uvcgray/image_raw")
+    check("uvc: gray mode → ≥ 60 mono8 frames of width*height bytes on /uvcgray/image_raw", got and all(f["encoding"] == "mono8" and (f["width"], f["height"], f["step"]) == (32, 24, 32) and len(f["data"]) == 768 for f in raw), (len(raw), gray.text()[-300:]))
+    vals = [f["data"][0] for f in raw]
+    check("uvc: gray frames are whole and in order (one value per frame, counting up)", bool(vals) and all(len(set(f["data"])) == 1 for f in raw) and all((b - a) % 256 == 1 for a, b in zip(vals, vals[1:])), vals[:6])
+    gray.stop()
+    check("uvc: the node stops cleanly on SIGINT", wait_for(lambda: not gray.alive(), 8.0))
+
+
 def judge_recorder(work: Path, typed) -> None:
     from std_msgs.msg import String
     from rclpy.serialization import serialize_message
@@ -403,6 +458,7 @@ def main(argv: list[str] | None = None) -> int:
         for name, fn in (("fictrac", lambda: judge_fictrac(listener, start, work, logdir, typed)),
                          ("kinefly", lambda: judge_kinefly(listener, start, logdir)),
                          ("bias", lambda: judge_bias(listener, start, work)),
+                         ("uvc", lambda: judge_uvc(listener, start)),
                          ("recorder", lambda: judge_recorder(work, typed))):
             try:
                 fn()
