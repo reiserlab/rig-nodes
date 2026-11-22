@@ -94,6 +94,7 @@ ros-lyrical-ros-environment = "*"
 mcap = ">=1.2"
 websockets = ">=12"
 psutil = "*"
+pyserial = "*"  # the backlight controller's serial driver (rig_nodes.backlight)
 # ── the two packages, built from source here ────────────────────────────────────────────────
 # Both are built for the RoboStack set above (`[workspace.build-variants]` + rig_interfaces' own pin).
 rig_nodes = { path = "src/rig_nodes" }
@@ -132,6 +133,8 @@ fictrac-adapter = "rig-fictrac-adapter"
 kinefly-adapter = "rig-kinefly-adapter"
 bias-node = "rig-bias-node"
 bias-cmd = "rig-bias-cmd"
+backlight-node = "rig-backlight-node"
+backlight-cmd = "rig-backlight-cmd"
 # a USB (UVC) camera through ffmpeg: `-- --list`, `-- --device "<name>" --src <src> --size WxH --fps N`, `-- --sim` without a camera (docs/uvc-cameras.md)
 uvc-camera = "rig-uvc-camera"
 # the host monitor: PC pressure on /rig/host at 1 Hz (typed HostStats when rig_interfaces has it, else String JSON)
@@ -140,6 +143,7 @@ host-monitor = "rig-host-monitor"
 fictrac-sim = "rig-fictrac-sim"
 kinefly-sim = "rig-kinefly-sim"
 bias-sim = "rig-bias-sim"
+backlight-sim = "rig-backlight-sim"
 # ── recording + graph tools ────────────────────────────────────────────────────────────────
 reindex = "rig-reindex"
 fox-json = "rig-fox-json"
