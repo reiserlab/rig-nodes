@@ -26,6 +26,7 @@ rig-bias-node = "rig_nodes.bias_node:main"
 rig-bias-cmd = "rig_nodes.bias_cmd:main"
 rig-backlight-node = "rig_nodes.backlight_node:main"
 rig-backlight-cmd = "rig_nodes.backlight_cmd:main"
+rig-uvc-camera = "rig_nodes.uvc_camera_node:main"
 # host pressure (/rig/host; 0.3.0)
 rig-host-monitor = "rig_nodes.host_monitor:main"
 # simulators

@@ -30,6 +30,7 @@ src/rig_nodes/            Python package (pixi-build-python, hatchling); console
   rig_nodes/bias_node.py, bias_cmd.py, bias_health.py               BIAS camera: /bias/cmd|reply|status|frames
   rig_nodes/backlight.py      the LED backlight controller's serial driver + plugin vocabulary (pure, port of LEDController.m)
   rig_nodes/backlight_node.py, backlight_cmd.py                     LED backlight: /backlight/cmd|reply|status
+  rig_nodes/uvc_camera_node.py, uvc.py, sims/uvc_sim.py              USB (UVC) camera through ffmpeg (`--sim`: no camera, any OS): /<src>/image/compressed (camera JPEGs untouched) or /<src>/image_raw (mono8), /<src>/status with the measured rate; Windows (docs/uvc-cameras.md)
   rig_nodes/host_monitor.py, host_sampler.py                        the PC's pressure (CPU per core mean+peak, memory, disks, network, NVIDIA GPUs, top processes) on /rig/host at 1 Hz (0.3.0)
   rig_nodes/recorder.py        one MCAP bag per run (rosbag2_py), a writer library — the lifecycle belongs to the application
   rig_nodes/mcap_index.py      reindex a finished bag; recover a torn one
